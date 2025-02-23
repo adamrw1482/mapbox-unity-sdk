@@ -77,7 +77,7 @@ namespace Mapbox.BaseModule.Unity
                 return null;
 
             TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
-            _unityMapTile.Material.SetTexture(_shaderElevationTextureFieldNameID, Texture2D.grayTexture);
+            _unityMapTile.Material.SetTexture(_shaderElevationTextureFieldNameID, null);
             var rd = TerrainData;
             TerrainData = null;
             return rd;

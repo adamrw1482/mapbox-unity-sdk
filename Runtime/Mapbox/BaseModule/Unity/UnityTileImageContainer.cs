@@ -48,7 +48,7 @@ namespace Mapbox.BaseModule.Unity
             if (ImageData == null)
                 return null;
 
-            _unityMapTile.Material.SetTexture(_mainTexFieldNameID, Texture2D.blackTexture);
+            _unityMapTile.Material.SetTexture(_mainTexFieldNameID, null);
             var rd = ImageData;
             ImageData = null;
             return rd;
