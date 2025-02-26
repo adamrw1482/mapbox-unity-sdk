@@ -400,7 +400,7 @@ namespace Mapbox.BaseModule.Utilities
 
 		public static float LatitudeElevationCompensation(float latitude)
 		{
-			return Mathf.Cos(Mathf.Deg2Rad * (float) latitude);
+			return 1f/Mathf.Cos(Mathf.Deg2Rad * (float) latitude);
 		}
 	}
 }

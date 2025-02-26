@@ -33,6 +33,11 @@
             "displayName": "GeocodingApiDemo",
             "description": "Geocoding Api Demo",
             "path": "Runtime/Mapbox/GeocodingApi/Samples~/GeocodingApiDemo"
+        },
+        {
+            "displayName": "CustomWordlObjectDemo",
+            "description": "Custom World Object Demo",
+            "path": "Runtime/Mapbox/VectorModule/Samples~/WorldObjectDemo"
         }
     ]
 }
