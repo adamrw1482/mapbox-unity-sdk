@@ -34,13 +34,18 @@ namespace Mapbox.BaseModule.Data.Platform.TileJSON
 				url
 				, (Response response) =>
 				{
-					string json = Encoding.UTF8.GetString(response.Data);
-					TileJSONResponse tileJSONResponse = JsonConvert.DeserializeObject<TileJSONResponse>(json);
-					if (tileJSONResponse != null)
+					if (response != null && response.Data != null && response.Data.Length > 0)
 					{
-						tileJSONResponse.Source = tilesetName;
+						string json = Encoding.UTF8.GetString(response.Data);
+						TileJSONResponse tileJSONResponse = JsonConvert.DeserializeObject<TileJSONResponse>(json);
+						if (tileJSONResponse != null)
+						{
+							tileJSONResponse.Source = tilesetName;
+						}
+						callback(tileJSONResponse);
 					}
-					callback(tileJSONResponse);
+
+					callback(null);
 				}
 				, _timeout
 			);
