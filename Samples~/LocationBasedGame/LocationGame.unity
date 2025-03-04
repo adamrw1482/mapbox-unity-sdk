@@ -2793,7 +2793,7 @@ MonoBehaviour:
   MapBehaviour: {fileID: 1316629399}
   Target: {fileID: 220147485}
   CharacterAnimator: {fileID: 95022964805116576}
-  Speed: 1
+  Speed: 0.1
   SnapToTerrain: 0
 --- !u!119 &119216057008654646
 Projector:
