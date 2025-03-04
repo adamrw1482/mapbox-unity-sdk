@@ -46,7 +46,7 @@ namespace Mapbox.MapDebug.Sequence
             _recordedViewChanges = parser.ParseSequence((JObject) mapInfo);
 
             var firstView = _recordedViewChanges.FirstOrDefault(x => x is SetCameraSequenceCommand) as SetCameraSequenceCommand;
-            Map.mapInformation.SetInformation(firstView.center, firstView.zoom, firstView.pitch, firstView.bearing, firstView.scale);
+            Map.MapInformation.SetInformation(firstView.center, firstView.zoom, firstView.pitch, firstView.bearing, firstView.scale);
             Map.LoadMapView(() => Debug.Log("file loaded"));
         }
 
@@ -130,16 +130,16 @@ namespace Mapbox.MapDebug.Sequence
                 var wait = new WaitSequenceCommand() {duration = 0};
                 var set = new SetCameraSequenceCommand()
                 {
-                    center = Conversions.WebMercatorToLatLon((GetCenterPosition() * Map.mapInformation.Scale).ToVector2d() + Map.mapInformation.CenterMercator),
-                    bearing = Map.mapInformation.Bearing,
-                    pitch = 90 - Map.mapInformation.Pitch,
-                    zoom = Map.mapInformation.Zoom,
-                    scale = map.mapInformation.Scale
+                    center = Conversions.WebMercatorToLatLon((GetCenterPosition() * Map.MapInformation.Scale).ToVector2d() + Map.MapInformation.CenterMercator),
+                    bearing = Map.MapInformation.Bearing,
+                    pitch = 90 - Map.MapInformation.Pitch,
+                    zoom = Map.MapInformation.Zoom,
+                    scale = map.MapInformation.Scale
                 };
                 _recordedViewChanges.Add(wait);
                 _recordedViewChanges.Add(set);
             
-                Map.mapInformation.ViewChanged += RecordViewChanges;
+                Map.MapInformation.ViewChanged += RecordViewChanges;
             }
         }
 
@@ -166,7 +166,7 @@ namespace Mapbox.MapDebug.Sequence
             
                 //File.WriteAllText(FilePath, main.ToString());
             
-                Map.mapInformation.ViewChanged -= RecordViewChanges;
+                Map.MapInformation.ViewChanged -= RecordViewChanges;
                 //_isRecording = false;
                 return main;
             }
@@ -190,7 +190,7 @@ namespace Mapbox.MapDebug.Sequence
             var wait = new WaitSequenceCommand() {duration = deltaTime};
         
             var command = new SetCameraSequenceCommand();
-            command.center = Conversions.WebMercatorToLatLon((GetCenterPosition() * Map.mapInformation.Scale).ToVector2d() + Map.mapInformation.CenterMercator);
+            command.center = Conversions.WebMercatorToLatLon((GetCenterPosition() * Map.MapInformation.Scale).ToVector2d() + Map.MapInformation.CenterMercator);
             command.pitch = 90 - info.Pitch;
             command.bearing = info.Bearing;
             command.zoom = info.Zoom;

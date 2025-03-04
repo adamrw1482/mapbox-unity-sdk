@@ -8,7 +8,7 @@ using Mapbox.BaseModule.Utilities;
 using Mapbox.Example.Scripts.ModuleBehaviours;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
 using Mapbox.ImageModule.Terrain.TerrainStrategies;
-#if UNITY_RECORDER
+#if UNITY_RECORDER && UNITY_EDITOR
 using Mapbox.MapDebug.Sequence;
 #endif
 using Mapbox.UnityMapService;
@@ -33,7 +33,7 @@ namespace Mapbox.MapDebug.Scripts.Logging
         [SerializeField] protected TileProviderBehaviour TileProvider;
         public Action<MapService> MapServiceReady = (v) => { };
         
-#if UNITY_RECORDER
+#if UNITY_RECORDER && UNITY_EDITOR
         private SequenceControllerBehaviour _infoSequence;
 #endif
         public virtual void Start()
@@ -46,7 +46,7 @@ namespace Mapbox.MapDebug.Scripts.Logging
         public override void Initialize()
         {
             _mapLogger = FindObjectOfType<MapLogger>();
-#if UNITY_RECORDER
+#if UNITY_RECORDER && UNITY_EDITOR
             _mapLogger.AddLogger(_infoSequence);
             _infoSequence = FindObjectOfType<SequenceControllerBehaviour>() ?? gameObject.AddComponent<SequenceControllerBehaviour>();
 #endif
@@ -85,7 +85,7 @@ namespace Mapbox.MapDebug.Scripts.Logging
             if (!_waitForFirstLoadEvent)
             {
                 //_readyForUpdates = true;
-#if UNITY_RECORDER
+#if UNITY_RECORDER && UNITY_EDITOR
                 _infoSequence.Record(MapboxMap, Camera.main);
 #endif
             }
