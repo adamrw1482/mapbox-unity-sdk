@@ -43,8 +43,9 @@ namespace Mapbox.VectorModule
             _stackList = new Dictionary<int, ModifierStack>();
             _results = new Dictionary<CanonicalTileId, List<VectorEntity>>();
             _layerRootObject = new GameObject(_vectorLayerName + " layer objects").transform;
-            _layerRootObject.transform.position += _settings.Offset;
             _layerRootObject.SetParent(_unityContext.RuntimeGenerationRoot);
+            _layerRootObject.transform.localPosition = Vector3.zero;
+            _layerRootObject.transform.position += _settings.Offset;
         }
 
         public void UpdateForView(CanonicalTileId canonicalTileId, IMapInformation information)
