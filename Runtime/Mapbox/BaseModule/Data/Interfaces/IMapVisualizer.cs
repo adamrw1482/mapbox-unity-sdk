@@ -15,5 +15,9 @@ namespace Mapbox.BaseModule.Data.Interfaces
         void OnDestroy();
         Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles { get; }
         bool TryGetLayerModule<T>(Type type, out T layerModule) where T : ILayerModule;
+
+        event Action<UnityMapTile> TileLoaded;
+        event Action<UnwrappedTileId> TileLoading;
+        event Action<UnityMapTile> TileUnloading;
     }
 }

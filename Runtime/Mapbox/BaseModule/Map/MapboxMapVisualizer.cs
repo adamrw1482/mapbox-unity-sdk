@@ -73,18 +73,15 @@ namespace Mapbox.BaseModule.Map
                 {
                     if (unityMapTile.IsTemporary)
                     {
-                        var tileFinished = true;
-                        foreach (var module in LayerModules)
-                        {
-                            var moduleFinished = module.LoadInstant(unityMapTile);
-                            tileFinished &= moduleFinished;
-                            if (!moduleFinished) break;
-                        }
-                        if (tileFinished) unityMapTile.IsTemporary = false;
+                        FinalizeTempTile(unityMapTile);
                     }
                     
                     ShowTile(unityMapTile);
                     continue;
+                }
+                else
+                {
+                    //TileLoading(tileId);
                 }
 
                 if (_tileCreatedThisFrame < _tilePerFrameLimit)
@@ -111,6 +108,7 @@ namespace Mapbox.BaseModule.Map
             {
                 if (ActiveTiles.ContainsKey(tileId))
                 {
+                    TileUnloading(ActiveTiles[tileId]);
                     PoolTile(ActiveTiles[tileId]);
                 }
                 else
@@ -124,6 +122,8 @@ namespace Mapbox.BaseModule.Map
                 visualization.RetainTiles(_retainedTiles, ActiveTiles);
             }
         }
+
+        
 
         public void OnDestroy()
         {
@@ -226,6 +226,23 @@ namespace Mapbox.BaseModule.Map
             ActiveTiles.Add(tileId, tile);
         }
         
+        protected void FinalizeTempTile(UnityMapTile unityMapTile)
+        {
+            var tileFinished = true;
+            foreach (var module in LayerModules)
+            {
+                var moduleFinished = module.LoadInstant(unityMapTile);
+                tileFinished &= moduleFinished;
+                if (!moduleFinished) break;
+            }
+
+            if (tileFinished)
+            {
+                unityMapTile.IsTemporary = false;
+                TileLoaded(unityMapTile);
+            }
+        }
+        
         protected bool CreateTileInstant(UnwrappedTileId tileId, out UnityMapTile tile)
         {
             var rectd = Conversions.TileBoundsInUnitySpace(tileId, _mapInformation.CenterMercator, _mapInformation.Scale);
@@ -250,6 +267,7 @@ namespace Mapbox.BaseModule.Map
             
             tile.IsTemporary = false;
             ActiveTiles.Add(tileId, tile);
+            TileLoaded(tile);
 
             return true;
         }
@@ -266,5 +284,10 @@ namespace Mapbox.BaseModule.Map
                 module.UpdatePositioning(mapInformation);
             }
         }
+        
+        public event Action<UnityMapTile> TileLoaded = (tile) => { };
+        public event Action<UnwrappedTileId> TileLoading = (tile) => { };
+        public event Action<UnityMapTile> TileUnloading = (tile) => { };
+        
     }
 }

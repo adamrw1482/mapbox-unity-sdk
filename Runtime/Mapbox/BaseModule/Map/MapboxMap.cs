@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using Mapbox.BaseModule.Data.Interfaces;
+using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
@@ -34,10 +35,14 @@ namespace Mapbox.BaseModule.Map
                 yield break;
 
             Status = InitializationStatus.Initializing;
+            
             yield return MapVisualizer.Initialize();
+            MapVisualizer.TileLoaded += (t) => { TileLoaded(t); };
+            MapVisualizer.TileUnloading += (t) => { TileUnloading(t); };
+            //MapVisualizer.TileLoading += TileLoading;
+            
             Status = InitializationStatus.Initialized;
             Initialized();
-            
         }
 
         public void MapUpdated()
@@ -81,6 +86,10 @@ namespace Mapbox.BaseModule.Map
         }
 
         public void UpdateTileCover() => MapService.TileCover(MapInformation, TileCover);
+        
+        public Action<UnityMapTile> TileLoaded = (tile) => { };
+        //public Action<UnwrappedTileId> TileLoading = (tile) => { };
+        public Action<UnityMapTile> TileUnloading = (tile) => { };
     }
 }
 
