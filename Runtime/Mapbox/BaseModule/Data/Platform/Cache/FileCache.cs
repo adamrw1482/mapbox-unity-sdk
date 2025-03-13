@@ -17,7 +17,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 		void Add(MapboxTileData textureCacheItem, bool forceInsert, Action<string> post);
 		//bool GetAsync(CanonicalTileId tileId, string tilesetId, bool isTextureNonreadable, Action<CacheItem> callback);
 		bool Exists(CanonicalTileId tileId, string mapId);
-		void ClearAll();
+		bool ClearAll();
 		void DeleteTileFile(MapboxTileData cacheItem);
 		HashSet<string> GetFileList();
 		bool GetAsync<T>(CanonicalTileId tileId, string tilesetId, bool isTextureNonreadable, Action<T> callback) where T : RasterData, new();
@@ -29,7 +29,9 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 	{
 		public event Action<MapboxTileData, string> FileSaved = (cacheItem, s) => { };
 
-		protected string CacheRootFolderName = "Mapbox/FileCache";
+		protected static string MapboxFolderName = "Mapbox";
+		protected static string FileCacheFolderName = "FileCache";
+		protected string CacheRootFolderName;
 		public string PersistantCacheRootFolderPath;
 		private string FileExtension = "png";
 
@@ -40,7 +42,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 		
 		public FileCache(TaskManager taskManager, string folderNamePostFix = "")
 		{
-			CacheRootFolderName += folderNamePostFix;
+			CacheRootFolderName = Path.Combine(MapboxFolderName, FileCacheFolderName, folderNamePostFix);
 			PersistantCacheRootFolderPath = Path.GetFullPath(Path.Combine(Application.persistentDataPath, CacheRootFolderName));
 			_taskManager = taskManager;
 			_fileDataFetcher = new FileDataFetcher();
@@ -154,14 +156,9 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 			}
 		}
 
-		public virtual void ClearAll()
+		public virtual bool ClearAll()
 		{
-			DirectoryInfo di = new DirectoryInfo(PersistantCacheRootFolderPath);
-
-			foreach (DirectoryInfo folder in di.GetDirectories())
-			{
-				ClearFolder(folder.FullName);
-			}
+			return FileCache.ClearAllFiles();
 		}
 
 		public virtual void DeleteTileFile(MapboxTileData cacheItem)
@@ -328,10 +325,10 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 		{
 			try
 			{
-				DirectoryInfo di = new DirectoryInfo(Path.Combine(Application.persistentDataPath, "Mapbox"));
+				DirectoryInfo di = new DirectoryInfo(Path.Combine(Application.persistentDataPath, MapboxFolderName));
 				foreach (DirectoryInfo folder in di.GetDirectories())
 				{
-					if (folder.Name.StartsWith("FileCache"))
+					if (folder.Name.StartsWith(FileCacheFolderName))
 					{
 						folder.Delete(true);
 					}

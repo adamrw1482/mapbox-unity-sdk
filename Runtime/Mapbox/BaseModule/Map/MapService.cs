@@ -38,6 +38,10 @@ namespace Mapbox.BaseModule.Map
         public abstract Source<VectorData> GetVectorSource(VectorSourceSettings vectorSourceSettings);
         public abstract bool TileCover(IMapInformation mapInformation, TileCover tileCover);
 
+        public virtual bool ClearAllCaches()
+        {
+            return false;
+        }
 
         public abstract Source<BuildingData> GetBuildingSource(VectorSourceSettings settings);
 

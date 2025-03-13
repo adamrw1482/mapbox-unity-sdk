@@ -240,6 +240,18 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
             key = tileId.GenerateKey(tilesetId, "ReadEtagExpiration");
             _taskManager.CancelTask(key);
         }
+
+        /// <summary>
+        /// Clears long term caches, not the memory cache
+        /// </summary>
+        /// <returns></returns>
+        public bool ClearAllCache()
+        {
+            var sqliteSuccess = _sqLiteCache?.ClearDatabase() ?? true;
+            if(sqliteSuccess) _sqLiteCache.ReadySqliteDatabase();
+            var fileSuccess = _textureFileCache?.ClearAll() ?? true;
+            return sqliteSuccess && fileSuccess;
+        }
         
         public static void DeleteAllCache()
         {

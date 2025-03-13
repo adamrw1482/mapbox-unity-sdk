@@ -55,6 +55,11 @@ namespace Mapbox.UnityMapService
 			return _tileProvider.GetTileCover(mapInformation, tileCover);
 		}
 
+		public override bool ClearAllCaches()
+		{
+			return _cacheManager.ClearAllCache();
+		}
+		
 		public override Source<RasterData> GetNewRasterSource(string name, string tilesetName, bool isRetina)
 		{
 			throw new NotImplementedException();
