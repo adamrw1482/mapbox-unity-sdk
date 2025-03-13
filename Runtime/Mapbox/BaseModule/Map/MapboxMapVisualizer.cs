@@ -13,8 +13,30 @@ namespace Mapbox.BaseModule.Map
     [Serializable]
     public class MapboxMapVisualizer : IMapVisualizer
     {
+        public event Action<bool> WorkStateChanged = (s) => { };
+        
+        private bool _isLoading;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                if (_isLoading != value)
+                {
+                    WorkStateChanged(value);
+                }
+                _isLoading = value;
+            }
+        }
+
         public List<ILayerModule> LayerModules;
-        public Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles { get; private set; }
+
+        public Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles
+        {
+            get => _activeTiles;
+            private set => _activeTiles = value;
+        }
+
         protected UnityContext _unityContext;
         protected IMapInformation _mapInformation;
         protected ITileCreator _tileCreator;
@@ -24,6 +46,8 @@ namespace Mapbox.BaseModule.Map
 
         private int _tilePerFrameLimit = 20;
         private int _tileCreatedThisFrame = 0;
+        
+        private Dictionary<UnwrappedTileId, UnityMapTile> _activeTiles;
 
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
@@ -63,6 +87,7 @@ namespace Mapbox.BaseModule.Map
                 _toRemove.Add(tile.UnwrappedTileId);
             }
 
+            var isLoadingLocal = false;
             foreach (var tileId in tileCover.Tiles)
             {
                 _retainedTiles.Add(tileId.Canonical);
@@ -73,6 +98,7 @@ namespace Mapbox.BaseModule.Map
                 {
                     if (unityMapTile.IsTemporary)
                     {
+                        isLoadingLocal = true;
                         FinalizeTempTile(unityMapTile);
                     }
                     
@@ -83,6 +109,8 @@ namespace Mapbox.BaseModule.Map
                 {
                     //TileLoading(tileId);
                 }
+
+                isLoadingLocal = true;
 
                 if (_tileCreatedThisFrame < _tilePerFrameLimit)
                 {
@@ -121,6 +149,8 @@ namespace Mapbox.BaseModule.Map
             {
                 visualization.RetainTiles(_retainedTiles, ActiveTiles);
             }
+            
+            IsLoading = isLoadingLocal;
         }
 
         

@@ -14,6 +14,7 @@ namespace Mapbox.BaseModule.Data.Interfaces
         IEnumerator LoadTileCoverToMemory(TileCover tileCover);
         void OnDestroy();
         Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles { get; }
+        event Action<bool> WorkStateChanged;
         bool TryGetLayerModule<T>(Type type, out T layerModule) where T : ILayerModule;
 
         event Action<UnityMapTile> TileLoaded;

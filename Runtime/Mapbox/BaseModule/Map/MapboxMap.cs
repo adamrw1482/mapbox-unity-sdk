@@ -13,6 +13,9 @@ namespace Mapbox.BaseModule.Map
     [Serializable]
     public sealed class MapboxMap
     {
+        public event Action<bool> ChangeViewCompleted = (s) => { };
+        private bool _viewChangeStarted = false;
+        
         [NonSerialized] public IMapInformation MapInformation;
         [NonSerialized] public IMapVisualizer MapVisualizer;
         [NonSerialized] public UnityContext UnityContext;
@@ -40,6 +43,16 @@ namespace Mapbox.BaseModule.Map
             MapVisualizer.TileLoaded += (t) => { TileLoaded(t); };
             MapVisualizer.TileUnloading += (t) => { TileUnloading(t); };
             //MapVisualizer.TileLoading += TileLoading;
+            MapVisualizer.WorkStateChanged += b =>
+            {
+                //Debug.Log($"Work state changed to {b}");
+                if (_viewChangeStarted)
+                {
+                    //Debug.Log($"View Change state changed to {b}");
+                    ChangeViewCompleted(b);
+                    _viewChangeStarted = b;
+                }
+            };
             
             Status = InitializationStatus.Initialized;
             Initialized();
@@ -73,6 +86,7 @@ namespace Mapbox.BaseModule.Map
 
         public void ChangeView(LatitudeLongitude? latlng = null, float? zoom = null, float? pitch = null, float? bearing = null)
         {
+            _viewChangeStarted = true;
             MapInformation.SetInformation(latlng, zoom, pitch, bearing);
         }
         
