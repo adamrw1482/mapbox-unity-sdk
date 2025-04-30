@@ -16,7 +16,6 @@ namespace Mapbox.BaseModule.Map
     public class TileCreator : ITileCreator
     {
         public Material[] TileMaterials;
-        private readonly int UsingLinearColorspace = Shader.PropertyToID("_UsingLinearColorspace");
         private ObjectPool<UnityMapTile> _tilePool;
         private UnityContext _unityContext;
         private int _cacheSize;
@@ -52,13 +51,6 @@ namespace Mapbox.BaseModule.Map
             }
 
             tile.Material = tile.MeshRenderer.material;
-
-            //settings colrospace flag for elevation calculations
-            foreach (var material in tile.MeshRenderer.materials)
-            {
-                material.SetFloat(UsingLinearColorspace, QualitySettings.activeColorSpace == ColorSpace.Linear ? 1.0f : 0.0f);
-            }
-            
             tile.gameObject.SetActive(false);
             return tile;
         }
