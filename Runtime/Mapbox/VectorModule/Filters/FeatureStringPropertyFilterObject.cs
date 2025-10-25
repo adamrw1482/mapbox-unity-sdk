@@ -30,21 +30,22 @@ namespace Mapbox.VectorModule.Filters
 	{
 		public FeatureStringPropertyFilterSettings PropertyFilterSettings;
 		private HashSet<string> _types;
-		private bool _operation;
 
 		public FeatureStringPropertyFilter(FeatureStringPropertyFilterSettings propertyFilterSettings)
 		{
 			PropertyFilterSettings = propertyFilterSettings;
-			_operation = PropertyFilterSettings.checkOperation == FilterCheckOperation.Equals ? true : false;
 		}
 		
 		public override void Initialize()
 		{
 			base.Initialize();
-			_types = new HashSet<string>();
-			foreach (var s in PropertyFilterSettings.FilterString.Split(','))
+			if (PropertyFilterSettings.CheckOperation == StringCheckOperation.Contains)
 			{
-				_types.Add(s.Trim().ToLowerInvariant());
+				_types = new HashSet<string>();
+				foreach (var s in PropertyFilterSettings.FilterString.Split(','))
+				{
+					_types.Add(s.Trim().ToLowerInvariant());
+				}
 			}
 		}
 
@@ -52,25 +53,33 @@ namespace Mapbox.VectorModule.Filters
 		{
 			//this is a slightly cheesy way to negate by a flag
 			//so right side is simply negated by the first part and equality check
-			return _operation == _types.Contains(feature.Properties[PropertyFilterSettings.PropertyName].ToString().ToLowerInvariant());
+
+			var result = false;
+			if (PropertyFilterSettings.CheckOperation == StringCheckOperation.Equals)
+			{
+				result = PropertyFilterSettings.FilterString.ToLowerInvariant() == feature.Properties[PropertyFilterSettings.PropertyName].ToString().ToLowerInvariant();
+			}
+			else if (PropertyFilterSettings.CheckOperation == StringCheckOperation.Contains)
+			{
+				result = _types.Contains(feature.Properties[PropertyFilterSettings.PropertyName].ToString().ToLowerInvariant());
+			}
+
+			return (!PropertyFilterSettings.Invert) ? result : !result; 
 		}
 	}
 
 	[Serializable]
 	public class FeatureStringPropertyFilterSettings
 	{
-		public FilterCheckOperation checkOperation = FilterCheckOperation.Equals;
 		public string PropertyName;
+		public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
 		public string FilterString;
+		public bool Invert = false;
 	}
 
-	public enum FilterCheckOperation
+	public enum StringCheckOperation
 	{
-		NotEquals,
 		Equals,
-		LessThan,
-		LessThanOrEquals,
-		MoreThan,
-		MoreThanOrEquals
+		Contains
 	}
 }

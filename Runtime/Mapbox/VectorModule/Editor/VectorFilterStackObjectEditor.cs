@@ -199,14 +199,14 @@ namespace Mapbox.VectorModule.Editor
                 // Foldout header
                 EditorGUI.BeginChangeCheck();
                 SerializedProperty activeProperty = serializedFilterEditor.FindProperty("m_Active");
-                bool displayContent = CoreEditorUtils.DrawHeaderToggle(title, renderFeatureProperty, activeProperty, pos => OnContextClick(pos, index));
+                bool displayContent = CoreEditorUtils.DrawHeaderToggle(title, renderFeatureProperty, activeProperty, pos => OnContextClick(filterObjRef, pos, index));
                 hasChangedProperties |= EditorGUI.EndChangeCheck();
 
                 // ObjectEditor
                 if (displayContent)
                 {
-                    EditorGUILayout.ObjectField(renderFeatureProperty);
-                    EditorGUILayout.Space();
+                    // EditorGUILayout.ObjectField(renderFeatureProperty);
+                    // EditorGUILayout.Space();
 
                     EditorGUI.BeginChangeCheck();
                     filterEditor.OnInspectorGUI();
@@ -225,7 +225,7 @@ namespace Mapbox.VectorModule.Editor
             }
             else
             {
-                CoreEditorUtils.DrawHeaderToggle(Styles.MissingFeature,renderFeatureProperty, m_FalseBool,pos => OnContextClick(pos, index));
+                CoreEditorUtils.DrawHeaderToggle(Styles.MissingFeature,renderFeatureProperty, m_FalseBool,pos => OnContextClick(null, pos, index));
                 m_FalseBool.boolValue = false; // always make sure false bool is false
                 EditorGUILayout.HelpBox(Styles.MissingFeature.tooltip, MessageType.Error);
                 if (GUILayout.Button("Attempt Fix", EditorStyles.miniButton))
@@ -235,10 +235,15 @@ namespace Mapbox.VectorModule.Editor
             }
         }
         
-        private void OnContextClick(Vector2 position, int id)
+        private void OnContextClick(Object obj, Vector2 position, int id)
         {
             var menu = new GenericMenu();
 
+            if (obj != null)
+            {
+                menu.AddItem(EditorGUIUtility.TrTextContent("Select in project"), false, () => { EditorGUIUtility.PingObject( obj ); });
+            }
+            
             if (id == 0)
                 menu.AddDisabledItem(EditorGUIUtility.TrTextContent("Move Up"));
             else

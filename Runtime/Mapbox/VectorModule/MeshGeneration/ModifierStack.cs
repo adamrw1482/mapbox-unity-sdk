@@ -25,6 +25,7 @@ namespace Mapbox.VectorModule.MeshGeneration
         [Tooltip("Tiles will load and visuals will be visible if and only if current map is in this zoom range.")]
         public Vector2 VisibilityZoomRange = new Vector2(1, 20);
         public bool MergeObjects = true;
+        public LayerTypeEnum LayerType;
     }
 
     [Serializable]
@@ -159,5 +160,12 @@ namespace Mapbox.VectorModule.MeshGeneration
         {
             return Settings.VisibilityZoomRange.x <= targetZ && Settings.VisibilityZoomRange.y >= targetZ;
         }
+    }
+    
+    public enum LayerTypeEnum
+    {
+        Polygon,
+        Line,
+        Point
     }
 }

@@ -22,6 +22,7 @@ namespace Mapbox.BaseModule.Map
         event Action<IMapInformation> LatitudeLongitudeChanged;
         event Action<IMapInformation> WorldScaleChanged;
         Func<CanonicalTileId, float, float, float> QueryElevation { get; set; }
+        float GetLatitudeCompensationForLocation { get; }
         float GetScaleFor(float zoomValue);
     }
 }

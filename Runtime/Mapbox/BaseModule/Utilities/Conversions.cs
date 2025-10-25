@@ -240,6 +240,14 @@ namespace Mapbox.BaseModule.Utilities
 				unwrappedTileId.Z);
 			return new RectD((min - worldCenter)/scale, (max - min)/scale);
 		}
+		
+		public static float TileEdgeSizeInMercator(CanonicalTileId unwrappedTileId)
+		{
+			var res = InitialResolution / PowerTable2[unwrappedTileId.Z];
+			var first = unwrappedTileId.X * TileSize * res - OriginShift;
+			var second = (unwrappedTileId.X + 1) * TileSize * res - OriginShift;
+			return (float)(second - first);
+		}
 
 		public static RectD TileBoundsInUnitySpace(UnwrappedTileId unwrappedTileId, Vector2d worldCenter, float scale)
 		{

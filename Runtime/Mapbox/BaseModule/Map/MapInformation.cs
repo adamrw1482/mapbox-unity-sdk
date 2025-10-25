@@ -82,6 +82,8 @@ namespace Mapbox.BaseModule.Map
         
         //METHODS
         public virtual float GetScaleFor(float zoomValue) => _scale;
+
+        public virtual float GetLatitudeCompensationForLocation => Conversions.LatitudeElevationCompensation(_latitudeLongitude.Latitude);
         
         public void SetLatitudeLongitude(LatitudeLongitude latlng)
         {

@@ -59,4 +59,14 @@ namespace Mapbox.VectorModule.Filters
 		public string PropertyName;
 		public float FilterValue;
 	}
+	
+	public enum FilterCheckOperation
+	{
+		NotEquals,
+		Equals,
+		LessThan,
+		LessThanOrEquals,
+		MoreThan,
+		MoreThanOrEquals
+	}
 }

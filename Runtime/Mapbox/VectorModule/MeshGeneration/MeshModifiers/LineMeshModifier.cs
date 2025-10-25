@@ -11,11 +11,12 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
 	[Serializable]
 	public class LineMeshParameters
 	{
-		public float MiterLimit = 0.2f;
-		public float RoundLimit = 1.05f;
+		[Tooltip("The line’s width, defined in Mercator units and adjusted by latitude to approximate real-world meters.")]
+		public float Width;
 		public JoinType JoinType = JoinType.Round;
 		public JoinType CapType = JoinType.Round;
-		public float Width;
+		public float MiterLimit = 0.2f;
+		public float RoundLimit = 1.05f;
 	}
 
 	public class LineMeshCore
@@ -42,11 +43,13 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
 		private Vector3 _prevNormal;
 		private Vector3 _nextNormal;
 		private float _distance = 0f;
-
+		private IMapInformation _mapInformation;
+	
 		public LineMeshCore(LineMeshParameters parameters, IMapInformation mapInformation)
 		{
 			_lineMeshParameters = parameters;
-			_scaledWidth = _lineMeshParameters.Width / mapInformation.Scale;
+			_mapInformation = mapInformation;
+			
 
 			_vertexList = new List<Vector3>();
 			_normalList = new List<Vector3>();
@@ -62,6 +65,9 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
 
 		private void ExtrudeLine(VectorFeatureUnity feature, MeshData md)
 		{
+			var tileScale = Conversions.TileEdgeSizeInMercator(feature.TileId) / _mapInformation.GetLatitudeCompensationForLocation;
+			_scaledWidth = _lineMeshParameters.Width / tileScale;
+			
 			if (feature.Points.Count < 1)
 			{
 				return;

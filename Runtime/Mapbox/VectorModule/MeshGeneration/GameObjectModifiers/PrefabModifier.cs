@@ -12,6 +12,8 @@ namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 	public class PrefabModifierSettings
 	{
 		public GameObject Prefab;
+		[Tooltip("Scale prefab up or down as if it's size is in mercator units (close to real world meters).")]
+		public bool ScalePrefabToWorld = true;
 	}
 
 	[Serializable]
@@ -35,10 +37,9 @@ namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 		
 		public override void Run(VectorEntity ve, IMapInformation mapInformation)
 		{
-			var rectd = Conversions.TileBoundsInUnitySpace(ve.Feature.TileId, mapInformation.CenterMercator, mapInformation.Scale);
-			var tileScale = (float) rectd.Size.x;
-			int selpos = ve.Feature.Points[0].Count / 2;
-			var met = ve.Feature.Points[0][selpos] * tileScale;
+			var tileSize = Conversions.TileEdgeSizeInMercator(ve.Feature.TileId);
+			//we first move position to (0-1) range, then scale it up to tile size
+			var met = (ve.Feature.Points[0][0] / mapInformation.Scale) * tileSize;
 			
 			GameObject go;
 			
@@ -52,6 +53,10 @@ namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 			
 			go = GameObject.Instantiate(_settings.Prefab, ve.Transform);
 			go.transform.localPosition = met;
+			if (_settings.ScalePrefabToWorld)
+			{
+				go.transform.localScale = Constants.Math.Vector3One * 1 / mapInformation.Scale;
+			}
 			
 			_objects.Add(ve, go);
 			go.name = ve.Feature.Data.Id.ToString();

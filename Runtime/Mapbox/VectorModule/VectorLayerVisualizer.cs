@@ -61,7 +61,12 @@ namespace Mapbox.VectorModule
                         position.x - _layerRootObject.transform.position.x, 
                         entity.GameObject.transform.localPosition.y, 
                         position.z - _layerRootObject.transform.position.z);
-                    entity.GameObject.transform.localScale = scale;
+                    
+                    var stack = _stackList[entity.StackId];
+                    if (stack.Settings.LayerType == LayerTypeEnum.Polygon || stack.Settings.LayerType == LayerTypeEnum.Line)
+                    {
+                        entity.GameObject.transform.localScale = scale;
+                    }
                 }
             }
         }

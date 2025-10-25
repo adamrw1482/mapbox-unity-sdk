@@ -296,7 +296,7 @@ public class ModifierStackEditor : Editor
             title,
             renderFeatureProperty,
             activeProperty,
-            pos => OnContextClick(property, pos, index)
+            pos => OnContextClick(modifierObjRef, property, pos, index)
         );
         hasChangedProperties |= EditorGUI.EndChangeCheck();
 
@@ -308,7 +308,7 @@ public class ModifierStackEditor : Editor
                 EditorGUILayout.Space(2);
 
                 // Reference field
-                EditorGUILayout.ObjectField("Modifier Asset", renderFeatureProperty.objectReferenceValue, typeof(Object), false);
+                // EditorGUILayout.ObjectField("Modifier Asset", renderFeatureProperty.objectReferenceValue, typeof(Object), false);
 
                 EditorGUILayout.Space(4);
 
@@ -337,16 +337,21 @@ public class ModifierStackEditor : Editor
             new GUIContent("Missing Modifier"),
             renderFeatureProperty,
             m_FalseBool,
-            pos => OnContextClick(property, pos, index)
+            pos => OnContextClick(null, property, pos, index)
         );
         m_FalseBool.boolValue = false;
     }
 }
 
-    private void OnContextClick(SerializedProperty property, Vector2 position, int id)
+    private void OnContextClick(Object obj, SerializedProperty property, Vector2 position, int id)
     {
         var menu = new GenericMenu();
 
+        if (obj != null)
+        {
+            menu.AddItem(EditorGUIUtility.TrTextContent("Select in project"), false, () => { EditorGUIUtility.PingObject( obj ); });
+        }
+        
         if (id == 0)
             menu.AddDisabledItem(EditorGUIUtility.TrTextContent("Move Up"));
         else

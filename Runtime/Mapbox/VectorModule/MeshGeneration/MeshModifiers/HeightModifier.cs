@@ -28,7 +28,6 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
     [Serializable]
     public class GeometryExtrusionOptions
     {
-        [SerializeField] private string _selectedLayerName;
         public ExtrusionType extrusionType = ExtrusionType.PropertyHeight;
         public ExtrusionGeometryType extrusionGeometryType = ExtrusionGeometryType.RoofAndSide;
 
@@ -62,7 +61,7 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
             if (md.Vertices.Count == 0 || feature == null || feature.Points.Count < 1)
                 return;
 
-            var rectd = Conversions.TileBoundsInUnitySpace(feature.TileId, mapInformation.CenterMercator, mapInformation.Scale);
+            var tileSize = Conversions.TileEdgeSizeInMercator(feature.TileId);
             _scale = mapInformation.Scale;
 
             float maxHeight = 1.0f;
@@ -70,8 +69,8 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
 
             QueryHeight(feature, md, out maxHeight, out minHeight);
 
-            maxHeight = (float) ((maxHeight * _options.extrusionScaleFactor / _scale) / rectd.Size.x);
-            minHeight = (float) ((minHeight * _options.extrusionScaleFactor / _scale) / rectd.Size.x);
+            maxHeight = (maxHeight * _options.extrusionScaleFactor / tileSize) / mapInformation.GetLatitudeCompensationForLocation;
+            minHeight = (minHeight * _options.extrusionScaleFactor / tileSize) / mapInformation.GetLatitudeCompensationForLocation;
             height = (maxHeight - minHeight);
 
             //Set roof height

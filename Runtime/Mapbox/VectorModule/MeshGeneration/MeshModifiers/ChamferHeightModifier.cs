@@ -14,7 +14,7 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
 	    
         public ChamferHeightModifier(ChamferModifierSettings chamferSettings = null)
         {
-            _chamferOptions = chamferSettings ?? new ChamferModifierSettings(0.4f);
+            _chamferOptions = chamferSettings ?? new ChamferModifierSettings();
         }
 
         public override void Run(VectorFeatureUnity feature, MeshData md, IMapInformation mapInfo)
@@ -26,22 +26,15 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
      [Serializable]
     public class ChamferModifierSettings
     {
+        [NonSerialized] public float ScaledOffset;
+
+        [Tooltip("Suggested starting value is 1")]
+        public float OffsetInMeters = 1f;
+
         [Tooltip("Flatten top polygons to prevent unwanted slanted roofs because of the bumpy terrain")]
         public bool FlatTops = true;
-
-        [Tooltip("Fixed height value for ForceHeight option")]
-        public float Height;
-
-        [Tooltip("Fix all features to certain height, suggested to be used for pushing roads above terrain level to prevent z-fighting.")]
-        public bool ForceHeight = false;
-
-        [Range(0.1f,2)]
-        [Tooltip("Chamfer width value")]
-        public float ScaledOffset = 0.2f;
-
-        public float OffsetInMeters = .2f;
-
-        public ChamferModifierSettings(float offsetInMetersInMeters = 0.4f)
+        
+        public ChamferModifierSettings(float offsetInMetersInMeters = 1f)
         {
             OffsetInMeters = offsetInMetersInMeters;
         }
@@ -63,14 +56,14 @@ namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers
             if (md.Vertices.Count == 0 || feature == null || feature.Points.Count < 1)
                 return;
 
-            var rectd = Conversions.TileBoundsInUnitySpace(feature.TileId, mapInformation.CenterMercator, mapInformation.Scale);
+            var tileSize = Conversions.TileEdgeSizeInMercator(feature.TileId);
             _scale = mapInformation.Scale;
-            _settings.ScaledOffset = (float) (_settings.OffsetInMeters / rectd.Size.x) / _scale;
+            _settings.ScaledOffset = (float) (_settings.OffsetInMeters / tileSize);
             
             QueryHeight(feature, md, out var maxHeight, out var minHeight);
 
-            maxHeight = (float) ((maxHeight / _scale) / rectd.Size.x);
-            minHeight = (float) ((minHeight / _scale) / rectd.Size.x);
+            maxHeight = (maxHeight / tileSize) / mapInformation.GetLatitudeCompensationForLocation;
+            minHeight = (minHeight / tileSize) / mapInformation.GetLatitudeCompensationForLocation;
             var height = (maxHeight - minHeight);
 
             var max = md.Vertices[0].y;
