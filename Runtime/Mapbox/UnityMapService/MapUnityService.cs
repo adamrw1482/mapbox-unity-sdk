@@ -77,6 +77,11 @@ namespace Mapbox.UnityMapService
 
 		public override Source<VectorData> GetVectorSource(VectorSourceSettings settings)
 		{
+			if (_dataSources.Any(s => s is VectorSource))
+			{
+				return _dataSources.First(x => x is VectorSource) as Source<VectorData>;
+			}
+			
 			var vectorSource = new VectorSource(_fetchingManager, _cacheManager, settings);
 			_dataSources.Add(vectorSource);
 			return vectorSource;
