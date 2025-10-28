@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.Unity
 {
 	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Layer Visualizer")]
-	public class VectorLayerVisualizerObject : ScriptableObject
+	public class VectorLayerVisualizerObject : LayerVisualizerConstructor
 	{
 		[SerializeField] private string _vectorLayerName;
 		public string VectorLayerName => _vectorLayerName;
@@ -18,12 +18,12 @@ namespace Mapbox.VectorModule.Unity
 		[SerializeField] private List<ModifierStackObject> _modifierStackObjects;
 		private VectorLayerVisualizer _layerVisualizer;
 		
-		public IVectorLayerVisualizer GetLayerVisualizer()
+		public virtual IVectorLayerVisualizer GetLayerVisualizer()
 		{
 			return _layerVisualizer;
 		}
 		
-		public IVectorLayerVisualizer ConstructLayerVisualizer(IMapInformation mapInformation, UnityContext unityContext)
+		public override IVectorLayerVisualizer ConstructLayerVisualizer(IMapInformation mapInformation, UnityContext unityContext)
 		{
 			_layerVisualizer = new VectorLayerVisualizer(VectorLayerName, mapInformation, unityContext, _settings);
 			_layerVisualizer.Active = true;
@@ -42,5 +42,10 @@ namespace Mapbox.VectorModule.Unity
 
 		public Action<GameObject> OnVectorMeshCreated = list => { };
 		public Action<GameObject> OnVectorMeshDestroyed = go => { };
+	}
+	
+	public abstract class LayerVisualizerConstructor : ScriptableObject
+	{
+		public abstract IVectorLayerVisualizer ConstructLayerVisualizer(IMapInformation mapInformation, UnityContext unityContext);
 	}
 }

@@ -11,9 +11,9 @@ namespace Mapbox.VectorModule.Unity
 {
 	public class VectorLayerModuleScript : ModuleConstructorScript
 	{
-		[SerializeField] private VectorModuleSettings vectorModuleSettings;
+		[SerializeField] protected VectorModuleSettings vectorModuleSettings;
 		
-		[SerializeField] private List<VectorLayerVisualizerObject> _layerVisualizers;
+		[SerializeField] private List<LayerVisualizerConstructor> _layerVisualizers;
 		public override ILayerModule ModuleImplementation { get; protected set; }
 
 		public void Start()
@@ -34,8 +34,7 @@ namespace Mapbox.VectorModule.Unity
 			return ModuleImplementation;
 		}
 		
-		private VectorLayerModule GetVectorLayerModule(IMapInformation mapInformation, UnityContext unityContext,
-			MapService service, Dictionary<string, IVectorLayerVisualizer> dictionary)
+		protected virtual VectorLayerModule GetVectorLayerModule(IMapInformation mapInformation, UnityContext unityContext, MapService service, Dictionary<string, IVectorLayerVisualizer> dictionary)
 		{
 			if (vectorModuleSettings.SourceType != VectorSourceType.Custom)
 			{

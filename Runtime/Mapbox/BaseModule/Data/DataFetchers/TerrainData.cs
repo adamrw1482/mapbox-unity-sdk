@@ -66,18 +66,17 @@ namespace Mapbox.BaseModule.Data.DataFetchers
             var sectionWidth = width * terrainTextureScaleOffset.x - 1;
             var padding = width * new Vector2(terrainTextureScaleOffset.z, terrainTextureScaleOffset.w);
 
-            var xx = padding.x + (x * sectionWidth);
-            var yy = padding.y + (y * sectionWidth);
+            var xx = padding.x + (Mathf.Clamp01(x) * sectionWidth);
+            var yy = padding.y + (Mathf.Clamp01(y) * sectionWidth);
 
-            var index = (int) yy * width
-                        + (int) xx;
-            if (ElevationValues.Length <= index)
+            var index = (int) yy * width + (int) xx;
+            if (index >= ElevationValues.Length)
             {
                 return 0;
             }
             else
             {
-                return ElevationValues[(int) yy * width + (int) xx];
+                return ElevationValues[index];
             }
         }
 

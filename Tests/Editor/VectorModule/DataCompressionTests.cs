@@ -1,0 +1,284 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using Mapbox.BaseModule.Data.Platform;
+using Mapbox.BaseModule.Data.Platform.Cache;
+using Mapbox.BaseModule.Data.Tiles;
+using Mapbox.BaseModule.Map;
+using Mapbox.BaseModule.Utilities;
+using Mapbox.VectorModule;
+using Mapbox.VectorModule.BuildingLayerVisualizer;
+using Mapbox.VectorModule.MeshGeneration;
+using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
+using NUnit.Framework;
+using Unity.PerformanceTesting;
+
+using UnityEngine.TestTools;
+
+namespace Mapbox.VectorModuleTests
+{
+    public class DataCompressionTests
+    {
+        private int SampleCount = 100;
+        
+        private ResilientWebRequestFileSource _fs;
+        private byte[] buffer;
+        private BuildingLayerVisualizer _buildingLayerVisualizer;
+        private VectorLayerVisualizer _regularLayerVisualizer;
+        private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
+        private string LatLng = "60.1664427,24.9318587";
+        private VectorTile.VectorTile tile;
+        private MapInformation _mapInformation;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            var mapboxContext = new MapboxContext();
+            _fs = new ResilientWebRequestFileSource(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
+            
+            Response response = null;
+            var req = _fs.Request("https://api.mapbox.com/v4/mapbox.mapbox-streets-v7/" + tileId + ".vector.pbf", (r) =>
+            {
+                response = r;
+            });
+            while (!req.IsCompleted)
+            {
+                yield return null;
+            }
+
+            _mapInformation = new MapInformation(LatLng);
+            _mapInformation.SetInformation(null, 16, 0, 0, 1000);
+            _mapInformation.Initialize();
+            
+            _buildingLayerVisualizer = BuildingLayer(_mapInformation);
+            _regularLayerVisualizer = RegularLayer(_mapInformation);
+
+            buffer = response.Data;
+            Assert.NotZero(buffer.Length);
+        }
+
+        private BuildingLayerVisualizer BuildingLayer(MapInformation mapInformation)
+        {
+            var viz = new BuildingLayerVisualizer("test", mapInformation, null, null);
+            viz.Initialize();
+            return viz;
+        }
+
+        private VectorLayerVisualizer RegularLayer(MapInformation mapInformation)
+        {
+            
+            var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
+            var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
+            var modStack = new ModifierStack(modStackSettings, null);
+            modStack.MeshModifiers.Add(new SnapTerrainModifier());
+            modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
+            modStack.MeshModifiers.Add(new ChamferHeightModifier(new ChamferModifierSettings()
+                { FlatTops = true, OffsetInMeters = 1 }));
+            viz.AddModifierStack(new List<ModifierStack>() { modStack });
+            viz.Initialize();
+            return viz;
+        }
+
+        [Test, Performance, Order(0)]
+        public void Decompress()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    tile = new Mapbox.VectorTile.VectorTile(decompressed);
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+
+        
+        // [UnityTest, Performance]
+        // public IEnumerator ChamferHeight()
+        // {
+        //     var tileId = new CanonicalTileId(15, 18654, 9481);
+        //     Response response = null;
+        //     var req = _fs.Request("https://api.mapbox.com/v4/mapbox.mapbox-streets-v7/" + tileId + ".vector.pbf", (r) =>
+        //     {
+        //         response = r;
+        //     });
+        //     while (!req.IsCompleted)
+        //     {
+        //         yield return null;
+        //     }
+        //
+        //     var mapInformation = new MapInformation("60.1664427,24.9318587");
+        //     mapInformation.SetInformation(null, 16, 0, 0, 1000);
+        //     mapInformation.Initialize();
+        //     var layerVisualizer = new VectorLayerVisualizer("test", mapInformation, null, null);
+        //
+        //     var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
+        //     var modStack = new ModifierStack(modStackSettings, null);
+        //     modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
+        //     modStack.MeshModifiers.Add(new ChamferHeightModifier(new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1}));
+        //     layerVisualizer.AddModifierStack(new List<ModifierStack>() { modStack });
+        //     layerVisualizer.Initialize();
+        //     
+        //     var buffer = response.Data;
+        //     Assert.NotZero(buffer.Length);
+        //
+        //     Measure.Method(() =>
+        //         {
+        //             layerVisualizer.ClearCaches();
+        //             var decompressed = Compression.Decompress(buffer);
+        //             var tile = new Mapbox.VectorTile.VectorTile(decompressed);
+        //             layerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
+        //         })
+        //         .WarmupCount(5)
+        //         .MeasurementCount(SampleCount)
+        //         .IterationsPerMeasurement(1)
+        //         .GC()
+        //         .Run();
+        // }
+        //
+        // [UnityTest, Performance]
+        // public IEnumerator RegularHeight()
+        // {
+        //     var tileId = new CanonicalTileId(15, 18654, 9481);
+        //     Response response = null;
+        //     var req = _fs.Request("https://api.mapbox.com/v4/mapbox.mapbox-streets-v7/" + tileId + ".vector.pbf", (r) =>
+        //     {
+        //         response = r;
+        //     });
+        //     while (!req.IsCompleted)
+        //     {
+        //         yield return null;
+        //     }
+        //
+        //     var mapInformation = new MapInformation("60.1664427,24.9318587");
+        //     mapInformation.SetInformation(null, 16, 0, 0, 1000);
+        //     mapInformation.Initialize();
+        //     var layerVisualizer = new VectorLayerVisualizer("test", mapInformation, null, null);
+        //
+        //     var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
+        //     var modStack = new ModifierStack(modStackSettings, null);
+        //     modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
+        //     modStack.MeshModifiers.Add(new HeightModifier());
+        //     layerVisualizer.AddModifierStack(new List<ModifierStack>() { modStack });
+        //     layerVisualizer.Initialize();
+        //     
+        //     var buffer = response.Data;
+        //     Assert.NotZero(buffer.Length);
+        //
+        //     Measure.Method(() =>
+        //         {
+        //             layerVisualizer.ClearCaches();
+        //             var decompressed = Compression.Decompress(buffer);
+        //             var tile = new Mapbox.VectorTile.VectorTile(decompressed);
+        //             layerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
+        //         })
+        //         .WarmupCount(5)
+        //         .MeasurementCount(SampleCount)
+        //         .IterationsPerMeasurement(1)
+        //         .GC()
+        //         .Run();
+        // }
+        //
+        
+        [Test, Performance, Order(1)]
+        public void BuildingVisualizerOld()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new VectorTile.VectorTile(decompressed, false);
+                    _regularLayerVisualizer.ClearCaches();
+                    var layer = tt.GetLayer("building");
+                    //if (tt.TryGetLayer("building", out var layer))
+                    {
+                        _regularLayerVisualizer.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        [Test, Performance, Order(1)]
+        public void BuildingVisualizer()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new PerfVectorTile(decompressed);
+                    _buildingLayerVisualizer.ClearCaches();
+                    if (tt.TryGetLayer("building", out var layer))
+                    {
+                        _buildingLayerVisualizer.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        [Test, Performance, Order(1)]
+        public void SingleBuildingVisualizerOld()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new VectorTile.VectorTile(decompressed, false);
+                    _regularLayerVisualizer.ClearCaches();
+                    var layer = tt.GetLayer("building");
+                    //if (tt.TryGetLayer("building", out var layer))
+                    {
+                        _regularLayerVisualizer.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(0)
+                .MeasurementCount(5)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+            
+        }
+        [Test, Performance, Order(1)]
+        public void SingleBuildingVisualizer()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new PerfVectorTile(decompressed);
+                    _buildingLayerVisualizer.ClearCaches();
+                    if (tt.TryGetLayer("building", out var layer))
+                    {
+                        _buildingLayerVisualizer.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(0)
+                .MeasurementCount(5)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        [Test, Performance, Order(2)]
+        public void RegularVisualizer()
+        {
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new PerfVectorTile(decompressed);
+                    _regularLayerVisualizer.ClearCaches();
+                    _regularLayerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+    }
+}
