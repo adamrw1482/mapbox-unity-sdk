@@ -8,7 +8,15 @@ using UnityEngine;
 
 namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
-    public class ArrayChamferHeight
+    public interface IPerformanceExtrusion
+    {
+        int CalculateTriCountFor(int totalPointCount);
+
+        int Run(Span<Vector3> vertices, Span<Vector3> normals, int vertexAnchorIndex, int[] triList, int triIndex,
+            PerfVectorFeatureUnity feature, float tileSizeX, IMapInformation mapInformation);
+    }
+    
+    public class ArrayChamferHeight : IPerformanceExtrusion
     {
         private ChamferModifierSettings _settings;
 

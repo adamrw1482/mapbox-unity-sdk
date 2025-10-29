@@ -23,12 +23,9 @@ namespace Mapbox.VectorModuleTests
         
         private ResilientWebRequestFileSource _fs;
         private byte[] buffer;
-        private BuildingLayerVisualizer _buildingLayerVisualizer;
-        private VectorLayerVisualizer _regularLayerVisualizer;
         private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
         private string LatLng = "60.1664427,24.9318587";
         private VectorTile.VectorTile tile;
-        private MapInformation _mapInformation;
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -45,26 +42,27 @@ namespace Mapbox.VectorModuleTests
             {
                 yield return null;
             }
-
-            _mapInformation = new MapInformation(LatLng);
-            _mapInformation.SetInformation(null, 16, 0, 0, 1000);
-            _mapInformation.Initialize();
             
-            _buildingLayerVisualizer = BuildingLayer(_mapInformation);
-            _regularLayerVisualizer = RegularLayer(_mapInformation);
-
             buffer = response.Data;
             Assert.NotZero(buffer.Length);
         }
 
-        private BuildingLayerVisualizer BuildingLayer(MapInformation mapInformation)
+        private IMapInformation GetMapInformation()
+        {
+            var mapInformation = new MapInformation(LatLng);
+            mapInformation.SetInformation(null, 16, 0, 0, 1000);
+            mapInformation.Initialize();
+            return mapInformation;
+        }
+        
+        private BuildingLayerVisualizer BuildingLayer(IMapInformation mapInformation)
         {
             var viz = new BuildingLayerVisualizer("test", mapInformation, null, null);
             viz.Initialize();
             return viz;
         }
 
-        private VectorLayerVisualizer RegularLayer(MapInformation mapInformation)
+        private VectorLayerVisualizer RegularLayer(IMapInformation mapInformation, bool doChamfer)
         {
             
             var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
@@ -72,8 +70,16 @@ namespace Mapbox.VectorModuleTests
             var modStack = new ModifierStack(modStackSettings, null);
             modStack.MeshModifiers.Add(new SnapTerrainModifier());
             modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
-            modStack.MeshModifiers.Add(new ChamferHeightModifier(new ChamferModifierSettings()
-                { FlatTops = true, OffsetInMeters = 1 }));
+            if (doChamfer)
+            {
+                modStack.MeshModifiers.Add(new ChamferHeightModifier(new ChamferModifierSettings()
+                    { FlatTops = true, OffsetInMeters = 1 }));
+            }
+            else
+            {
+                modStack.MeshModifiers.Add(new HeightModifier(new GeometryExtrusionOptions()));
+            }
+
             viz.AddModifierStack(new List<ModifierStack>() { modStack });
             viz.Initialize();
             return viz;
@@ -94,6 +100,7 @@ namespace Mapbox.VectorModuleTests
                 .Run();
         }
 
+        private static bool[] _doChamfer = new bool[] { true, false};
         
         // [UnityTest, Performance]
         // public IEnumerator ChamferHeight()
@@ -182,38 +189,23 @@ namespace Mapbox.VectorModuleTests
         // }
         //
         
-        [Test, Performance, Order(1)]
-        public void BuildingVisualizerOld()
+        [UnityTest, Performance, Order(1)]
+        public IEnumerator BuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
         {
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorTile.VectorTile(decompressed, false);
-                    _regularLayerVisualizer.ClearCaches();
-                    var layer = tt.GetLayer("building");
-                    //if (tt.TryGetLayer("building", out var layer))
-                    {
-                        _regularLayerVisualizer.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(5)
-                .MeasurementCount(SampleCount)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
-        
-        [Test, Performance, Order(1)]
-        public void BuildingVisualizer()
-        {
+            var settings = doChamfer
+                ? new BuildingVisualizerSettings() { RoundBuildingCorners = true }
+                : new BuildingVisualizerSettings() { RoundBuildingCorners = false };
+            var viz = new BuildingLayerVisualizer("test", GetMapInformation(), null, settings);
+            yield return viz.Initialize();
+            
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
                     var tt = new PerfVectorTile(decompressed);
-                    _buildingLayerVisualizer.ClearCaches();
+                    viz.ClearCaches();
                     if (tt.TryGetLayer("building", out var layer))
                     {
-                        _buildingLayerVisualizer.CreateMesh(tileId, layer);
+                        viz.CreateMesh(tileId, layer);
                     }
                 })
                 .WarmupCount(5)
@@ -224,17 +216,67 @@ namespace Mapbox.VectorModuleTests
         }
         
         [Test, Performance, Order(1)]
-        public void SingleBuildingVisualizerOld()
+        public void BuildingVisualizerOld([ValueSource("_doChamfer")] bool doChamfer)
         {
+            var reg = RegularLayer(GetMapInformation(), doChamfer);
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
                     var tt = new VectorTile.VectorTile(decompressed, false);
-                    _regularLayerVisualizer.ClearCaches();
+                    reg.ClearCaches();
                     var layer = tt.GetLayer("building");
                     //if (tt.TryGetLayer("building", out var layer))
                     {
-                        _regularLayerVisualizer.CreateMesh(tileId, layer);
+                        reg.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        [UnityTest, Performance, Order(1)]
+        public IEnumerator SingleBuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
+        {
+            var settings = doChamfer
+                ? new BuildingVisualizerSettings() { RoundBuildingCorners = true }
+                : new BuildingVisualizerSettings() { RoundBuildingCorners = false };
+            var viz = new BuildingLayerVisualizer("test", GetMapInformation(), null, settings);
+            yield return viz.Initialize();
+            
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new PerfVectorTile(decompressed);
+                    viz.ClearCaches();
+                    if (tt.TryGetLayer("building", out var layer))
+                    {
+                        viz.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(0)
+                .MeasurementCount(5)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        
+        [Test, Performance, Order(1)]
+        public void SingleBuildingVisualizerOld([ValueSource("_doChamfer")] bool doChamfer)
+        {
+            var reg = RegularLayer(GetMapInformation(), doChamfer);
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new VectorTile.VectorTile(decompressed, false);
+                    reg.ClearCaches();
+                    var layer = tt.GetLayer("building");
+                    //if (tt.TryGetLayer("building", out var layer))
+                    {
+                        reg.CreateMesh(tileId, layer);
                     }
                 })
                 .WarmupCount(0)
@@ -244,41 +286,24 @@ namespace Mapbox.VectorModuleTests
                 .Run();
             
         }
-        [Test, Performance, Order(1)]
-        public void SingleBuildingVisualizer()
-        {
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new PerfVectorTile(decompressed);
-                    _buildingLayerVisualizer.ClearCaches();
-                    if (tt.TryGetLayer("building", out var layer))
-                    {
-                        _buildingLayerVisualizer.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(0)
-                .MeasurementCount(5)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
         
-        [Test, Performance, Order(2)]
-        public void RegularVisualizer()
-        {
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new PerfVectorTile(decompressed);
-                    _regularLayerVisualizer.ClearCaches();
-                    _regularLayerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
-                })
-                .WarmupCount(5)
-                .MeasurementCount(SampleCount)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
+        
+        
+        // [Test, Performance, Order(2)]
+        // public void RegularVisualizer()
+        // {
+        //     Measure.Method(() =>
+        //         {
+        //             var decompressed = Compression.Decompress(buffer);
+        //             var tt = new PerfVectorTile(decompressed);
+        //             _regularLayerVisualizer.ClearCaches();
+        //             _regularLayerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
+        //         })
+        //         .WarmupCount(5)
+        //         .MeasurementCount(SampleCount)
+        //         .IterationsPerMeasurement(1)
+        //         .GC()
+        //         .Run();
+        // }
     }
 }
