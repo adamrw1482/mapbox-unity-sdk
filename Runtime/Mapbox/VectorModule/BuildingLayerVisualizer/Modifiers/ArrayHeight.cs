@@ -9,152 +9,198 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
     public class ArrayHeight : IPerformanceExtrusion
     {
-        private GeometryExtrusionOptions _settings;
+        private readonly GeometryExtrusionOptions _settings;
         private int _startIndex;
-        
+
         public ArrayHeight(GeometryExtrusionOptions settings)
         {
             _settings = settings;
         }
-        
-        public int Run(Span<Vector3> vertices, Span<Vector3> normals, int vertexAnchorIndex, int[] triList, int triIndex, PerfVectorFeatureUnity feature, float tileSizeX, IMapInformation mapInformation)
+
+        public int Run(
+            Span<Vector3> vertices,
+            Span<Vector3> normals,
+            int vertexAnchorIndex,
+            int[] triList,
+            int triIndex,
+            PerfVectorFeatureUnity feature,
+            float tileSizeX,
+            IMapInformation mapInformation)
         {
             if (feature == null || feature.VertexData.Submeshes.Count < 1)
                 return triIndex;
 
             _startIndex = vertexAnchorIndex;
-            
-            var height = feature.Height;
-            var minHeight = feature.MinHeight;
 
-            height = (height / mapInformation.Scale) / tileSizeX;
-            minHeight = (minHeight / mapInformation.Scale) / tileSizeX;
+            // Convert heights to local (tile) units once
+            float height = (feature.Height    / mapInformation.Scale) / tileSizeX;
+            float minH   = (feature.MinHeight / mapInformation.Scale) / tileSizeX; // currently unused, kept for parity
 
-            var max = 0f;
-            var min = 0f;
-            for (int i = 0; i < vertices.Length; i++)
+            // Determine current max Y among provided vertices (top ring)
+            float maxY = 0f;
+            int vCount = vertices.Length; // Span length (caller controls)
+            for (int i = 0; i < vCount; i++)
             {
-                if (vertices[i].y > max)
-                    max = vertices[i].y;
-                else if (vertices[i].y < min)
-                    min = vertices[i].y;
+                float y = vertices[i].y;
+                // Use branchless-ish update
+                if (y > maxY) maxY = y;
             }
-            height = max + height;
-            
+            height = maxY + height;
+
+            // Raise the roof (top ring/verts in-span)
             GenerateRoofMesh(vertices, height);
-            triIndex = GenerateWallMesh(vertices, normals, feature, triList, triIndex, height);
+
+            // Build walls
+            triIndex = GenerateWallMesh(vertices, normals, feature, triList, triIndex);
+
             return triIndex;
         }
 
-        private int GenerateWallMesh(Span<Vector3> vertices, Span<Vector3> normals, PerfVectorFeatureUnity feature, int[] trilist, int triIndex, float height)
+        private int GenerateWallMesh(
+            Span<Vector3> vertices,
+            Span<Vector3> normals,
+            PerfVectorFeatureUnity feature,
+            int[] trilist,
+            int triIndex)
         {
-            Vector3 curr, next;
-            int addedPointCount = 0;
-            int topPolygonVertexCount = feature.VertexData.VertexCount;
-            
-            var verts = feature.VertexData.Vertices;
+            // Aliases for quicker access
+            var verts     = feature.VertexData.Vertices;
             var submeshes = feature.VertexData.Submeshes;
-            
+
+            int topPolygonVertexCount = feature.VertexData.VertexCount;
+
+            // For each ring (outer + holes)
+            // We assume wall-vertex area starts after top polygon: each edge adds 4 vertices
             for (int i = 1; i < submeshes.Count; i++)
             {
                 int start = submeshes[i - 1];
-                int end = submeshes[i];
+                int end   = submeshes[i];
                 int count = end - start;
-                var subSpan = verts.AsSpan(start, count);
-                var vertSpan = vertices.Slice(topPolygonVertexCount + start * 4, count * 4);
-                var normSpan = normals.Slice(topPolygonVertexCount + start * 4, count * 4);
-                Vector3 v1, n1;
-                
+
+                var subSpan  = verts.AsSpan(start, count);
+                int ringBase = topPolygonVertexCount + (start * 4); // base in the wall region for this submesh
+                var vertSpan = vertices.Slice(ringBase, count * 4);
+                var normSpan = normals.Slice(ringBase, count * 4);
+
+                // Walk edges
                 for (int j = 0; j < count; j++)
                 {
                     int jNext = (j == count - 1) ? 0 : j + 1;
-                    
-                    curr = subSpan[j];
-                    next = subSpan[jNext];
 
-                    v1.x = next.x - curr.x;
+                    // edge direction (XZ)
+                    Vector3 v1;
+                    v1.x = subSpan[jNext].x - subSpan[j].x;
                     v1.y = 0f;
-                    v1.z = next.z - curr.z;
-                    v1 = NormalizeXZ(v1);
-                    n1 = PerpXZ(v1);
-                    
-                    int vertBase = (4*j);
-                    
-                    Vector3 vertCurr = vertices[start + j];
-                    float yTop = vertCurr.y;
-                    float yMin = 0;
-                    
-                    //next(1)---------curr(0)
-                    // |                |
-                    //nextBot(3)----currBot(2)
-                    vertSpan[vertBase]     = new Vector3(curr.x, yTop, curr.z);
-                    vertSpan[vertBase + 1] = new Vector3(next.x, yTop, next.z);
-                    vertSpan[vertBase + 2] = new Vector3(curr.x, yMin, curr.z);
-                    vertSpan[vertBase + 3] = new Vector3(next.x, yMin, next.z);
-                    
+                    v1.z = subSpan[jNext].z - subSpan[j].z;
+
+                    NormalizeXZInPlace(ref v1);
+                    Vector3 n1 = PerpXZ(v1);
+
+                    int vertBase = (j << 2); // j * 4
+
+                    // Fetch top y from roofed vertex (already raised)
+                    // Read the "roof top ring" directly from vertices[start + j]
+                    ref readonly Vector3 roofV = ref vertices[start + j];
+                    float yTop = roofV.y;
+                    const float yMin = 0f;
+
+                    // Write quads (curr -> next, top and bottom)
+                    // next(1)---------curr(0)
+                    //   |                |
+                    // nextBot(3)----currBot(2)
+
+                    // curr (top)
+                    ref Vector3 v0 = ref vertSpan[vertBase];
+                    v0.x = subSpan[j].x;
+                    v0.y = yTop;
+                    v0.z = subSpan[j].z;
+
+                    // next (top)
+                    ref Vector3 v1t = ref vertSpan[vertBase + 1];
+                    v1t.x = subSpan[jNext].x;
+                    v1t.y = yTop;
+                    v1t.z = subSpan[jNext].z;
+
+                    // curr (bottom)
+                    ref Vector3 v2b = ref vertSpan[vertBase + 2];
+                    v2b.x = subSpan[j].x;
+                    v2b.y = yMin;
+                    v2b.z = subSpan[j].z;
+
+                    // next (bottom)
+                    ref Vector3 v3b = ref vertSpan[vertBase + 3];
+                    v3b.x = subSpan[jNext].x;
+                    v3b.y = yMin;
+                    v3b.z = subSpan[jNext].z;
+
+                    // normals (same for all four)
                     normSpan[vertBase]     = n1;
                     normSpan[vertBase + 1] = n1;
                     normSpan[vertBase + 2] = n1;
                     normSpan[vertBase + 3] = n1;
-                    
-                    // ---- triangles ----
-                    int si = _startIndex;
-                    int baseA = si + topPolygonVertexCount + addedPointCount;
-                    int baseB = si + topPolygonVertexCount + addedPointCount + vertBase;
-                    
-                    bool notLast = j < count - 1;
-                    if (notLast)
+
+                    // triangles
+                    int si    = _startIndex;
+                    int baseB = si + ringBase + vertBase;          // this edge's first wall vertex
+                    int baseA = si + ringBase + ((j == 0) ? ((count - 1) << 2) : ((j - 1) << 2)); // previous edge's base (for wrapping last pair)
+
+                    if (j < count - 1)
                     {
+                        // two tris for face between curr edge top/bot and next top/bot
                         trilist[triIndex++] = baseB;
                         trilist[triIndex++] = baseB + 2;
                         trilist[triIndex++] = baseB + 1;
-                        
+
                         trilist[triIndex++] = baseB + 1;
                         trilist[triIndex++] = baseB + 2;
                         trilist[triIndex++] = baseB + 3;
                     }
                     else
                     {
+                        // close the ring to the first edge (wrap)
                         trilist[triIndex++] = baseB;
                         trilist[triIndex++] = baseB + 2;
-                        trilist[triIndex++] = baseA;
-                        
-                        trilist[triIndex++] = baseA;
+                        trilist[triIndex++] = si + ringBase; // first edge's top-left
+
+                        trilist[triIndex++] = si + ringBase;
                         trilist[triIndex++] = baseB + 2;
-                        trilist[triIndex++] = baseA + 2;
+                        trilist[triIndex++] = si + ringBase + 2; // first edge's bottom-left
                     }
                 }
-
-                addedPointCount += 4 * subSpan.Length;
             }
 
             return triIndex;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void GenerateRoofMesh(Span<Vector3> vertices, float maxHeight)
         {
-            var counter = vertices.Length;
-            for (int i = 0; i < counter; i++)
+            // Mutate by ref to avoid creating new Vector3
+            for (int i = 0; i < vertices.Length; i++)
             {
-                vertices[i] = new Vector3(vertices[i].x, vertices[i].y + maxHeight, vertices[i].z);
+                ref Vector3 v = ref vertices[i];
+                v.y = v.y + maxHeight;
             }
         }
-        
+
         public int CalculateTriCountFor(int totalPointCount)
         {
+            // 2 triangles per edge quad => 6 indices per edge
+            // If totalPointCount is number of wall edges, return totalPointCount * 6
             return totalPointCount * 6;
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Vector3 NormalizeXZ(Vector3 v)
-        {
-            float invLen = 1.0f / Mathf.Sqrt(v.x * v.x + v.z * v.z + 1e-12f);
-            v.x *= invLen;
-            v.z *= invLen;
-            return v;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Vector3 PerpXZ(Vector3 v) => new Vector3(-v.z, 0f, v.x);
+        private static void NormalizeXZInPlace(ref Vector3 v)
+        {
+            float lenSq = v.x * v.x + v.z * v.z;
+            if (lenSq <= 1e-20f) { v.x = 0f; v.z = 0f; return; }
+            float invLen = 1.0f / Mathf.Sqrt(lenSq);
+            v.x *= invLen;
+            v.z *= invLen;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector3 PerpXZ(in Vector3 v) => new Vector3(-v.z, 0f, v.x);
     }
 }
