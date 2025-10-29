@@ -41,6 +41,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     public class BuildingVisualizerSettings
     {
         public bool EnableTerrainSnapping = false;
+        public bool RoundBuildingCorners = false;
         public ChamferModifierSettings ChamferModifierSettings;
         public Material Material;
 

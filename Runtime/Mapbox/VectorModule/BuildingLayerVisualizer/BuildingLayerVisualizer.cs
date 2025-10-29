@@ -5,6 +5,7 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.VectorModule.MeshGeneration;
+using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using Mapbox.VectorModule.Unity;
 using Mapbox.VectorTile.Geometry;
 using UnityEngine;
@@ -31,7 +32,10 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 _arraySnapTerrain = new ArraySnapTerrain(_mapInformation);
             }
             var arrayPolygon = new ArrayPolygon();
-            var chamferHeight = new ArrayChamferHeight(_settings.ChamferModifierSettings);
+            //var chamferHeight = new ArrayChamferHeight(_settings.ChamferModifierSettings);
+            IPerformanceExtrusion arrayHeight = _settings.RoundBuildingCorners
+                                                    ? new ArrayChamferHeight(_settings.ChamferModifierSettings)
+                                                    : new ArrayHeight(new GeometryExtrusionOptions());
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
             
@@ -92,7 +96,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     _arraySnapTerrain.SnapTerrain(vertices, featureResult, tileSize);
                 }
 
-                var triSpaceRequired = chamferHeight.CalculateTriCountFor(featureResult.VertexData.VertexCount);
+                var triSpaceRequired = arrayHeight.CalculateTriCountFor(featureResult.VertexData.VertexCount);
                 if (triSpaceRequired + triIndex >= triList.Length)
                 {
                     for (int j = featurePreTriIndex; j < triList.Length; j++)
@@ -109,7 +113,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 }
                 else
                 {
-                    triIndex = chamferHeight.Run(vertices, normals, vertexAnchorIndex, triList, triIndex, featureResult, tileSize, _mapInformation);    
+                    triIndex = arrayHeight.Run(vertices, normals, vertexAnchorIndex, triList, triIndex, featureResult, tileSize, _mapInformation);    
                 }
                 info.triRanges[i] = baseTriIndex + triIndex;
                 //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);

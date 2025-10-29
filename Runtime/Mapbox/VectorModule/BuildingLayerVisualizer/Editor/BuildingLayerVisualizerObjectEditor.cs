@@ -9,11 +9,12 @@ public class BuildingLayerVisualizerObjectEditor : Editor
 
     private void OnEnable()
     {
-        _settingsProp = serializedObject.FindProperty("Settings");
+        
     }
 
     public override void OnInspectorGUI()
     {
+        _settingsProp = serializedObject.FindProperty("Settings");
         serializedObject.Update();
 
         EditorGUILayout.LabelField("Building Layer Visualizer", EditorStyles.boldLabel);
