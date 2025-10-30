@@ -35,16 +35,29 @@ public class BuildingLayerVisualizerObjectEditor : Editor
     private void DrawSettings(SerializedProperty settingsProp)
     {
         var enableTerrainSnapping = settingsProp.FindPropertyRelative("EnableTerrainSnapping");
-        var chamferSettings = settingsProp.FindPropertyRelative("ChamferModifierSettings");
+        var enableChamfer = settingsProp.FindPropertyRelative("RoundBuildingCorners");
+        var chamferSettings = settingsProp.FindPropertyRelative("ChamferExtrusionSettings");
+        var basicSettings = settingsProp.FindPropertyRelative("BasicExtrusionSettings");
         var material = settingsProp.FindPropertyRelative("Material");
         
         EditorGUILayout.PropertyField(material);
         EditorGUILayout.PropertyField(enableTerrainSnapping);
         EditorGUILayout.Space();
-
-        EditorGUILayout.LabelField("Chamfer Modifier Settings", EditorStyles.boldLabel);
-        EditorGUI.indentLevel++;
-        EditorGUILayout.PropertyField(chamferSettings, true);
-        EditorGUI.indentLevel--;
+        
+        enableChamfer.boolValue = EditorGUILayout.Toggle("Enable Rounded Corners", enableChamfer.boolValue);
+        if (enableChamfer.boolValue)
+        {
+            EditorGUILayout.LabelField("Chamfer Extrusion Settings", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(chamferSettings, true);
+            EditorGUI.indentLevel--;
+        }
+        else
+        {
+            EditorGUILayout.LabelField("Basic Extrusion Settings", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            EditorGUILayout.PropertyField(basicSettings, true);
+            EditorGUI.indentLevel--;
+        }
     }
 }
