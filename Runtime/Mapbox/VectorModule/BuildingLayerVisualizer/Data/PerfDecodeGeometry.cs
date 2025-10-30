@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Mapbox.VectorTile.Contants;
 using UnityEngine;
 
@@ -24,9 +25,12 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 {
                     for (int j = 0; j < cmdCount; j++)
                     {
-                        var delta = ZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2]);
-                        cursorX += (delta.x / scale.x);
-                        cursorY += (delta.y / scale.z);
+                        // ZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2], out var dx, out var dy);
+                        // cursorX += (dx / scale.x);
+                        // cursorY += (dy / scale.z);
+                        //small micro optimization to push changes into method below to prevent new allocation
+                        ModifyWithZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2], ref scale.x, ref scale.z, ref cursorX, ref cursorY);
+                        
                         i += 2;
                         //end of part of multipart feature
                         if (cmd == Commands.MoveTo)
@@ -69,9 +73,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 {
                     for (int j = 0; j < cmdCount; j++)
                     {
-                        var delta = ZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2]);
-                        cursorX += (delta.x / scale.x);
-                        cursorY += (delta.y / scale.z);
+                        // ZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2], out var dx, out var dy);
+                        // cursorX += (dx / scale.x);
+                        // cursorY += (dy / scale.z);
+                        //small micro optimization to push changes into method below to prevent new allocation
+                        ModifyWithZigzagDecode(geometryCommands[i + 1], geometryCommands[i + 2], ref scale.x, ref scale.z, ref cursorX, ref cursorY);
                         i += 2;
                         //end of part of multipart feature
                         if (cmd == Commands.MoveTo)
@@ -95,6 +101,20 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return vertexData;
         }
 		
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ZigzagDecode(uint x, uint y, out float dx, out float dy)
+        {
+            dx = (x >> 1) ^ (-(int)(x & 1));
+            dy = (y >> 1) ^ (-(int)(y & 1));
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ModifyWithZigzagDecode(uint x, uint y, ref float scaleX, ref float scaleZ, ref float cursorX, ref float cursorY)
+        {
+            cursorX += (((x >> 1) ^ (-(int)(x & 1))) / scaleX);
+            cursorY += (((y >> 1) ^ (-(int)(y & 1))) / scaleZ);
+        }
+        
         private static Vector2 ZigzagDecode(uint x, uint y)
         {
 
