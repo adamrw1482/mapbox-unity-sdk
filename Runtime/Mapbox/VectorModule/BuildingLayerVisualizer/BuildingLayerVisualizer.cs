@@ -17,8 +17,6 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         private BuildingVisualizerSettings _settings;
         private ObjectPool<VectorEntity> _buildingObjectPool;
         
-        private ArraySnapTerrain _arraySnapTerrain;
-        
         public BuildingLayerVisualizer(string name, IMapInformation mapInformation, UnityContext unityContext = null, BuildingVisualizerSettings settings = null) : base(name, mapInformation, unityContext, null)
         {
             _settings = settings ?? new BuildingVisualizerSettings();
@@ -27,15 +25,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         
         public HardcoreMeshData CreateMesh(CanonicalTileId tileId, PerfVectorTileLayer layer)
         {
-            if (_settings.EnableTerrainSnapping)
-            {
-                _arraySnapTerrain = new ArraySnapTerrain(_mapInformation);
-            }
             var arrayPolygon = new ArrayPolygon();
-            //var chamferHeight = new ArrayChamferHeight(_settings.ChamferModifierSettings);
+            var arraySnapTerrain = (_settings.EnableTerrainSnapping) ? new ArraySnapTerrain(_mapInformation) : null;
             IPerformanceExtrusion arrayHeight = _settings.RoundBuildingCorners
-                                                    ? new ArrayChamferHeight(_settings.ChamferModifierSettings)
-                                                    : new ArrayHeight(new GeometryExtrusionOptions());
+                                                    ? new ArrayChamferHeight(_settings.ChamferExtrusionSettings)
+                                                    : new ArrayHeight(_settings.BasicExtrusionSettings);
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
             
@@ -93,7 +87,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 
                 if (_settings.EnableTerrainSnapping)
                 {
-                    _arraySnapTerrain.SnapTerrain(vertices, featureResult, tileSize);
+                    arraySnapTerrain.SnapTerrain(vertices, featureResult, tileSize);
                 }
 
                 var triSpaceRequired = arrayHeight.CalculateTriCountFor(featureResult.VertexData.VertexCount);

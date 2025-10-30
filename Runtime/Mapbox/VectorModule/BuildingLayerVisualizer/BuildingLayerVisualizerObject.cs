@@ -5,6 +5,7 @@ using Mapbox.BaseModule.Unity;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
@@ -42,13 +43,16 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     {
         public bool EnableTerrainSnapping = false;
         public bool RoundBuildingCorners = false;
-        public ChamferModifierSettings ChamferModifierSettings;
         public Material Material;
+
+        public ChamferModifierSettings ChamferExtrusionSettings;
+        public GeometryExtrusionOptions BasicExtrusionSettings;
 
         public BuildingVisualizerSettings()
         {
             EnableTerrainSnapping = false;
-            ChamferModifierSettings = new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1 };
+            ChamferExtrusionSettings = new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1 };
+            BasicExtrusionSettings = new GeometryExtrusionOptions();
         }
     }
     
