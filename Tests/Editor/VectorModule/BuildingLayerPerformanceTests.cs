@@ -17,7 +17,7 @@ using UnityEngine.TestTools;
 
 namespace Mapbox.VectorModuleTests
 {
-    public class DataCompressionTests
+    public class BuildingLayerPerformanceTests
     {
         private int SampleCount = 100;
         
@@ -25,7 +25,6 @@ namespace Mapbox.VectorModuleTests
         private byte[] buffer;
         private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
         private string LatLng = "60.1664427,24.9318587";
-        private VectorTile.VectorTile tile;
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -91,7 +90,7 @@ namespace Mapbox.VectorModuleTests
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
-                    tile = new Mapbox.VectorTile.VectorTile(decompressed);
+                    var tile = new Mapbox.VectorTile.VectorTile(decompressed);
                 })
                 .WarmupCount(5)
                 .MeasurementCount(SampleCount)
@@ -101,93 +100,6 @@ namespace Mapbox.VectorModuleTests
         }
 
         private static bool[] _doChamfer = new bool[] { true, false};
-        
-        // [UnityTest, Performance]
-        // public IEnumerator ChamferHeight()
-        // {
-        //     var tileId = new CanonicalTileId(15, 18654, 9481);
-        //     Response response = null;
-        //     var req = _fs.Request("https://api.mapbox.com/v4/mapbox.mapbox-streets-v7/" + tileId + ".vector.pbf", (r) =>
-        //     {
-        //         response = r;
-        //     });
-        //     while (!req.IsCompleted)
-        //     {
-        //         yield return null;
-        //     }
-        //
-        //     var mapInformation = new MapInformation("60.1664427,24.9318587");
-        //     mapInformation.SetInformation(null, 16, 0, 0, 1000);
-        //     mapInformation.Initialize();
-        //     var layerVisualizer = new VectorLayerVisualizer("test", mapInformation, null, null);
-        //
-        //     var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
-        //     var modStack = new ModifierStack(modStackSettings, null);
-        //     modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
-        //     modStack.MeshModifiers.Add(new ChamferHeightModifier(new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1}));
-        //     layerVisualizer.AddModifierStack(new List<ModifierStack>() { modStack });
-        //     layerVisualizer.Initialize();
-        //     
-        //     var buffer = response.Data;
-        //     Assert.NotZero(buffer.Length);
-        //
-        //     Measure.Method(() =>
-        //         {
-        //             layerVisualizer.ClearCaches();
-        //             var decompressed = Compression.Decompress(buffer);
-        //             var tile = new Mapbox.VectorTile.VectorTile(decompressed);
-        //             layerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
-        //         })
-        //         .WarmupCount(5)
-        //         .MeasurementCount(SampleCount)
-        //         .IterationsPerMeasurement(1)
-        //         .GC()
-        //         .Run();
-        // }
-        //
-        // [UnityTest, Performance]
-        // public IEnumerator RegularHeight()
-        // {
-        //     var tileId = new CanonicalTileId(15, 18654, 9481);
-        //     Response response = null;
-        //     var req = _fs.Request("https://api.mapbox.com/v4/mapbox.mapbox-streets-v7/" + tileId + ".vector.pbf", (r) =>
-        //     {
-        //         response = r;
-        //     });
-        //     while (!req.IsCompleted)
-        //     {
-        //         yield return null;
-        //     }
-        //
-        //     var mapInformation = new MapInformation("60.1664427,24.9318587");
-        //     mapInformation.SetInformation(null, 16, 0, 0, 1000);
-        //     mapInformation.Initialize();
-        //     var layerVisualizer = new VectorLayerVisualizer("test", mapInformation, null, null);
-        //
-        //     var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
-        //     var modStack = new ModifierStack(modStackSettings, null);
-        //     modStack.MeshModifiers.Add(new PolygonMeshModifier(0));
-        //     modStack.MeshModifiers.Add(new HeightModifier());
-        //     layerVisualizer.AddModifierStack(new List<ModifierStack>() { modStack });
-        //     layerVisualizer.Initialize();
-        //     
-        //     var buffer = response.Data;
-        //     Assert.NotZero(buffer.Length);
-        //
-        //     Measure.Method(() =>
-        //         {
-        //             layerVisualizer.ClearCaches();
-        //             var decompressed = Compression.Decompress(buffer);
-        //             var tile = new Mapbox.VectorTile.VectorTile(decompressed);
-        //             layerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
-        //         })
-        //         .WarmupCount(5)
-        //         .MeasurementCount(SampleCount)
-        //         .IterationsPerMeasurement(1)
-        //         .GC()
-        //         .Run();
-        // }
-        //
         
         [UnityTest, Performance, Order(1)]
         public IEnumerator BuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
@@ -286,24 +198,5 @@ namespace Mapbox.VectorModuleTests
                 .Run();
             
         }
-        
-        
-        
-        // [Test, Performance, Order(2)]
-        // public void RegularVisualizer()
-        // {
-        //     Measure.Method(() =>
-        //         {
-        //             var decompressed = Compression.Decompress(buffer);
-        //             var tt = new PerfVectorTile(decompressed);
-        //             _regularLayerVisualizer.ClearCaches();
-        //             _regularLayerVisualizer.CreateMesh(tileId, tile.GetLayer("building"));
-        //         })
-        //         .WarmupCount(5)
-        //         .MeasurementCount(SampleCount)
-        //         .IterationsPerMeasurement(1)
-        //         .GC()
-        //         .Run();
-        // }
     }
 }
