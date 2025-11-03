@@ -35,6 +35,7 @@ namespace Mapbox.BaseModule.Map
             UnityContext = unityContext;
             TileCover = new TileCover();
             MapService = mapMapService;
+            MapInformation.ViewChanged += RedrawMap;
         }
 
         /// <summary>
@@ -56,12 +57,20 @@ namespace Mapbox.BaseModule.Map
         }
 
         /// <summary>
-        /// Map update method, which we currently use per-frame, to recalculate the tile cover and run map visualizer on it.
+        /// Map redraw method, which we currently use on-demand, to recalculate the tile cover and run map visualizer on it.
         /// </summary>
-        public void MapUpdated()
+        private void RedrawMap(IMapInformation mapInfo = null)
         {
-            MapService.TileCover(MapInformation, TileCover);
+            MapService.TileCover(mapInfo ?? MapInformation, TileCover);
             MapVisualizer.Load(TileCover);
+        }
+        
+        /// <summary>
+        /// Map update method, which we currently use per-frame
+        /// </summary>
+        public void UpdateMap()
+        {
+            //MapVisualizer.Load(TileCover);
         }
 
         /// <summary>

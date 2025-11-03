@@ -65,7 +65,7 @@ namespace Mapbox.Example.Scripts.Map
         {
             if (InitializationStatus == InitializationStatus.ReadyForUpdates && _mapService.IsReady())
             {
-                MapboxMap.MapUpdated();
+                MapboxMap.UpdateMap();
             }
         }
         

@@ -64,23 +64,31 @@ namespace Mapbox.VectorModule
 		{
 			var targetId = GetTargetTileId(unityTile.CanonicalTileId);
 			if (_readyTiles.Contains(targetId))
-				return true;
-			
-			//Debug.Log(string.Format("Load Instant {0}, {1}, {2}" ,unityTile.CanonicalTileId, _vectorSource.CheckInstantData(unityTile.CanonicalTileId), _visualCache.ContainsKey(unityTile.CanonicalTileId)));
-			if (!IsZinSupportedRange(targetId.Z)) return true;
-
-			//this is wrong, it feels wrong
-			//tile doesn't need data, only yhe visual object. why are we checking for data
-			if (_vectorSource.GetInstantData(targetId, out var instantData) && 
-			    unityTile.TerrainContainer.State == TileContainerState.Final)
 			{
-				if(!IsMeshGenInWork(targetId))
+				foreach (var visualizer in _layerVisualizers)
 				{
-					CreateVisual(targetId, instantData);
+					visualizer.Value.SetActive(targetId, true, _mapInformation);
 				}
+				return true;
 			}
+			else
+			{
+				//Debug.Log(string.Format("Load Instant {0}, {1}, {2}" ,unityTile.CanonicalTileId, _vectorSource.CheckInstantData(unityTile.CanonicalTileId), _visualCache.ContainsKey(unityTile.CanonicalTileId)));
+				if (!IsZinSupportedRange(targetId.Z)) return true;
 
-			return false;
+				//this is wrong, it feels wrong
+				//tile doesn't need data, only yhe visual object. why are we checking for data
+				if (_vectorSource.GetInstantData(targetId, out var instantData) &&
+				    unityTile.TerrainContainer.State == TileContainerState.Final)
+				{
+					if (!IsMeshGenInWork(targetId))
+					{
+						CreateVisual(targetId, instantData);
+					}
+				}
+
+				return false;
+			}
 		}
 
 		public virtual bool RetainTiles(HashSet<CanonicalTileId> retainedTiles)
