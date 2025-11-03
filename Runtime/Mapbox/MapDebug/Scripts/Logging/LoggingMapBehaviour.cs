@@ -102,7 +102,7 @@ namespace Mapbox.MapDebug.Scripts.Logging
         {
             if (InitializationStatus == InitializationStatus.ReadyForUpdates && _mapService.IsReady())
             {
-                MapboxMap.MapUpdated();
+                MapboxMap.UpdateMap();
             }
         }
         
