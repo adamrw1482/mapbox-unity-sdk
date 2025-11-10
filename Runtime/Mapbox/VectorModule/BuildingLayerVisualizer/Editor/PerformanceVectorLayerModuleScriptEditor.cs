@@ -39,6 +39,15 @@ public class PerformanceVectorLayerModuleScriptEditor : Editor
             };
         }
 
+        // --- show info box if list is empty ---
+        if (_layerVisualizersProp.arraySize == 0)
+        {
+            EditorGUILayout.Space(8);
+            EditorGUILayout.HelpBox("No visualizers added.\nUse the buttons below to add or create a new visualizer.",
+                MessageType.Info);
+            EditorGUILayout.Space(8);
+        }
+
         for (int i = 0; i < _layerVisualizersProp.arraySize; i++)
         {
             var element = _layerVisualizersProp.GetArrayElementAtIndex(i);
@@ -47,7 +56,7 @@ public class PerformanceVectorLayerModuleScriptEditor : Editor
             EditorGUILayout.BeginHorizontal();
 
             EditorGUI.BeginChangeCheck();
-            EditorGUILayout.PropertyField(element, new GUIContent(""));
+            EditorGUILayout.PropertyField(element, GUIContent.none);
             if (EditorGUI.EndChangeCheck())
                 serializedObject.ApplyModifiedProperties();
 
@@ -78,13 +87,37 @@ public class PerformanceVectorLayerModuleScriptEditor : Editor
         }
 
         EditorGUILayout.Space(8);
+
+        // --- button row ---
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Add Empty Slot", GUILayout.Height(28)))
+        {
+            AddEmptySlot();
+        }
+
         if (GUILayout.Button("Add Layer Visualizer", GUILayout.Height(28)))
         {
             ShowAddVisualizerMenu();
         }
 
+        EditorGUILayout.EndHorizontal();
+
         serializedObject.ApplyModifiedProperties();
     }
+
+    private void AddEmptySlot()
+    {
+        serializedObject.Update();
+        int newIndex = _layerVisualizersProp.arraySize;
+        _layerVisualizersProp.InsertArrayElementAtIndex(newIndex);
+
+        // ensure it's null, not a duplicate
+        var el = _layerVisualizersProp.GetArrayElementAtIndex(newIndex);
+        el.objectReferenceValue = null;
+
+        serializedObject.ApplyModifiedProperties();
+    }
+
 
     private void ShowAddVisualizerMenu()
     {
@@ -101,7 +134,9 @@ public class PerformanceVectorLayerModuleScriptEditor : Editor
                 var displayName = type
                     .GetCustomAttributes(typeof(DisplayNameAttribute), true)
                     .FirstOrDefault() as DisplayNameAttribute;
-                string name = (displayName != null) ? displayName.DisplayName : ObjectNames.NicifyVariableName(type.Name);
+                string name = (displayName != null)
+                    ? displayName.DisplayName
+                    : ObjectNames.NicifyVariableName(type.Name);
                 menu.AddItem(new GUIContent(name), false, () => CreateAndAddVisualizer(type));
             }
         }
