@@ -32,6 +32,7 @@ namespace Mapbox.Example.Scripts.MapInput
             public bool ZoomAtCursor = true;
         }
 
+        public LatitudeLongitude CenterLatitudeLongitude;
         [Range(15, 90)]
         public float Pitch;
         [Range(-180, 180)]
@@ -137,8 +138,8 @@ namespace Mapbox.Example.Scripts.MapInput
                     hasChanged = true;
                 }
             }
-			
-            mapInformation.SetInformation(Conversions.WebMercatorToLatLon(newMercatorCenter), null, Pitch, Bearing);
+
+            CenterLatitudeLongitude = Conversions.WebMercatorToLatLon(newMercatorCenter);
             _dragOrigin = cursorHit;
             _previousScreenPosition = Input.mousePosition;
 
