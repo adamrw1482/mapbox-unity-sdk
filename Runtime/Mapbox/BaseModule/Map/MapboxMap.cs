@@ -35,7 +35,6 @@ namespace Mapbox.BaseModule.Map
             UnityContext = unityContext;
             TileCover = new TileCover();
             MapService = mapMapService;
-            MapInformation.ViewChanged += RedrawMap;
         }
 
         /// <summary>
@@ -142,7 +141,7 @@ namespace Mapbox.BaseModule.Map
         {
             Status = InitializationStatus.LoadingView;
             LoadViewStarting();
-            MapInformation.SetInformation(targetLocation);
+            MapInformation.SetLatitudeLongitude(targetLocation);
             
             MapService.TileCover(MapInformation, TileCover);
             yield return MapVisualizer.LoadTileCoverToMemory(TileCover);
@@ -166,9 +165,10 @@ namespace Mapbox.BaseModule.Map
         /// <param name="zoom">Zoom level of the map</param>
         /// <param name="pitch">Pitch value of the camera</param>
         /// <param name="bearing">Bearing value of the camera</param>
-        public void ChangeView(LatitudeLongitude? latlng = null, float? zoom = null, float? pitch = null, float? bearing = null)
+        public void ChangeView(LatitudeLongitude? latlng = null, float? zoom = null, float? pitch = null, float? bearing = null, float? scale = null)
         {
-            MapInformation.SetInformation(latlng, zoom, pitch, bearing);
+            MapInformation.SetInformation(latlng, zoom, pitch, bearing, scale);
+            RedrawMap();
         }
         
         public void OnDestroy()

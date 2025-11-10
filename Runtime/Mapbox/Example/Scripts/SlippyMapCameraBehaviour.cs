@@ -29,7 +29,7 @@ namespace Mapbox.Example.Scripts.MapInput
 			if (_isInitialized && _map.MapInformation != null && Core.UpdateCamera(_map.MapInformation))
 			{
 				var eulerAngles = Camera.transform.eulerAngles;
-				_map.MapInformation.SetInformation(null, Core.ZoomValue, eulerAngles.x, eulerAngles.y, Core.ScaleValue);
+				_map.ChangeView(Core.CenterLatitudeLongitude, Core.ZoomValue, eulerAngles.x, eulerAngles.y, Core.ScaleValue);
 			}
 		}
 	}

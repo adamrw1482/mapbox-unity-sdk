@@ -140,6 +140,15 @@ namespace Mapbox.BaseModule.Map
                 if (CreateTile(tilePair))
                 {
                     TempTiles.RemoveAt(index);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        var quadrant = tilePair.UnwrappedTileId.Quadrant(i);
+                        if (ActiveTiles.TryGetValue(quadrant, out var tile))
+                        {
+                            TileUnloading(tile);
+                            PoolTile(tile);
+                        }
+                    }
                 }
             }
         }
@@ -250,6 +259,7 @@ namespace Mapbox.BaseModule.Map
                     _toRemove.Remove(quadrant);
                     //_retainedTiles.Add(quadrant.Canonical);
                     ShowTile(unityMapTile);
+                    TempTiles.Add(unityMapTile);
                     quadrantCheck[i] = true;
                 }
             }

@@ -36,7 +36,7 @@ namespace Mapbox.Example.Scripts.MapInput
             Pitch = start.Pitch;
             Bearing = start.Bearing;
             ZoomValue = start.Zoom;
-            SetCamPositionByMapInfo(start);
+            SetCamera(start);
             start.LatitudeLongitudeChanged += information =>
             {
                 _targetPosition = Vector3.zero;
@@ -97,7 +97,7 @@ namespace Mapbox.Example.Scripts.MapInput
             
             //we probably shouldn't write to mapInformation here but do it in Moving3dCamBehaviour, along with pitch and bearing
             //mapInformation.ViewCenter = GetPlaneIntersection(Camera.ViewportToScreenPoint(new Vector3(0.5f, 0.5f)));
-
+            if(hasChanged) SetCamPositionByMapInfo();
             return hasChanged;
         }
 
@@ -135,20 +135,24 @@ namespace Mapbox.Example.Scripts.MapInput
             _targetPosition = Vector3.LerpUnclamped(postZoomTarget, postZoomPos, (camDistanceToMouse - newCamDistanceToMouse) / camDistanceToMouse);
         }
 
-        private void SetCamPositionByMapInfo(IMapInformation start)
+        private void SetCamPositionByMapInfo()
         {
-            CameraDistance = CalculateCameraDistance(start, start.Zoom);
             _camera.transform.position = _targetPosition;
             _camera.transform.rotation = Quaternion.Euler(Pitch, Bearing, 0);
             _camera.transform.position += _camera.transform.forward * (-1f * CameraDistance);
             _dragOrigin = GetPlaneIntersection(UnityEngine.Input.mousePosition);
         }
-
+        
         public void SetCamera(IMapInformation mapInfo)
         {
             Pitch = mapInfo.Pitch;
             Bearing = mapInfo.Bearing;
-            SetCamPositionByMapInfo(mapInfo);
+            
+            CameraDistance = CalculateCameraDistance(mapInfo, mapInfo.Zoom);
+            _camera.transform.position = _targetPosition;
+            _camera.transform.rotation = Quaternion.Euler(Pitch, Bearing, 0);
+            _camera.transform.position += _camera.transform.forward * (-1f * CameraDistance);
+            _dragOrigin = GetPlaneIntersection(UnityEngine.Input.mousePosition);
         }
 
         private Vector3 GetPlaneIntersection(Vector3 screenPosition)
