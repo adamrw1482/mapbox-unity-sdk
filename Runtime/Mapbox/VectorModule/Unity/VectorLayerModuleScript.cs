@@ -3,9 +3,7 @@ using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule.MeshGeneration;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Mapbox.VectorModule.Unity
 {
