@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 
-namespace Mapbox.BaseModule.Editor.Drawers
+namespace Mapbox.VectorModule.Editor.Drawers
 {
     [CustomPropertyDrawer(typeof(GameObjectTagAttribute))]
     public class GameObjectTagDrawer : PropertyDrawer

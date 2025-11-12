@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Mapbox.Editor
+namespace Mapbox.VectorModule.Editor
 {
     public class ScriptableCreatorWindow : EditorWindow
     {

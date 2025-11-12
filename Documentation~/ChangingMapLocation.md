@@ -1,14 +1,16 @@
 ## How to change map location
 
-To be able to jump to a certain location during runtime, we’ll be using ChangeView method under MapboxMap class;
+To jump to a specific location during runtime, use the ChangeView method from the MapboxMap class:
+
 `public void ChangeView(LatitudeLongitude? latlng = null, float? zoom = null, float? pitch = null, float? bearing = null)`
-This method will change the map values with the provided ones and trigger a redraw of the map.
 
-First step will be getting the map object, you can read more about that in [Working with map object](WorkingWithMapObject.md) short tutorial.
+This method updates the map with the provided parameters and triggers a redraw.
 
-Once you have the map object, you can call the method directly. A sample script is as follows;
+The first step is to get the map object. You can learn more about that in the short tutorial [Working with map object](WorkingWithMapObject.md).
 
-```
+Once you have access to the map object, you can call the method directly. A sample script is shown below:
+
+```csharp
 public class ChangeLocation : MonoBehaviour
 {
     public MapBehaviourCore Core;
@@ -27,4 +29,3 @@ public class ChangeLocation : MonoBehaviour
         _map.ChangeView(Conversions.StringToLatLon(location));
     }
 }
-```

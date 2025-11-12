@@ -1,145 +1,146 @@
 #if UNITY_EDITOR
 using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule;
-using Mapbox.VectorModule.Unity;
 using UnityEditor;
 using UnityEngine;
 
-[CustomPropertyDrawer(typeof(VectorModuleSettings))]
-public class VectorModuleSettingsDrawer : PropertyDrawer
+namespace Mapbox.VectorModule.Editor
 {
-    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    [CustomPropertyDrawer(typeof(VectorModuleSettings))]
+    public class VectorModuleSettingsDrawer : PropertyDrawer
     {
-        EditorGUI.BeginProperty(position, label, property);
-
-        float line = EditorGUIUtility.singleLineHeight;
-        float pad = EditorGUIUtility.standardVerticalSpacing;
-        Rect cursor = new Rect(position.x, position.y, position.width, line);
-
-        // Foldout
-        property.isExpanded = EditorGUI.Foldout(cursor, property.isExpanded, label, true);
-        cursor.y += line + pad;
-
-        if (!property.isExpanded)
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            EditorGUI.EndProperty();
-            return;
-        }
+            EditorGUI.BeginProperty(position, label, property);
 
-        using (new EditorGUI.IndentLevelScope(1))
-        {
-            var sourceTypeProp = property.FindPropertyRelative("SourceType");
-            var customSourceProp = property.FindPropertyRelative("CustomSourceId");
-            var dataSettingsProp = property.FindPropertyRelative("DataSettings");
-            var rejectZoomProp = property.FindPropertyRelative("RejectTilesOutsideZoom");
+            float line = EditorGUIUtility.singleLineHeight;
+            float pad = EditorGUIUtility.standardVerticalSpacing;
+            Rect cursor = new Rect(position.x, position.y, position.width, line);
 
-            // --- Custom enum popup (without "None") ---
-            var allNames = sourceTypeProp.enumDisplayNames;
-            var allValues = sourceTypeProp.enumNames;
-
-            // Filter out "None" (assumed to be enum index 2)
-            var names = new string[allNames.Length - 1];
-            for (int i = 0; i < names.Length; i++)
-                names[i] = allNames[i];
-
-            int currentIndex = sourceTypeProp.enumValueIndex;
-            if (currentIndex < 0) currentIndex = 0;
-
-            int newIndex = EditorGUI.Popup(cursor, "Source Type", currentIndex, names);
-            sourceTypeProp.enumValueIndex = newIndex;
+            // Foldout
+            property.isExpanded = EditorGUI.Foldout(cursor, property.isExpanded, label, true);
             cursor.y += line + pad;
 
-            bool isCustom = false;
-            try { isCustom = (VectorSourceType)sourceTypeProp.enumValueIndex == VectorSourceType.Custom; } catch { }
-
-            // CustomSourceId + button
-            if (isCustom)
+            if (!property.isExpanded)
             {
-                float customH = EditorGUI.GetPropertyHeight(customSourceProp, true);
-                var customRect = new Rect(cursor.x, cursor.y, cursor.width, customH);
-                EditorGUI.PropertyField(customRect, customSourceProp, true);
-                cursor.y += customH + pad;
+                EditorGUI.EndProperty();
+                return;
+            }
 
-                // Button under textbox
-                var buttonRect = new Rect(cursor.x, cursor.y, cursor.width, line);
-                buttonRect = IndentedValueRect(buttonRect);
+            using (new EditorGUI.IndentLevelScope(1))
+            {
+                var sourceTypeProp = property.FindPropertyRelative("SourceType");
+                var customSourceProp = property.FindPropertyRelative("CustomSourceId");
+                var dataSettingsProp = property.FindPropertyRelative("DataSettings");
+                var rejectZoomProp = property.FindPropertyRelative("RejectTilesOutsideZoom");
 
-                var StreetsV8 = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8).Id; 
-                string cur = customSourceProp.stringValue ?? string.Empty;
-                bool hasStreets = cur.StartsWith(StreetsV8);
-                string btnLabel = hasStreets ? "Remove Mapbox Streets V8" : "Add Mapbox Streets V8";
+                // --- Custom enum popup (without "None") ---
+                var allNames = sourceTypeProp.enumDisplayNames;
+                var allValues = sourceTypeProp.enumNames;
 
-                if (GUI.Button(buttonRect, btnLabel))
+                // Filter out "None" (assumed to be enum index 2)
+                var names = new string[allNames.Length - 1];
+                for (int i = 0; i < names.Length; i++)
+                    names[i] = allNames[i];
+
+                int currentIndex = sourceTypeProp.enumValueIndex;
+                if (currentIndex < 0) currentIndex = 0;
+
+                int newIndex = EditorGUI.Popup(cursor, "Source Type", currentIndex, names);
+                sourceTypeProp.enumValueIndex = newIndex;
+                cursor.y += line + pad;
+
+                bool isCustom = false;
+                try { isCustom = (VectorSourceType)sourceTypeProp.enumValueIndex == VectorSourceType.Custom; } catch { }
+
+                // CustomSourceId + button
+                if (isCustom)
                 {
-                    if (hasStreets)
+                    float customH = EditorGUI.GetPropertyHeight(customSourceProp, true);
+                    var customRect = new Rect(cursor.x, cursor.y, cursor.width, customH);
+                    EditorGUI.PropertyField(customRect, customSourceProp, true);
+                    cursor.y += customH + pad;
+
+                    // Button under textbox
+                    var buttonRect = new Rect(cursor.x, cursor.y, cursor.width, line);
+                    buttonRect = IndentedValueRect(buttonRect);
+
+                    var StreetsV8 = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8).Id; 
+                    string cur = customSourceProp.stringValue ?? string.Empty;
+                    bool hasStreets = cur.StartsWith(StreetsV8);
+                    string btnLabel = hasStreets ? "Remove Mapbox Streets V8" : "Add Mapbox Streets V8";
+
+                    if (GUI.Button(buttonRect, btnLabel))
                     {
-                        if (cur.StartsWith(StreetsV8 + ","))
-                            cur = cur.Substring(StreetsV8.Length + 1);
+                        if (hasStreets)
+                        {
+                            if (cur.StartsWith(StreetsV8 + ","))
+                                cur = cur.Substring(StreetsV8.Length + 1);
+                            else
+                                cur = cur.Substring(StreetsV8.Length);
+                        }
                         else
-                            cur = cur.Substring(StreetsV8.Length);
-                    }
-                    else
-                    {
-                        cur = string.IsNullOrEmpty(cur) ? StreetsV8 : (StreetsV8 + "," + cur);
+                        {
+                            cur = string.IsNullOrEmpty(cur) ? StreetsV8 : (StreetsV8 + "," + cur);
+                        }
+
+                        customSourceProp.stringValue = cur;
+                        GUI.FocusControl(null);
                     }
 
-                    customSourceProp.stringValue = cur;
-                    GUI.FocusControl(null);
+                    cursor.y += line + pad;
                 }
 
-                cursor.y += line + pad;
+                // DataSettings
+                float dataH = EditorGUI.GetPropertyHeight(dataSettingsProp, true);
+                EditorGUI.PropertyField(new Rect(cursor.x, cursor.y, cursor.width, dataH), dataSettingsProp, true);
+                cursor.y += dataH + pad;
+
+                // RejectTilesOutsideZoom
+                float zoomH = EditorGUI.GetPropertyHeight(rejectZoomProp, true);
+                EditorGUI.PropertyField(new Rect(cursor.x, cursor.y, cursor.width, zoomH), rejectZoomProp, true);
             }
 
-            // DataSettings
-            float dataH = EditorGUI.GetPropertyHeight(dataSettingsProp, true);
-            EditorGUI.PropertyField(new Rect(cursor.x, cursor.y, cursor.width, dataH), dataSettingsProp, true);
-            cursor.y += dataH + pad;
-
-            // RejectTilesOutsideZoom
-            float zoomH = EditorGUI.GetPropertyHeight(rejectZoomProp, true);
-            EditorGUI.PropertyField(new Rect(cursor.x, cursor.y, cursor.width, zoomH), rejectZoomProp, true);
+            EditorGUI.EndProperty();
         }
 
-        EditorGUI.EndProperty();
-    }
-
-    private static Rect IndentedValueRect(Rect row)
-    {
-        row = EditorGUI.IndentedRect(row);
-        row.xMin += EditorGUIUtility.labelWidth;
-        return row;
-    }
-
-    public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
-    {
-        float line = EditorGUIUtility.singleLineHeight;
-        float pad = EditorGUIUtility.standardVerticalSpacing;
-
-        float total = line + pad; // foldout
-
-        if (property.isExpanded)
+        private static Rect IndentedValueRect(Rect row)
         {
-            var sourceTypeProp = property.FindPropertyRelative("SourceType");
-            var customSourceProp = property.FindPropertyRelative("CustomSourceId");
-            var dataSettingsProp = property.FindPropertyRelative("DataSettings");
-            var rejectZoomProp = property.FindPropertyRelative("RejectTilesOutsideZoom");
-
-            total += line + pad; // SourceType popup
-            bool isCustom = false;
-            try { isCustom = (VectorSourceType)sourceTypeProp.enumValueIndex == VectorSourceType.Custom; } catch { }
-
-            if (isCustom)
-            {
-                total += EditorGUI.GetPropertyHeight(customSourceProp, true) + pad;
-                total += line + pad;
-            }
-
-            total += EditorGUI.GetPropertyHeight(dataSettingsProp, true) + pad;
-            total += EditorGUI.GetPropertyHeight(rejectZoomProp, true);
+            row = EditorGUI.IndentedRect(row);
+            row.xMin += EditorGUIUtility.labelWidth;
+            return row;
         }
 
-        return total + 2f;
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            float line = EditorGUIUtility.singleLineHeight;
+            float pad = EditorGUIUtility.standardVerticalSpacing;
+
+            float total = line + pad; // foldout
+
+            if (property.isExpanded)
+            {
+                var sourceTypeProp = property.FindPropertyRelative("SourceType");
+                var customSourceProp = property.FindPropertyRelative("CustomSourceId");
+                var dataSettingsProp = property.FindPropertyRelative("DataSettings");
+                var rejectZoomProp = property.FindPropertyRelative("RejectTilesOutsideZoom");
+
+                total += line + pad; // SourceType popup
+                bool isCustom = false;
+                try { isCustom = (VectorSourceType)sourceTypeProp.enumValueIndex == VectorSourceType.Custom; } catch { }
+
+                if (isCustom)
+                {
+                    total += EditorGUI.GetPropertyHeight(customSourceProp, true) + pad;
+                    total += line + pad;
+                }
+
+                total += EditorGUI.GetPropertyHeight(dataSettingsProp, true) + pad;
+                total += EditorGUI.GetPropertyHeight(rejectZoomProp, true);
+            }
+
+            return total + 2f;
+        }
     }
 }
 #endif
