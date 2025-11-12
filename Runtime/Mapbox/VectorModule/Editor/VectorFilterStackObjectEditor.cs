@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Mapbox.Editor;
 using Mapbox.VectorModule.Filters;
 using Mapbox.VectorModule.MeshGeneration.Unity;
 using UnityEditor;

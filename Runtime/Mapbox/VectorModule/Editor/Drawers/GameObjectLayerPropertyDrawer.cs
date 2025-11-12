@@ -3,7 +3,7 @@ using Mapbox.BaseModule.Utilities.Attributes;
 using UnityEditor;
 using UnityEngine;
 
-namespace Mapbox.BaseModule.Editor.Drawers
+namespace Mapbox.VectorModule.Editor.Drawers
 {
     [CustomPropertyDrawer(typeof(GameObjectLayerAttribute))]
     public class GameObjectLayerPropertyDrawer : PropertyDrawer
