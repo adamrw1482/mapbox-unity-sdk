@@ -37,10 +37,15 @@ namespace Mapbox.VectorModule
 			_unityContext = unityContext;
 			_layerVisualizers = layerVisualizers;
 			_mapInformation = mapInformation;
+			
 			_vectorSource = source;
+			if (_vectorSource != null)
+			{
+				_vectorSource.CacheItemDisposed += ClearDisposedDataVisual;
+			}
+			
 			_vectorModuleSettings = vectorModuleSettings ?? new VectorModuleSettings();
 			_readyTiles = new HashSet<CanonicalTileId>();
-			_vectorSource.CacheItemDisposed += ClearDisposedDataVisual;
 			_retainedTiles = new HashSet<CanonicalTileId>();
 			_activeTasks = new Dictionary<CanonicalTileId, List<TaskWrapper>>();
 			_tilesToRemove = new List<CanonicalTileId>(10);
@@ -48,7 +53,10 @@ namespace Mapbox.VectorModule
 
 		public virtual IEnumerator Initialize()
 		{
-			yield return _vectorSource.Initialize();
+			if (_vectorSource != null)
+			{
+				yield return _vectorSource.Initialize();
+			}
 			foreach (var visualizer in _layerVisualizers.Values)
 			{
 				yield return visualizer.Initialize();
