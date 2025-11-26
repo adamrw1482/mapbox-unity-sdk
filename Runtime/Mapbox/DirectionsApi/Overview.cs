@@ -4,12 +4,15 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System;
+
 namespace Mapbox.DirectionsApi
 {
 	/// <summary> 
 	///     Type of returned overview geometry. Can be  full (the most detailed geometry available),  
 	///     simplified (a simplified version of the full geometry), or  false (no overview geometry).  
 	/// </summary>
+	[Serializable]
 	public sealed class Overview
 	{
 		/// <summary> Use the most detailed geometry available. </summary>

@@ -7,36 +7,33 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using Unity.Properties;
+using UnityEngine.Scripting;
 
 namespace Mapbox.DirectionsApi.Response
 {
-	/// <summary>
-	/// Directions response.
-	/// </summary>
-#if !WINDOWS_UWP
-	// http://stackoverflow.com/a/12903628
 	[Serializable]
-#endif
-	public class DirectionsResponse {
+	public class DirectionsResponse
+	{
 		/// <summary>
 		/// Gets or sets the routes.
 		/// </summary>
 		/// <value>The routes.</value>
 		[JsonProperty("routes")]
-		public List<Route> Routes { get; set; }
+		public List<Route> Routes;
 
 		/// <summary>
 		/// Gets or sets the waypoints.
 		/// </summary>
 		/// <value>The waypoints.</value>
 		[JsonProperty("waypoints")]
-		public List<Waypoint> Waypoints { get; set; }
+		public List<Waypoint> Waypoints;
 
 		/// <summary>
 		/// Gets or sets the code.
 		/// </summary>
 		/// <value>The code.</value>
-		[JsonProperty("code")]
-		public string Code { get; set; }
+		[JsonProperty("code")] 
+		public string Code;
 	}
 }
