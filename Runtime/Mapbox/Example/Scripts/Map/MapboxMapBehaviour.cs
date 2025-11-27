@@ -60,14 +60,6 @@ namespace Mapbox.Example.Scripts.Map
             Initialized(MapboxMap);
             MapboxMap.LoadMapView();
         }
-
-        private void Update()
-        {
-            if (InitializationStatus == InitializationStatus.ReadyForUpdates && _mapService.IsReady())
-            {
-                MapboxMap.UpdateMap();
-            }
-        }
         
         private void OnValidate()
         {
@@ -84,8 +76,6 @@ namespace Mapbox.Example.Scripts.Map
             MapboxMap?.OnDestroy();
             UnityContext.OnDestroy();
         }
-
-        
         
         protected virtual MapboxMap CreateMapObject()
         {
