@@ -10,7 +10,6 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     public class ArrayHeight : IPerformanceExtrusion
     {
         private readonly GeometryExtrusionOptions _settings;
-        private int _startIndex;
 
         public ArrayHeight(GeometryExtrusionOptions settings)
         {
@@ -30,38 +29,53 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             if (feature == null || feature.VertexData.Submeshes.Count < 1)
                 return triIndex;
 
-            _startIndex = vertexAnchorIndex;
+            var startIndex = vertexAnchorIndex;
 
             // Convert heights to local (tile) units once
             float height = (feature.Height    / mapInformation.Scale) / tileSizeX;
-            float minH   = (feature.MinHeight / mapInformation.Scale) / tileSizeX; // currently unused, kept for parity
-
+            float minH   = (feature.MinHeight > 0) 
+                ? (feature.MinHeight / mapInformation.Scale) / tileSizeX
+                : 0;
+            
             // Determine current max Y among provided vertices (top ring)
             float maxY = 0f;
-            int vCount = vertices.Length; // Span length (caller controls)
-            for (int i = 0; i < vCount; i++)
+            for (int i = 0; i < vertices.Length; i++)
             {
-                float y = vertices[i].y;
-                // Use branchless-ish update
-                if (y > maxY) maxY = y;
+                if (vertices[i].y > maxY)
+                {
+                    maxY = vertices[i].y;
+                }
             }
             height = maxY + height;
-
+            float wallHeight = height - (maxY + minH);
+            
             // Raise the roof (top ring/verts in-span)
             GenerateRoofMesh(vertices, height);
 
             // Build walls
-            triIndex = GenerateWallMesh(vertices, normals, feature, triList, triIndex);
+            triIndex = GenerateWallMesh(vertices, normals, feature, triList, triIndex, startIndex, wallHeight);
 
             return triIndex;
         }
 
+        public void GenerateRoofMesh(Span<Vector3> vertices, float maxHeight)
+        {
+            // Mutate by ref to avoid creating new Vector3
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                ref Vector3 v = ref vertices[i];
+                v.y = maxHeight;
+            }
+        }
+        
         private int GenerateWallMesh(
             Span<Vector3> vertices,
             Span<Vector3> normals,
             PerfVectorFeatureUnity feature,
             int[] trilist,
-            int triIndex)
+            int triIndex,
+            int startIndex,
+            float wallHeight)
         {
             // Aliases for quicker access
             var verts     = feature.VertexData.Vertices;
@@ -102,7 +116,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     // Read the "roof top ring" directly from vertices[start + j]
                     ref readonly Vector3 roofV = ref vertices[start + j];
                     float yTop = roofV.y;
-                    const float yMin = 0f;
+                    float yMin = yTop - wallHeight;
 
                     // Write quads (curr -> next, top and bottom)
                     // next(1)---------curr(0)
@@ -140,7 +154,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     normSpan[vertBase + 3] = n1;
 
                     // triangles
-                    int si    = _startIndex;
+                    int si    = startIndex;
                     int baseB = si + ringBase + vertBase;          // this edge's first wall vertex
                     int baseA = si + ringBase + ((j == 0) ? ((count - 1) << 2) : ((j - 1) << 2)); // previous edge's base (for wrapping last pair)
 
@@ -172,16 +186,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return triIndex;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GenerateRoofMesh(Span<Vector3> vertices, float maxHeight)
-        {
-            // Mutate by ref to avoid creating new Vector3
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                ref Vector3 v = ref vertices[i];
-                v.y = v.y + maxHeight;
-            }
-        }
+        
 
         public int CalculateTriCountFor(int totalPointCount)
         {

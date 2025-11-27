@@ -87,7 +87,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 
                 if (_settings.EnableTerrainSnapping)
                 {
-                    arraySnapTerrain.SnapTerrain(vertices, featureResult, tileSize);
+                    arraySnapTerrain.SnapTerrain(vertices, vertices.Length / 5, featureResult, tileSize);
                 }
 
                 var triSpaceRequired = arrayHeight.CalculateTriCountFor(featureResult.VertexData.VertexCount);
