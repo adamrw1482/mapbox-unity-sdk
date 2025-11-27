@@ -41,17 +41,20 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             var minHeight = feature.MinHeight;
 
             height = (height / mapInformation.Scale) / tileSizeX;
-            minHeight = (minHeight / mapInformation.Scale) / tileSizeX;
-
+            minHeight   = (minHeight > 0) 
+                ? (minHeight / mapInformation.Scale) / tileSizeX
+                : 0;
+            
             var max = 0f;
             var min = 0f;
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                if (vertices[i].y > max)
-                    max = vertices[i].y;
-                else if (vertices[i].y < min)
-                    min = vertices[i].y;
-            }
+            // for (int i = 0; i < vertices.Length; i++)
+            // {
+            //     if (vertices[i].y > max)
+            //         max = vertices[i].y;
+            //     else if (vertices[i].y < min)
+            //         min = vertices[i].y;
+            // }
+            // will need something like this for flat rooftops, which is disabled at the moment
             height = max + height;
             
             triIndex = Chamfer(vertices, normals, feature, triList, triIndex, minHeight, height, scaledOffset);
@@ -177,7 +180,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     vertices[vertBase + 3] = new Vector3(vertCurr.x + v2.x, yMin, vertCurr.z + v2.z);
 
                     // move original vertex
-                    vertices[curIdx] = new Vector3(poi.x, vertCurr.y + height + scaledOffset + vertCurr.y, poi.z);
+                    vertices[curIdx] = new Vector3(poi.x, yTop + scaledOffset, poi.z);
 
                     // normals
                     normals[curIdx] = Up;

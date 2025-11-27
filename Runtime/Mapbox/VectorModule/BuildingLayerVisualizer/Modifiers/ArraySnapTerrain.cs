@@ -12,9 +12,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             _mapInformation = mapInformation;
         }
 
-        public void SnapTerrain(Span<Vector3> vertices, PerfVectorFeatureUnity feature, float tileSize)
+        public void SnapTerrain(Span<Vector3> vertices, int topPolyLength, PerfVectorFeatureUnity feature, float tileSize)
         {
-            for (var i = 0; i < vertices.Length; i++)
+            for (var i = 0; i < topPolyLength; i++)
             {
                 ref Vector3 vertex = ref vertices[i];
                 var h = 0f;
