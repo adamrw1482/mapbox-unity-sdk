@@ -55,23 +55,12 @@ namespace Mapbox.BaseModule.Map
             Initialized();
         }
 
-        /// <summary>
-        /// Map redraw method, which we currently use on-demand, to recalculate the tile cover and run map visualizer on it.
-        /// </summary>
-        private void RedrawMap(IMapInformation mapInfo = null)
+        public void ForceRedraw()
         {
-            MapService.TileCover(mapInfo ?? MapInformation, TileCover);
+            MapService.TileCover(MapInformation, TileCover);
             MapVisualizer.Load(TileCover);
         }
         
-        /// <summary>
-        /// Map update method, which we currently use per-frame
-        /// </summary>
-        public void UpdateMap()
-        {
-            //MapVisualizer.Load(TileCover);
-        }
-
         /// <summary>
         /// Provides a controlled method for jumping to specific locations on the map.
         /// Unlike standard frame-by-frame map updates, this method ensures precise 
@@ -178,6 +167,17 @@ namespace Mapbox.BaseModule.Map
         }
 
         public void UpdateTileCover() => MapService.TileCover(MapInformation, TileCover);
+        
+        /// <summary>
+        /// Map redraw method, which we currently use on-demand, to recalculate the tile cover and run map visualizer on it.
+        /// </summary>
+        private void RedrawMap(IMapInformation mapInfo = null)
+        {
+            MapService.TileCover(mapInfo ?? MapInformation, TileCover);
+            MapVisualizer.Load(TileCover);
+        }
+        
+        
         
         /// <summary>
         /// All modules are initialized, you can get&use any object and/or register to events safely.
