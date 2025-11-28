@@ -18,10 +18,10 @@ namespace Mapbox.VectorModule
 	public class VectorLayerModule : ILayerModule
 	{
 		//mesh gen
-		private bool _isActive = true;
-		private UnityContext _unityContext;
-		private Dictionary<CanonicalTileId, TaskWrapper> _activeTasks;
-		private Dictionary<string, IVectorLayerVisualizer> _layerVisualizers;
+		protected bool _isActive = true;
+		protected UnityContext _unityContext;
+		protected Dictionary<CanonicalTileId, List<TaskWrapper>> _activeTasks;
+		protected Dictionary<string, IVectorLayerVisualizer> _layerVisualizers;
 		
 		private Source<VectorData> _vectorSource;
 		private VectorModuleSettings _vectorModuleSettings;
@@ -37,18 +37,26 @@ namespace Mapbox.VectorModule
 			_unityContext = unityContext;
 			_layerVisualizers = layerVisualizers;
 			_mapInformation = mapInformation;
+			
 			_vectorSource = source;
+			if (_vectorSource != null)
+			{
+				_vectorSource.CacheItemDisposed += ClearDisposedDataVisual;
+			}
+			
 			_vectorModuleSettings = vectorModuleSettings ?? new VectorModuleSettings();
 			_readyTiles = new HashSet<CanonicalTileId>();
-			_vectorSource.CacheItemDisposed += ClearDisposedDataVisual;
 			_retainedTiles = new HashSet<CanonicalTileId>();
-			_activeTasks = new Dictionary<CanonicalTileId, TaskWrapper>();
+			_activeTasks = new Dictionary<CanonicalTileId, List<TaskWrapper>>();
 			_tilesToRemove = new List<CanonicalTileId>(10);
 		}
 
 		public virtual IEnumerator Initialize()
 		{
-			yield return _vectorSource.Initialize();
+			if (_vectorSource != null)
+			{
+				yield return _vectorSource.Initialize();
+			}
 			foreach (var visualizer in _layerVisualizers.Values)
 			{
 				yield return visualizer.Initialize();
@@ -64,23 +72,31 @@ namespace Mapbox.VectorModule
 		{
 			var targetId = GetTargetTileId(unityTile.CanonicalTileId);
 			if (_readyTiles.Contains(targetId))
-				return true;
-			
-			//Debug.Log(string.Format("Load Instant {0}, {1}, {2}" ,unityTile.CanonicalTileId, _vectorSource.CheckInstantData(unityTile.CanonicalTileId), _visualCache.ContainsKey(unityTile.CanonicalTileId)));
-			if (!IsZinSupportedRange(targetId.Z)) return true;
-
-			//this is wrong, it feels wrong
-			//tile doesn't need data, only yhe visual object. why are we checking for data
-			if (_vectorSource.GetInstantData(targetId, out var instantData) && 
-			    unityTile.TerrainContainer.State == TileContainerState.Final)
 			{
-				if(!IsMeshGenInWork(targetId))
+				foreach (var visualizer in _layerVisualizers)
 				{
-					CreateVisual(targetId, instantData);
+					visualizer.Value.SetActive(targetId, true, _mapInformation);
 				}
+				return true;
 			}
+			else
+			{
+				//Debug.Log(string.Format("Load Instant {0}, {1}, {2}" ,unityTile.CanonicalTileId, _vectorSource.CheckInstantData(unityTile.CanonicalTileId), _visualCache.ContainsKey(unityTile.CanonicalTileId)));
+				if (!IsZinSupportedRange(targetId.Z)) return true;
 
-			return false;
+				//this is wrong, it feels wrong
+				//tile doesn't need data, only yhe visual object. why are we checking for data
+				if (_vectorSource.GetInstantData(targetId, out var instantData) &&
+				    unityTile.TerrainContainer.State == TileContainerState.Final)
+				{
+					if (!IsMeshGenInWork(targetId))
+					{
+						CreateVisual(targetId, instantData);
+					}
+				}
+
+				return false;
+			}
 		}
 
 		public virtual bool RetainTiles(HashSet<CanonicalTileId> retainedTiles)
@@ -99,10 +115,13 @@ namespace Mapbox.VectorModule
 				if (!isActive)
 				{
 					_tilesToRemove.Add(tileId);
-					if (_activeTasks.TryGetValue(tileId, out var task))
+					if (_activeTasks.TryGetValue(tileId, out var tasks))
 					{
-						_activeTasks.Remove(tileId);
-						task.Cancel();
+						foreach (var task in tasks)
+						{
+							_activeTasks.Remove(tileId);
+							task.Cancel();
+						}
 					}
 				}
 			}
@@ -115,10 +134,15 @@ namespace Mapbox.VectorModule
 			//cancel tasks for tiles we no longer need
 			//this prevents flickers from buildings appearing in temp tiles
 			//while we are waiting for the final real tile
-			foreach (var task in _activeTasks)
+			foreach (var taskPair in _activeTasks)
 			{
-				if(!_retainedTiles.Contains(task.Key))
-					task.Value.Cancel();
+				if (!_retainedTiles.Contains(taskPair.Key))
+				{
+					foreach (var task in taskPair.Value)
+					{
+						task.Cancel();
+					}
+				}
 			}
 
 			var isReady = _vectorSource.RetainTiles(_retainedTiles);
@@ -362,9 +386,12 @@ namespace Mapbox.VectorModule
 
 		private void ClearDisposedDataVisual(CanonicalTileId tileId)
 		{
-			if (_activeTasks.TryGetValue(tileId, out var task))
+			if (_activeTasks.TryGetValue(tileId, out var tasks))
 			{
-				task.Cancel();
+				foreach (var task in tasks)
+				{
+					task.Cancel();
+				}
 			}
 			_readyTiles.Remove(tileId);
 			foreach (var visualizer in _layerVisualizers)
@@ -385,14 +412,14 @@ namespace Mapbox.VectorModule
 			}
 		}
 		
-		private void MeshGeneration(VectorData data, Action<MeshGenerationTaskResult> callback)
+		protected virtual void MeshGeneration(VectorData data, Action<MeshGenerationTaskResult> callback)
         {
             if (data.Data == null)
             {
                 callback(new MeshGenerationTaskResult(TaskResultType.Success));
             }
 
-            var meshTask = new MeshGenTaskWrapper()
+            var meshTask = new MeshGenTaskWrapper<MeshGenTaskWrapperResult>()
             {
                 TileId = data.TileId,
                 DataAction = () =>
@@ -486,7 +513,8 @@ namespace Mapbox.VectorModule
                 }
             };
 
-            _activeTasks.Add(data.TileId, meshTask);
+            if(!_activeTasks.ContainsKey(data.TileId)) _activeTasks.Add(data.TileId, new List<TaskWrapper>());
+            _activeTasks[data.TileId].Add(meshTask);
             _unityContext.TaskManager.AddTask(meshTask, 0);
         }
 		

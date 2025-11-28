@@ -97,14 +97,6 @@ namespace Mapbox.MapDebug.Scripts.Logging
                 });
             }
         }
-
-        private void Update()
-        {
-            if (InitializationStatus == InitializationStatus.ReadyForUpdates && _mapService.IsReady())
-            {
-                MapboxMap.MapUpdated();
-            }
-        }
         
         private void OnValidate()
         {
