@@ -16,13 +16,15 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
     public class MapboxComponentsModule : VectorLayerModule
     {
-        public MapboxComponentsModule(IMapInformation mapInformation, Source<VectorData> source, UnityContext unityContext, Dictionary<string, IVectorLayerVisualizer> layerVisualizers, VectorModuleSettings vectorModuleSettings = null) : base(mapInformation, source, unityContext, layerVisualizers, vectorModuleSettings)
+        public MapboxComponentsModule(IMapInformation mapInformation, Source<VectorData> source,
+            UnityContext unityContext, Dictionary<string, IVectorLayerVisualizer> layerVisualizers,
+            VectorModuleSettings vectorModuleSettings = null) : base(mapInformation, source, unityContext,
+            layerVisualizers, vectorModuleSettings)
         {
         }
 
         protected override void MeshGeneration(VectorData data, Action<MeshGenerationTaskResult> callback)
         {
-            {
             var meshTask = new MeshGenTaskWrapper<BuildingLayerTaskResult>()
             {
                 TileId = data.TileId,
@@ -36,7 +38,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     {
                         foreach (var vectorLayerVisualizer in _layerVisualizers.Values)
                         {
-                            var visualizer = (BuildingLayerVisualizer) vectorLayerVisualizer;
+                            var visualizer = (BuildingLayerVisualizer)vectorLayerVisualizer;
                             if (visualizer == null || !visualizer.Active || visualizer.ContainsVisualFor(data.TileId))
                                 continue;
 
@@ -57,7 +59,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         result.AddException(e);
                         return result;
                     }
-                        
+
                     result.ResultType = TaskResultType.Success;
                     return result;
                 },
@@ -74,7 +76,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         callback(failResult);
                         return;
                     }
-                    
+
                     if (taskResult.ResultType == TaskResultType.MeshGenerationFailure)
                     {
                         var failResult = new MeshGenerationTaskResult(taskResult.ResultType);
@@ -82,8 +84,10 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         {
                             failResult.AddException(e);
                         }
+
                         //Debug.Log(string.Format("{0} mesh gen exception: {1}", data.TileId, task.Exception.Message));
-                        failResult.AddException(new Exception(string.Format("{0} mesh gen exception: {1}", data.TileId, taskResult.ExceptionsAsString)));
+                        failResult.AddException(new Exception(string.Format("{0} mesh gen exception: {1}", data.TileId,
+                            taskResult.ExceptionsAsString)));
                         callback(failResult);
                         return;
                     }
@@ -91,7 +95,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     var resultGameObjects = new List<GameObject>();
                     foreach (var layerData in taskResult.MeshData)
                     {
-                        foreach (BuildingLayerVisualizer layerVisualizer in _layerVisualizers.Where(x => x.Value is BuildingLayerVisualizer && x.Key == layerData.LayerName).Select(x => x.Value))
+                        foreach (BuildingLayerVisualizer layerVisualizer in _layerVisualizers
+                                     .Where(x => x.Value is BuildingLayerVisualizer && x.Key == layerData.LayerName)
+                                     .Select(x => x.Value))
                         {
                             var layerGameObjects = layerVisualizer.CreateGo(data.TileId, layerData.MeshData);
                             foreach (var gameObject in layerGameObjects)
@@ -103,15 +109,13 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     }
 
                     callback(new MeshGenerationTaskResult(TaskResultType.Success, resultGameObjects));
-
                 }
             };
-            if(!_activeTasks.ContainsKey(data.TileId)) _activeTasks.Add(data.TileId, new List<TaskWrapper>());
+            if (!_activeTasks.ContainsKey(data.TileId)) _activeTasks.Add(data.TileId, new List<TaskWrapper>());
             _activeTasks[data.TileId].Add(meshTask);
             _unityContext.TaskManager.AddTask(meshTask, 0);
         }
-        }
-        
+
         public class BuildingLayerTaskResult : MeshGenTaskWrapperResult
         {
             public List<BuildingLayerDataResult> MeshData;
