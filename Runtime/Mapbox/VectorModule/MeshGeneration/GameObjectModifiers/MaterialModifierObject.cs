@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 {
 	[DisplayName("Material Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Material Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/GameObject Modifiers/Material Modifier")]
 	public class MaterialModifierObject : ScriptableGameObjectModifierObject
 	{
 		public Material[] Materials;

@@ -10,7 +10,7 @@ using UnityEngine.Serialization;
 namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
     [DisplayName("Building Component")]
-    [CreateAssetMenu(menuName = "Mapbox/Modifiers/Buildings Visualizer")]
+    [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Buildings Component Visualizer")]
     public class BuildingLayerVisualizerObject : LayerVisualizerConstructor, IPerformanceLayerVisualizer
     {
         public BuildingVisualizerSettings Settings;

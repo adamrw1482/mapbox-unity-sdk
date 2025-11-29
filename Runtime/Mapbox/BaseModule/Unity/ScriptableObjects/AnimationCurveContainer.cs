@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Mapbox/Animation Curve Container")]
+[CreateAssetMenu(menuName = "Mapbox/Others/Animation Curve Container")]
 public class AnimationCurveContainer : ScriptableObject
 {
     public AnimationCurve Curve;

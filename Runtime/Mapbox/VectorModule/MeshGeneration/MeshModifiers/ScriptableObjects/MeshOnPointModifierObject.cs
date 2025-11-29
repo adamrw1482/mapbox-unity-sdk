@@ -9,7 +9,7 @@
 // namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 // {
 // 	[DisplayName("Mesh On Point Modifier")]
-// 	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh On Point Modifier")]
+// 	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Mesh On Point Modifier")]
 // 	public class MeshOnPointModifierObject : ScriptableMeshModifierObject
 // 	{
 // 		public MeshOnPointSettings MeshOnPointSettings;

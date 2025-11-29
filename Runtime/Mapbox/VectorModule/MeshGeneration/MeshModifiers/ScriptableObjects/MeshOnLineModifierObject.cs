@@ -7,7 +7,7 @@
 // namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 // {
 // 	[DisplayName("Mesh On Line Modifier")]
-// 	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh On Line Modifier")]
+// 	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Mesh On Line Modifier")]
 // 	public class MeshOnLineModifierObject : ScriptableMeshModifierObject
 // 	{
 // 		public PrefabSet PrefabSet;

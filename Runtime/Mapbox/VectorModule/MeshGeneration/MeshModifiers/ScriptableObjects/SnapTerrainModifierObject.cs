@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 {
 	[DisplayName("Snap Terrain Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Snap Terrain Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Snap Terrain Modifier")]
 	public class SnapTerrainModifierObject : ScriptableMeshModifierObject, ISnapTerrainModifier
 	{
 		private SnapTerrainModifier _snapTerrainModifierImplementation;

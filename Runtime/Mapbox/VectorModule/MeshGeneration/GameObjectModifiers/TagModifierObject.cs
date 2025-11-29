@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 {
     [DisplayName("Tag Modifier")]
-    [CreateAssetMenu(menuName = "Mapbox/Modifiers/Tag Modifier")]
+    [CreateAssetMenu(menuName = "Mapbox/Modifiers/GameObject Modifiers/Tag Modifier")]
     public class TagModifierObject : ScriptableGameObjectModifierObject
     {
         [GameObjectTag]public string tag;

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 {
 	[DisplayName("Polygon Mesh Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Polygon Mesh Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Polygon Mesh Modifier")]
 	public class PolygonMeshModifierObject : ScriptableMeshModifierObject, IPolygonMeshModifier
 	{
 		public float Height = 0f;

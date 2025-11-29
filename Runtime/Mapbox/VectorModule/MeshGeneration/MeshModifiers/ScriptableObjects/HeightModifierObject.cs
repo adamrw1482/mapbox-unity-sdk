@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 {
 	[DisplayName("Height Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Height Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Height Modifier")]
 	public class HeightModifierObject : ScriptableMeshModifierObject
 	{
 		public GeometryExtrusionOptions ExtrusionOptions;

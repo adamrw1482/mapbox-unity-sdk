@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Mapbox.VectorModule.Unity
 {
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Layer Visualizer")]
+	[CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Generic Vector Layer Visualizer")]
 	public class VectorLayerVisualizerObject : LayerVisualizerConstructor
 	{
 		[SerializeField] private string _vectorLayerName;

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.MeshModifiers.ScriptableObjects
 {
 	[DisplayName("Line Mesh Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Line Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Mesh Modifiers/Line Modifier")]
 	public class LineMeshModifierObject : ScriptableMeshModifierObject
 	{
 		public LineMeshParameters LineMeshParameters;

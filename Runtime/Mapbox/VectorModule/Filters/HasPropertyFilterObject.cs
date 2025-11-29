@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Mapbox.VectorModule.Filters
 {
-    [CreateAssetMenu(menuName = "Mapbox/Filters/Has Propertu Filter")]
+    [CreateAssetMenu(menuName = "Mapbox/Filters/Has Property Filter")]
     [DisplayName("Has Property Filter")]
     public class HasPropertyFilterObject : FilterBaseObject
     {

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 {
 	[DisplayName("Collider Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Collider Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/GameObject Modifiers/Collider Modifier")]
 	public class ColliderModifierObject : ScriptableGameObjectModifierObject
 	{
 		private ColliderModifier _prefabModifierImplementation;

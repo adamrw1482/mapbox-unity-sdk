@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Mapbox.VectorModule.MeshGeneration.GameObjectModifiers
 {
 	[DisplayName("Prefab Modifier")]
-	[CreateAssetMenu(menuName = "Mapbox/Modifiers/Prefab Modifier")]
+	[CreateAssetMenu(menuName = "Mapbox/Modifiers/GameObject Modifiers/Prefab Modifier")]
 	public class PrefabModifierObject : ScriptableGameObjectModifierObject
 	{
 		public Action<GameObject> PrefabCreated = (s) => { };
