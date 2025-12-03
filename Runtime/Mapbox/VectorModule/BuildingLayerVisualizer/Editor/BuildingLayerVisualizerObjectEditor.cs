@@ -2,8 +2,8 @@ using Mapbox.VectorModule.BuildingLayerVisualizer;
 using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(BuildingLayerVisualizerObject))]
-public class BuildingLayerVisualizerObjectEditor : Editor
+[CustomEditor(typeof(BuildingComponentVisualizerObject))]
+public class BuildingComponentVisualizerObjectEditor : Editor
 {
     private SerializedProperty _settingsProp;
 

@@ -9,14 +9,14 @@ using UnityEngine.Serialization;
 
 namespace Mapbox.VectorModule.BuildingLayerVisualizer
 {
-    [DisplayName("Building Component")]
-    [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Buildings Component Visualizer")]
-    public class BuildingComponentVisualizerObject : LayerVisualizerConstructor, IPerformanceLayerVisualizer
+    [DisplayName("Road Component")]
+    [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Road Component Visualizer")]
+    public class RoadLayerVisualizerObject : LayerVisualizerConstructor, IPerformanceLayerVisualizer
     {
-        public BuildingComponentSettings Settings;
+        public RoadComponentSettings Settings;
         public bool IsActive = true;
 
-        private BuildingComponentVisualizer _layerVisualizer;
+        private RoadComponentVisualizer _layerVisualizer;
 		
         public IVectorLayerVisualizer GetLayerVisualizer()
         {
@@ -25,7 +25,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 		
         public override IVectorLayerVisualizer ConstructLayerVisualizer(IMapInformation mapInformation, UnityContext unityContext)
         {
-            _layerVisualizer = new BuildingComponentVisualizer("building", mapInformation, unityContext, Settings);
+            _layerVisualizer = new RoadComponentVisualizer("road", mapInformation, unityContext, Settings);
             _layerVisualizer.Active = IsActive;
 
             _layerVisualizer.OnVectorMeshCreated += OnVectorMeshCreated;
@@ -39,25 +39,13 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     }
 
     [Serializable]
-    public class BuildingComponentSettings
+    public class RoadComponentSettings
     {
-        public bool EnableTerrainSnapping = false;
-        public bool RoundBuildingCorners = false;
+        public float RoadWidth = 2;
         public Material Material;
-
-        public ChamferModifierSettings ChamferExtrusionSettings;
-        public GeometryExtrusionOptions BasicExtrusionSettings;
-
-        public BuildingComponentSettings()
-        {
-            EnableTerrainSnapping = false;
-            ChamferExtrusionSettings = new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1 };
-            BasicExtrusionSettings = new GeometryExtrusionOptions();
-        }
-    }
-    
-    public interface IPerformanceLayerVisualizer
-    {
         
+        public RoadComponentSettings()
+        {
+        }
     }
 }

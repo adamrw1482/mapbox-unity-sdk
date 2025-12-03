@@ -38,7 +38,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     {
                         foreach (var vectorLayerVisualizer in _layerVisualizers.Values)
                         {
-                            var visualizer = (BuildingLayerVisualizer)vectorLayerVisualizer;
+                            var visualizer = (MapboxComponentVisualizer)vectorLayerVisualizer;
                             if (visualizer == null || !visualizer.Active || visualizer.ContainsVisualFor(data.TileId))
                                 continue;
 
@@ -95,10 +95,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     var resultGameObjects = new List<GameObject>();
                     foreach (var layerData in taskResult.MeshData)
                     {
-                        foreach (BuildingLayerVisualizer layerVisualizer in _layerVisualizers
-                                     .Where(x => x.Value is BuildingLayerVisualizer && x.Key == layerData.LayerName)
+                        foreach (var vectorLayerVisualizer in _layerVisualizers
+                                     .Where(x => x.Value is MapboxComponentVisualizer && x.Key == layerData.LayerName)
                                      .Select(x => x.Value))
                         {
+                            var layerVisualizer = (MapboxComponentVisualizer)vectorLayerVisualizer;
                             var layerGameObjects = layerVisualizer.CreateGo(data.TileId, layerData.MeshData);
                             foreach (var gameObject in layerGameObjects)
                             {

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Platform;
 using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Tiles;
@@ -54,16 +55,15 @@ namespace Mapbox.VectorModuleTests
             return mapInformation;
         }
         
-        private BuildingLayerVisualizer BuildingLayer(IMapInformation mapInformation)
+        private BuildingComponentVisualizer BuildingLayer(IMapInformation mapInformation)
         {
-            var viz = new BuildingLayerVisualizer("test", mapInformation, null, null);
+            var viz = new BuildingComponentVisualizer("test", mapInformation, null, null);
             viz.Initialize();
             return viz;
         }
 
         private VectorLayerVisualizer RegularLayer(IMapInformation mapInformation, bool doChamfer)
         {
-            
             var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
             var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
             var modStack = new ModifierStack(modStackSettings, null);
@@ -78,6 +78,23 @@ namespace Mapbox.VectorModuleTests
             {
                 modStack.MeshModifiers.Add(new HeightModifier(new GeometryExtrusionOptions()));
             }
+
+            viz.AddModifierStack(new List<ModifierStack>() { modStack });
+            viz.Initialize();
+            return viz;
+        }
+        
+        private VectorLayerVisualizer RegularRoadLayer(IMapInformation mapInformation)
+        {
+            var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
+            var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
+            var modStack = new ModifierStack(modStackSettings, null);
+            modStack.MeshModifiers.Add(new LineMeshForPolygonsModifier(new LineMeshParameters()
+            {
+                CapType = JoinType.Butt,
+                JoinType = JoinType.Round,
+                Width = 6
+            } ));
 
             viz.AddModifierStack(new List<ModifierStack>() { modStack });
             viz.Initialize();
@@ -105,9 +122,9 @@ namespace Mapbox.VectorModuleTests
         public IEnumerator BuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
         {
             var settings = doChamfer
-                ? new BuildingVisualizerSettings() { RoundBuildingCorners = true }
-                : new BuildingVisualizerSettings() { RoundBuildingCorners = false };
-            var viz = new BuildingLayerVisualizer("test", GetMapInformation(), null, settings);
+                ? new BuildingComponentSettings() { RoundBuildingCorners = true }
+                : new BuildingComponentSettings() { RoundBuildingCorners = false };
+            var viz = new BuildingComponentVisualizer("test", GetMapInformation(), null, settings);
             yield return viz.Initialize();
             
             Measure.Method(() =>
@@ -153,9 +170,9 @@ namespace Mapbox.VectorModuleTests
         public IEnumerator SingleBuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
         {
             var settings = doChamfer
-                ? new BuildingVisualizerSettings() { RoundBuildingCorners = true }
-                : new BuildingVisualizerSettings() { RoundBuildingCorners = false };
-            var viz = new BuildingLayerVisualizer("test", GetMapInformation(), null, settings);
+                ? new BuildingComponentSettings() { RoundBuildingCorners = true }
+                : new BuildingComponentSettings() { RoundBuildingCorners = false };
+            var viz = new BuildingComponentVisualizer("test", GetMapInformation(), null, settings);
             yield return viz.Initialize();
             
             Measure.Method(() =>
@@ -197,6 +214,52 @@ namespace Mapbox.VectorModuleTests
                 .GC()
                 .Run();
             
+        }
+        
+        
+        [UnityTest, Performance]
+        public IEnumerator RoadVisualizer()
+        {
+            var viz = new RoadComponentVisualizer("test", GetMapInformation(), null, new RoadComponentSettings() { RoadWidth  = 3 });
+            yield return viz.Initialize();
+            
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new PerfVectorTile(decompressed);
+                    viz.ClearCaches();
+                    if (tt.TryGetLayer("road", out var layer))
+                    {
+                        viz.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+        
+        [Test, Performance]
+        public void RoadVisualizerOld()
+        {
+            var reg = RegularRoadLayer(GetMapInformation());
+            Measure.Method(() =>
+                {
+                    var decompressed = Compression.Decompress(buffer);
+                    var tt = new VectorTile.VectorTile(decompressed, false);
+                    reg.ClearCaches();
+                    var layer = tt.GetLayer("road");
+                    //if (tt.TryGetLayer("building", out var layer))
+                    {
+                        reg.CreateMesh(tileId, layer);
+                    }
+                })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
         }
     }
 }
