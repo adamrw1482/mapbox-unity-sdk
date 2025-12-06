@@ -21,7 +21,7 @@ namespace Mapbox.VectorModule
 		protected bool _isActive = true;
 		protected UnityContext _unityContext;
 		protected Dictionary<CanonicalTileId, List<TaskWrapper>> _activeTasks;
-		protected Dictionary<string, IVectorLayerVisualizer> _layerVisualizers;
+		protected Dictionary<string, List<IVectorLayerVisualizer>> _layerVisualizers;
 		
 		private Source<VectorData> _vectorSource;
 		private VectorModuleSettings _vectorModuleSettings;
@@ -32,7 +32,7 @@ namespace Mapbox.VectorModule
 		private HashSet<CanonicalTileId> _readyTiles;
 		private List<CanonicalTileId> _tilesToRemove;
 		
-		public VectorLayerModule(IMapInformation mapInformation, Source<VectorData> source, UnityContext unityContext, Dictionary<string, IVectorLayerVisualizer> layerVisualizers, VectorModuleSettings vectorModuleSettings = null) : base()
+		public VectorLayerModule(IMapInformation mapInformation, Source<VectorData> source, UnityContext unityContext, Dictionary<string, List<IVectorLayerVisualizer>> layerVisualizers, VectorModuleSettings vectorModuleSettings = null) : base()
 		{
 			_unityContext = unityContext;
 			_layerVisualizers = layerVisualizers;
@@ -57,9 +57,12 @@ namespace Mapbox.VectorModule
 			{
 				yield return _vectorSource.Initialize();
 			}
-			foreach (var visualizer in _layerVisualizers.Values)
+			foreach (var visualizers in _layerVisualizers.Values)
 			{
-				yield return visualizer.Initialize();
+				foreach (var visualizer in visualizers)
+				{
+					yield return visualizer.Initialize();
+				}
 			}
 		}
 
@@ -73,9 +76,12 @@ namespace Mapbox.VectorModule
 			var targetId = GetTargetTileId(unityTile.CanonicalTileId);
 			if (_readyTiles.Contains(targetId))
 			{
-				foreach (var visualizer in _layerVisualizers)
+				foreach (var pair in _layerVisualizers)
 				{
-					visualizer.Value.SetActive(targetId, true, _mapInformation);
+					foreach (var visualizer in pair.Value)
+					{
+						visualizer.SetActive(targetId, true, _mapInformation);	
+					}
 				}
 				return true;
 			}
@@ -107,9 +113,12 @@ namespace Mapbox.VectorModule
 			foreach (var tileId in _readyTiles)
 			{
 				var isActive = _retainedTiles.Contains(tileId);
-				foreach (var visualizer in _layerVisualizers)
+				foreach (var pair in _layerVisualizers)
 				{
-					visualizer.Value.SetActive(tileId, isActive, _mapInformation);
+					foreach (var visualizer in pair.Value)
+					{
+						visualizer.SetActive(tileId, isActive, _mapInformation);	
+					}
 				}
 				
 				if (!isActive)
@@ -164,9 +173,12 @@ namespace Mapbox.VectorModule
 		public virtual void OnDestroy()
 		{
 			_isActive = false;
-			foreach (var visualizer in _layerVisualizers)
+			foreach (var pair in _layerVisualizers)
 			{
-				visualizer.Value.OnDestroy();
+				foreach (var visualizer in pair.Value)
+				{
+					visualizer.OnDestroy();
+				}
 			}
 		}
 
@@ -187,7 +199,14 @@ namespace Mapbox.VectorModule
 
 		public bool TryGetLayerVisualizer(string name, out IVectorLayerVisualizer visualizer)
 		{
-			return _layerVisualizers.TryGetValue(name, out visualizer);
+			if (_layerVisualizers.TryGetValue(name, out var visualizers))
+			{
+				visualizer = visualizers.FirstOrDefault();
+				return true;
+			}
+
+			visualizer = null;
+			return false;
 		}
 		
 		public IEnumerable<CanonicalTileId> GetDataId(IEnumerable<CanonicalTileId> tileIdList)
@@ -394,9 +413,12 @@ namespace Mapbox.VectorModule
 				}
 			}
 			_readyTiles.Remove(tileId);
-			foreach (var visualizer in _layerVisualizers)
+			foreach (var pair in _layerVisualizers)
 			{
-				visualizer.Value.UnregisterTile(tileId);
+				foreach (var visualizer in pair.Value)
+				{
+					visualizer.UnregisterTile(tileId);
+				}
 			}
 
 			OnVectorMeshDestroyed(tileId);
@@ -406,9 +428,12 @@ namespace Mapbox.VectorModule
 		
 		private void UpdateForView(CanonicalTileId tileId, IMapInformation information)
 		{
-			foreach (var visualizer in _layerVisualizers)
+			foreach (var pair in _layerVisualizers)
 			{
-				visualizer.Value.UpdateForView(tileId, information);
+				foreach (var visualizer in pair.Value)
+				{
+					visualizer.UpdateForView(tileId, information);
+				}
 			}
 		}
 		
@@ -442,14 +467,19 @@ namespace Mapbox.VectorModule
                         var layers = data.VectorTileData.LayerNames();
                         foreach (var layerName in layers)
                         {
-                            if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizer))
+                            if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizers))
                             {
-                                if(layerVisualizer.ContainsVisualFor(data.TileId))
-                                    continue;
-                                if (layerVisualizer.Active)
-                                {
-                                    result.Data.Add(layerName, layerVisualizer.CreateMesh(data.TileId, data.VectorTileData.GetLayer(layerName)));
-                                }
+	                            foreach (var layerVisualizer in layerVisualizers)
+	                            {
+		                            if (layerVisualizer.ContainsVisualFor(data.TileId))
+			                            continue;
+		                            if (layerVisualizer.Active)
+		                            {
+			                            result.Data.Add(layerName,
+				                            layerVisualizer.CreateMesh(data.TileId,
+					                            data.VectorTileData.GetLayer(layerName)));
+		                            }
+	                            }
                             }
                         }
                     }
@@ -497,15 +527,18 @@ namespace Mapbox.VectorModule
                         if (!taskResult.Data.ContainsKey(layerName))
                             continue;
 
-                        if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizer))
+                        if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizers))
                         {
-                            var tileMeshData = taskResult.Data[layerName];
-                            var layerGameObjects = layerVisualizer.CreateGo(data.TileId, tileMeshData);
-                            foreach (var gameObject in layerGameObjects)
-                            {
-                                gameObject.SetActive(false);
-                                resultGameObjects.Add(gameObject);
-                            }
+	                        foreach (var layerVisualizer in layerVisualizers)
+	                        {
+		                        var tileMeshData = taskResult.Data[layerName];
+		                        var layerGameObjects = layerVisualizer.CreateGo(data.TileId, tileMeshData);
+		                        foreach (var gameObject in layerGameObjects)
+		                        {
+			                        gameObject.SetActive(false);
+			                        resultGameObjects.Add(gameObject);
+		                        }
+	                        }
                         }
                     }
                     callback(new MeshGenerationTaskResult(TaskResultType.Success, resultGameObjects));

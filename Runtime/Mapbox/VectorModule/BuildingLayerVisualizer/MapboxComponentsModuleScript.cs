@@ -18,7 +18,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 			
         }
         
-        protected VectorLayerModule GetVectorLayerModule(IMapInformation mapInformation, UnityContext unityContext, MapService service, Dictionary<string, IVectorLayerVisualizer> dictionary)
+        protected VectorLayerModule GetVectorLayerModule(IMapInformation mapInformation, UnityContext unityContext, MapService service, Dictionary<string, List<IVectorLayerVisualizer>> dictionary)
         {
             var tilesetId = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8).Id;
             var settings = new VectorModuleSettings()
@@ -35,12 +35,14 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
         public override ILayerModule ConstructModule(MapService service, IMapInformation mapInformation, UnityContext unityContext)
         {
-            var dictionary = new Dictionary<string, IVectorLayerVisualizer>();
+            var dictionary = new Dictionary<string, List<IVectorLayerVisualizer>>();
             foreach (var visualizerObject in _layerVisualizers)
             {
                 if(visualizerObject == null) continue;
                 var visualizer = visualizerObject.ConstructLayerVisualizer(mapInformation, unityContext);
-                dictionary.Add(visualizer.VectorLayerName, visualizer);
+                if(!dictionary.ContainsKey(visualizer.VectorLayerName))
+                    dictionary.Add(visualizer.VectorLayerName, new List<IVectorLayerVisualizer>());
+                dictionary[visualizer.VectorLayerName].Add(visualizer);
             }
             ModuleImplementation = GetVectorLayerModule(mapInformation, unityContext, service, dictionary);
             return ModuleImplementation;

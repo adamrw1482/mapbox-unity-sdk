@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
+using Mapbox.BaseModule.Utilities;
+using Mapbox.VectorModule.Filters;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
+using Mapbox.VectorModule.MeshGeneration.Unity;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -42,10 +47,18 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     public class RoadComponentSettings
     {
         public float RoadWidth = 2;
+        public float PushUp;
         public Material Material;
+        public List<RoadStyle> Styles;
         
         public RoadComponentSettings()
         {
         }
+    }
+
+    [Serializable]
+    public class RoadStyle
+    {
+        
     }
 }

@@ -17,7 +17,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     public class MapboxComponentsModule : VectorLayerModule
     {
         public MapboxComponentsModule(IMapInformation mapInformation, Source<VectorData> source,
-            UnityContext unityContext, Dictionary<string, IVectorLayerVisualizer> layerVisualizers,
+            UnityContext unityContext, Dictionary<string, List<IVectorLayerVisualizer>> layerVisualizers,
             VectorModuleSettings vectorModuleSettings = null) : base(mapInformation, source, unityContext,
             layerVisualizers, vectorModuleSettings)
         {
@@ -36,20 +36,25 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     var processedTile = new PerfVectorTile(decompressed);
                     try
                     {
-                        foreach (var vectorLayerVisualizer in _layerVisualizers.Values)
+                        foreach (var pair in _layerVisualizers)
                         {
-                            var visualizer = (MapboxComponentVisualizer)vectorLayerVisualizer;
-                            if (visualizer == null || !visualizer.Active || visualizer.ContainsVisualFor(data.TileId))
-                                continue;
-
-                            if (processedTile.TryGetLayer(visualizer.VectorLayerName, out var layer))
+                            foreach (var layerVisualizer in pair.Value)
                             {
-                                var layerData = visualizer.CreateMesh(data.TileId, layer);
-                                result.MeshData.Add(new BuildingLayerDataResult()
+                                var visualizer = (MapboxComponentVisualizer)layerVisualizer;
+                                if (visualizer == null || !visualizer.Active ||
+                                    visualizer.ContainsVisualFor(data.TileId))
+                                    continue;
+
+                                if (processedTile.TryGetLayer(visualizer.VectorLayerName, out var layer))
                                 {
-                                    LayerName = visualizer.VectorLayerName,
-                                    MeshData = layerData
-                                });
+                                    var layerData = visualizer.CreateMesh(data.TileId, layer);
+                                    result.MeshData.Add(new BuildingLayerDataResult()
+                                    {
+                                        LayerName = visualizer.VectorLayerName,
+                                        LayerId = visualizer.GetHashCode(),
+                                        MeshData = layerData
+                                    });
+                                }
                             }
                         }
                     }
@@ -95,18 +100,21 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     var resultGameObjects = new List<GameObject>();
                     foreach (var layerData in taskResult.MeshData)
                     {
-                        foreach (var vectorLayerVisualizer in _layerVisualizers
-                                     .Where(x => x.Value is MapboxComponentVisualizer && x.Key == layerData.LayerName)
-                                     .Select(x => x.Value))
+                        // foreach (var vectorLayerVisualizers in _layerVisualizers
+                        //              .Where(x => x.Value is MapboxComponentVisualizer && x.Key == layerData.LayerName)
+                        //              .Select(x => x.Value))
+                        var visualizer = _layerVisualizers[layerData.LayerName].FirstOrDefault(x => x.GetHashCode() == layerData.LayerId);
+                        if (visualizer == null)
+                            continue;
+                        
+                        var layerVisualizer = (MapboxComponentVisualizer)visualizer;
+                        var layerGameObjects = layerVisualizer.CreateGo(data.TileId, layerData.MeshData);
+                        foreach (var gameObject in layerGameObjects)
                         {
-                            var layerVisualizer = (MapboxComponentVisualizer)vectorLayerVisualizer;
-                            var layerGameObjects = layerVisualizer.CreateGo(data.TileId, layerData.MeshData);
-                            foreach (var gameObject in layerGameObjects)
-                            {
-                                gameObject.SetActive(false);
-                                resultGameObjects.Add(gameObject);
-                            }
+                            gameObject.SetActive(false);
+                            resultGameObjects.Add(gameObject);
                         }
+                        
                     }
 
                     callback(new MeshGenerationTaskResult(TaskResultType.Success, resultGameObjects));
@@ -126,6 +134,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         {
             public string LayerName;
             public HardcoreMeshData MeshData;
+            public int LayerId;
         }
     }
 }
