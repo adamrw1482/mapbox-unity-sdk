@@ -7,6 +7,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
     {
         public Vector3[] Vertices;
         public Vector3[] Normals;
+        public Vector2[] UVs;
         public List<int[]> Triangles;
         public StackMeshInfo MeshInfo;
         

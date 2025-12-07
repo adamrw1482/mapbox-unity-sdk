@@ -85,6 +85,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             }
 
             var meshData = new HardcoreMeshData(info, info.TotalPointCount);
+            meshData.UVs = new Vector2[info.TotalPointCount];
             var triList = new int[info.TotalTriangleCount];
 
             var featureTriIndex = 0;
@@ -98,6 +99,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
                 var vertices = meshData.Vertices.AsSpan(meshData.MeshInfo.vertexRanges[i], designedVertCount);
                 var normals = meshData.Normals.AsSpan(meshData.MeshInfo.vertexRanges[i], designedVertCount);
+                var uvs = meshData.UVs.AsSpan(meshData.MeshInfo.vertexRanges[i], designedVertCount);
                 var tris = triList.AsSpan(meshData.MeshInfo.triRanges[i], meshData.MeshInfo.triSize[i]);
 
                 
@@ -108,6 +110,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 var subVertIndex = 0;
                 var subTriIndex = 0;
                 
+                
                 for (var j = 0; j < featureResult.VertexData.Submeshes.Count - 1; j++)
                 {
                     var subSize = featureResult.VertexData.Submeshes[j + 1] - featureResult.VertexData.Submeshes[j];
@@ -115,6 +118,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
                     var sideNormal = new Vector3(0, 0, 0);
                     var finishLine = false;
+                    var distance = 0f;
                     for (int k = 0; k < subSize - 1; k++)
                     {
                         var current = featureResult.VertexData.Vertices[startVertex + k];
@@ -125,16 +129,13 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         if(k > 0)
                         {
                             var prev = featureResult.VertexData.Vertices[startVertex + k - 1];
-                            var dirNext = (next - current).normalized;
+                            var movement = next - current;
+                            var dirNext = movement.normalized;
                             var dirPrev = (prev - current).normalized;
                             var dirInside = (dirNext + dirPrev).normalized * scaledRoadWidth;
-
                             var prevSideNormal = sideNormal;
-
                             sideNormal = new Vector3(dirNext.z  * scaledRoadWidth, 0, -dirNext.x  * scaledRoadWidth);
-                            var isRight = Vector3.Dot(prevSideNormal, dirNext) > 0;
-
-
+                            
                             // decide previous triangle indices based on turnState
                             if (lastTurnWas == Turn.Right)
                             {
@@ -153,11 +154,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             //featureTriIndex is the start of the feature
                             //baseVertIndex is the start of this section (like corner)
 
-                            // precompute common y
                             var y = _settings.PushUp + current.y;
 
                             // precompute side offsets with sign depending on isRight
-                            float sign = isRight ? -1f : 1f;
+                            var isRight = Vector3.Dot(prevSideNormal, dirNext) > 0;
+                            int sign = isRight ? -1 : 1;
 
                             // v0: current ± prevSideNormal
                             float v0x = current.x + sign * prevSideNormal.x;
@@ -186,6 +187,12 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             normals[baseVertIndex + 1] =Vector3.up;
                             normals[baseVertIndex + 2] =Vector3.up;
                             normals[baseVertIndex + 3] = Vector3.up;
+                            
+                            // write uvs
+                            uvs[baseVertIndex    ] = new Vector2(sign == 1 ? 0 : 1, distance);
+                            uvs[baseVertIndex + 1] = new Vector2(sign == 1 ? 0 : 1, distance);
+                            uvs[baseVertIndex + 2] = new Vector2(sign == 1 ? 0 : 1, distance);
+                            uvs[baseVertIndex + 3] = new Vector2(sign == 1 ? 1 : 0, distance);
 
                             // handy local vars for indices
                             int i0 = baseTriIndex + 0;
@@ -248,10 +255,14 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             {
                                 finishLine = true;
                             }
+
+                            distance += movement.magnitude;
                         }
                         else if (k == 0)
                         {
-                            var dir = (next - current).normalized;
+                            distance = 0;
+                            var movement = next - current;
+                            var dir = movement.normalized;
                             sideNormal = new Vector3(dir.z * scaledRoadWidth, 0, -dir.x * scaledRoadWidth);
 
                             var side1x = current.x + sideNormal.x;
@@ -265,12 +276,17 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
+                            
+                            uvs[subVertIndex    ] = new Vector2(0, 0);
+                            uvs[subVertIndex + 1] = new Vector2(1, 0);
 
                             subVertIndex += 2;
                             lastTurnWas = 0;
 
                             if (subSize == 2)
                                 finishLine = true;
+                            
+                            distance += movement.magnitude;
                         }
                         
                         if (finishLine)
@@ -299,6 +315,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
+                            
+                            uvs[subVertIndex    ] = new Vector2(0, distance);
+                            uvs[subVertIndex + 1] = new Vector2(1, distance);
 
                             var baseTriIndex = featureTriIndex + subVertIndex;
                             tris[subTriIndex++] = baseTriIndex + prevSecond;
@@ -367,6 +386,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             mesh.Clear();
             mesh.SetVertices(meshData.Vertices);
             mesh.SetNormals(meshData.Normals);
+            mesh.SetUVs(0, meshData.UVs);
             mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
             mesh.subMeshCount = meshData.Triangles.Count;
@@ -456,7 +476,10 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             public void SetProperties(PerfVectorTileLayer layer)
             {
                 var tagCount = Tags.Length;
-                for (int i = 0; i < tagCount; i += 2)
+                //some features have odd number of tags
+                //not sure if it's a bug or data issue
+                //so -1 here to skip last single tag
+                for (int i = 0; i < tagCount - 1; i += 2)
                 {
                     if (layer.Keys[Tags[i]] == "class")
                     {
