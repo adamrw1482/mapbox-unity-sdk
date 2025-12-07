@@ -71,14 +71,15 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 info.vertexSize[i] = vertNeeded;
                 if (feature.VertexData.VertexCount == 2)
                 {
-                    info.triSize[i] = 6;
-                    info.TotalTriangleCount += 6; //2 tri 3 vert
+                    info.triSize[i] = 12 + 6;
+                    info.TotalTriangleCount += 12 + 6; //2 tri 3 vert + 12 for caps
                 }
                 else
                 {
-                    //2 start 2 end
-                    // each turn will take 2 tris 3 vert per
-                    var triSize = 6 + ((feature.VertexData.VertexCount - 2) * 12);
+                    //12 tri for start/end caps
+                    //6 tri end line segment
+                    // 12 per middle vertex
+                    var triSize = 12 + 6 + ((feature.VertexData.VertexCount - 2) * 12);
                     info.triSize[i] = triSize;
                     info.TotalTriangleCount += triSize;
                 }
@@ -265,22 +266,43 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             var dir = movement.normalized;
                             sideNormal = new Vector3(dir.z * scaledRoadWidth, 0, -dir.x * scaledRoadWidth);
 
+                            // round caps are width/2 back and then width/2 to sides
+                            var capSide1x = current.x - (dir.x * scaledRoadWidth/2) + (sideNormal.x/2);
+                            var capSide1z = current.z - (dir.z * scaledRoadWidth/2) + (sideNormal.z/2);
+                            var capSide2x = current.x - (dir.x * scaledRoadWidth/2) - (sideNormal.x/2);
+                            var capSide2z = current.z - (dir.z * scaledRoadWidth/2) - (sideNormal.z/2);
                             var side1x = current.x + sideNormal.x;
                             var side1z = current.z + sideNormal.z;
                             var side2x = current.x - sideNormal.x;
                             var side2z = current.z - sideNormal.z;
                             
                             var y = _settings.PushUp + current.y;
-                            vertices[subVertIndex    ] = new Vector3(side1x, y, side1z);
-                            vertices[subVertIndex + 1] = new Vector3(side2x, y, side2z);
+                            vertices[subVertIndex    ] = new Vector3(capSide1x, y, capSide1z);
+                            vertices[subVertIndex + 1] = new Vector3(capSide2x, y, capSide2z);
+                            vertices[subVertIndex + 2] = new Vector3(side1x, y, side1z);
+                            vertices[subVertIndex + 3] = new Vector3(side2x, y, side2z);
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
+                            normals[subVertIndex + 2] = Vector3.up;
+                            normals[subVertIndex + 3] = Vector3.up;
                             
-                            uvs[subVertIndex    ] = new Vector2(0, 0);
-                            uvs[subVertIndex + 1] = new Vector2(1, 0);
+                            //0.25 and 0.75 are just pushing uv coordinates inside a litte to prevent ugly stretching on caps
+                            uvs[subVertIndex    ] = new Vector2(0.25f, 0);
+                            uvs[subVertIndex + 1] = new Vector2(0.75f, 0);
+                            uvs[subVertIndex + 2] = new Vector2(0, 0);
+                            uvs[subVertIndex + 3] = new Vector2(1, 0);
 
-                            subVertIndex += 2;
+                            var baseTriIndex = featureTriIndex + subVertIndex;
+                            tris[subTriIndex++] = baseTriIndex + 0;
+                            tris[subTriIndex++] = baseTriIndex + 1;
+                            tris[subTriIndex++] = baseTriIndex + 2;
+
+                            tris[subTriIndex++] = baseTriIndex + 2;
+                            tris[subTriIndex++] = baseTriIndex + 1;
+                            tris[subTriIndex++] = baseTriIndex + 3;
+                            
+                            subVertIndex += 4;
                             lastTurnWas = 0;
 
                             if (subSize == 2)
@@ -291,7 +313,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         
                         if (finishLine)
                         {
-                            current = featureResult.VertexData.Vertices[startVertex + k + 1]; 
+                            current = featureResult.VertexData.Vertices[startVertex + k + 1];
+                            var dir = (current - featureResult.VertexData.Vertices[startVertex + k]).normalized;
+                            
                             
                             if (lastTurnWas == Turn.Left || lastTurnWas == 0)
                             {
@@ -308,16 +332,28 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             var side1z = current.z + sideNormal.z;
                             var side2x = current.x - sideNormal.x;
                             var side2z = current.z - sideNormal.z;
+
+                            var capSide1x = current.x + (dir.x * scaledRoadWidth / 2) + (sideNormal.x / 2);
+                            var capSide1z = current.z + (dir.z * scaledRoadWidth / 2) + (sideNormal.z / 2);
+                            var capSide2x = current.x + (dir.x * scaledRoadWidth / 2) - (sideNormal.x / 2);
+                            var capSide2z = current.z + (dir.z * scaledRoadWidth / 2) - (sideNormal.z / 2);
                             
                             var y = _settings.PushUp + current.y;
                             vertices[subVertIndex    ] = new Vector3(side1x, y, side1z);
                             vertices[subVertIndex + 1] = new Vector3(side2x, y, side2z);
+                            vertices[subVertIndex + 2] = new Vector3(capSide1x, y, capSide1z);
+                            vertices[subVertIndex + 3] = new Vector3(capSide2x, y, capSide2z);
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
+                            normals[subVertIndex + 2] = Vector3.up;
+                            normals[subVertIndex + 3] = Vector3.up;
                             
                             uvs[subVertIndex    ] = new Vector2(0, distance);
                             uvs[subVertIndex + 1] = new Vector2(1, distance);
+                            //0.25 and 0.75 are just pushing uv coordinates inside a litte to prevent ugly stretching on caps
+                            uvs[subVertIndex + 2] = new Vector2(0.25f, distance + scaledRoadWidth/2);
+                            uvs[subVertIndex + 3] = new Vector2(0.75f, distance + scaledRoadWidth/2);
 
                             var baseTriIndex = featureTriIndex + subVertIndex;
                             tris[subTriIndex++] = baseTriIndex + prevSecond;
@@ -327,8 +363,16 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                             tris[subTriIndex++] = baseTriIndex + 0;
                             tris[subTriIndex++] = baseTriIndex + prevFirst;
                             tris[subTriIndex++] = baseTriIndex + 1;
+                            
+                            tris[subTriIndex++] = baseTriIndex + 0;
+                            tris[subTriIndex++] = baseTriIndex + 1;
+                            tris[subTriIndex++] = baseTriIndex + 2;
 
-                            subVertIndex += 2;
+                            tris[subTriIndex++] = baseTriIndex + 2;
+                            tris[subTriIndex++] = baseTriIndex + 1;
+                            tris[subTriIndex++] = baseTriIndex + 3;
+
+                            subVertIndex += 4;
                         }
                     }
                 }
@@ -340,28 +384,13 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return meshData;
         }
 
-        private List<int> GetSubmeshRanges(MeshVertexData data)
-        {
-            List<int> submeshStarts = new List<int>();
-            submeshStarts.Add(0);
-            var total = 0;
-            for (var i = 0; i < data.Submeshes.Count - 1; i++)
-            {
-                var size = data.Submeshes[i + 1] - data.Submeshes[i];
-                total += 4 * size - 4;
-                submeshStarts.Add(total); //(size - 2) * 4 + (2 * 2); //two vertices for cap, 4 for each mid vertex
-            }
-
-            return submeshStarts;
-        }
-
         private int VertexNeed(MeshVertexData data)
         {
             var total = 0;
             for (var i = 0; i < data.Submeshes.Count - 1; i++)
             {
                 var size = data.Submeshes[i + 1] - data.Submeshes[i];
-                total += 4 * size - 4; //(size - 2) * 4 + (2 * 2); //two vertices for cap, 4 for each mid vertex
+                total += 4 * size; //(size - 2) * 4 + (2 * 2); //two vertices for cap, 4 for each mid vertex
             }
 
             return total;
