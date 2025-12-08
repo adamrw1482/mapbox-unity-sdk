@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Data
 {
-    public class HardcoreMeshData
+    public class MeshData
     {
         public Vector3[] Vertices;
         public Vector3[] Normals;
@@ -11,7 +11,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         public List<int[]> Triangles;
         public StackMeshInfo MeshInfo;
         
-        public HardcoreMeshData(StackMeshInfo meshInfo, int featureCount)
+        public MeshData(StackMeshInfo meshInfo, int featureCount)
         {
             MeshInfo = meshInfo;
             Vertices = new Vector3[featureCount];

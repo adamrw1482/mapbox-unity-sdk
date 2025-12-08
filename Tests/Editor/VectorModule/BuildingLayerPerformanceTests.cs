@@ -8,7 +8,8 @@ using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.VectorModule;
-using Mapbox.VectorModule.BuildingLayerVisualizer;
+using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
+using Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer;
 using Mapbox.VectorModule.MeshGeneration;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using NUnit.Framework;
@@ -130,7 +131,7 @@ namespace Mapbox.VectorModuleTests
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
-                    var tt = new PerfVectorTile(decompressed);
+                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
                     viz.ClearCaches();
                     if (tt.TryGetLayer("building", out var layer))
                     {
@@ -178,7 +179,7 @@ namespace Mapbox.VectorModuleTests
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
-                    var tt = new PerfVectorTile(decompressed);
+                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
                     viz.ClearCaches();
                     if (tt.TryGetLayer("building", out var layer))
                     {
@@ -226,7 +227,7 @@ namespace Mapbox.VectorModuleTests
             Measure.Method(() =>
                 {
                     var decompressed = Compression.Decompress(buffer);
-                    var tt = new PerfVectorTile(decompressed);
+                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
                     viz.ClearCaches();
                     if (tt.TryGetLayer("road", out var layer))
                     {

@@ -10,6 +10,7 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.VectorModule.MeshGeneration;
+using Mapbox.VectorTile.ExtensionMethods;
 using UnityEngine;
 using Console = System.Console;
 
@@ -464,6 +465,8 @@ namespace Mapbox.VectorModule
 
                     try
                     {
+	                    var json = data.VectorTileData.ToGeoJson((ulong)data.TileId.Z, (ulong)data.TileId.Y,
+		                    (ulong)data.TileId.X);
                         var layers = data.VectorTileData.LayerNames();
                         foreach (var layerName in layers)
                         {

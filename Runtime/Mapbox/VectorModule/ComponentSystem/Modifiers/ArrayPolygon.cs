@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Mapbox.BaseModule.Utilities;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public class ArrayPolygon
     {
@@ -16,11 +17,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             int vertexAnchorIndex,
             int[] triList,
             int triIndex,
-            PerfVectorFeatureUnity feature)
+            FeatureVertexData vertexData)
         {
             int arrayMaxLength = triList.Length;
-            var submeshes = feature.VertexData.Submeshes;
-            var allVerts = feature.VertexData.Vertices;
+            var submeshes = vertexData.Submeshes;
+            var allVerts = vertexData.Vertices;
             int submeshCount = submeshes.Count;
 
             if (submeshCount < 2)

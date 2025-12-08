@@ -6,14 +6,14 @@ using Mapbox.VectorTile.Contants;
 using UnityEngine;
 using ValueType = Mapbox.VectorTile.Contants.ValueType;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Data
 {
-    public ref struct PerfVectorTileReader
+    public ref struct VectorTileReader
     {
         private Dictionary<string, Vector2Int> _layerViews;
         private readonly ReadOnlySpan<byte> _data;
 
-        public PerfVectorTileReader(ref ReadOnlySpan<byte> data)
+        public VectorTileReader(ref ReadOnlySpan<byte> data)
         {
             _data = data;
             _layerViews = new Dictionary<string, Vector2Int>();
@@ -35,14 +35,14 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
         private void layers(ReadOnlySpan<byte> data)
         {
-            PerfPbfReader tileReader = new PerfPbfReader(data);
+            PbfReader tileReader = new PbfReader(data);
             while (tileReader.NextByte())
             {
                 if (tileReader.Tag == (int)TileType.Layers)
                 {
                     string name = null;
                     var view = tileReader.View();
-                    PerfPbfReader layerView = new PerfPbfReader(_data.Slice(view.x, view.y));
+                    PbfReader layerView = new PbfReader(_data.Slice(view.x, view.y));
                     while (layerView.NextByte())
                     {
                         if (layerView.Tag == (int)LayerType.Name)
@@ -64,7 +64,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             }
         }
 
-        public bool TryGetLayer(string layerName, out PerfVectorTileLayer layer)
+        public bool TryGetLayer(string layerName, out VectorTileLayer layer)
         {
             if (_layerViews.TryGetValue(layerName, out var layerData))
             {
@@ -73,15 +73,15 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             }
             else
             {
-                layer = new PerfVectorTileLayer();
+                layer = new VectorTileLayer();
                 return false;
             }
         }
         
-        private PerfVectorTileLayer getLayer(ReadOnlySpan<byte> layerData)
+        private VectorTileLayer getLayer(ReadOnlySpan<byte> layerData)
         {
-            var layer = new PerfVectorTileLayer(ref layerData);
-            var layerReader = new PerfPbfReader(layer.Data);
+            var layer = new VectorTileLayer(ref layerData);
+            var layerReader = new PbfReader(layer.Data);
             while (layerReader.NextByte())
             {
                 int layerType = layerReader.Tag;
@@ -102,23 +102,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                         var keyBuffer = layerReader.View();
                         string key = Encoding.UTF8.GetString(layerData.Slice(keyBuffer.x, keyBuffer.y));
                         layer.Keys.Add(key);
-                        if (key == "height")
-                        {
-                            layer.HeightTag = layer.Keys.Count - 1;
-                        }
-                        else if (key == "min_height")
-                        {
-                            layer.MinHeightTag = layer.Keys.Count - 1;
-                        }
-                        else if (key == "extrude")
-                        {
-                            layer.ExtrudeTag = layer.Keys.Count - 1;
-                        }
                         break;
                     case LayerType.Values:
                         var valueBuffer = layerReader.View();
                         var valuesBuffer = layerData.Slice(valueBuffer.x, valueBuffer.y);
-                        var valReader = new PerfPbfReader(valuesBuffer);
+                        var valReader = new PbfReader(valuesBuffer);
                         while (valReader.NextByte())
                         {
                             switch ((ValueType)valReader.Tag)

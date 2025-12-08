@@ -2,13 +2,13 @@ using System.Runtime.CompilerServices;
 using Mapbox.VectorTile.Contants;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Data
 {
-    public static class PerformanceDecodeGeometry
+    public static class DecodeGeometry
     {
-        public static MeshVertexData GetGeometry(uint[] geometryCommands, Vector3 scale)
+        public static FeatureVertexData GetGeometry(uint[] geometryCommands, Vector3 scale)
         {
-            var vertexData = new MeshVertexData();
+            var vertexData = new FeatureVertexData();
             vertexData.Vertices = new Vector3[geometryCommands.Length / 2]; //ArrayPool<Vector3>.Shared.Rent(geometryCommands.Length / 2);
 			
             int geomCmdCnt = geometryCommands.Length;
@@ -54,9 +54,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return vertexData;
         }
         
-        public static MeshVertexData GetGeometry(uint[] geometryCommands, Vector3 scale, Vector4 scaleOffset)
+        public static FeatureVertexData GetGeometry(uint[] geometryCommands, Vector3 scale, Vector4 scaleOffset)
         {
-            var vertexData = new MeshVertexData();
+            var vertexData = new FeatureVertexData();
             vertexData.Vertices = new Vector3[geometryCommands.Length / 2]; //ArrayPool<Vector3>.Shared.Rent(geometryCommands.Length / 2);
 			
             int geomCmdCnt = geometryCommands.Length;

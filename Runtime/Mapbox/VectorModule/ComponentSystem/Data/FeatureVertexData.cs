@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Data
 {
-    public class MeshVertexData
+    public class FeatureVertexData
     {
         public Vector3[] Vertices;
         public List<int> Submeshes = new List<int>(4);

@@ -4,14 +4,13 @@ using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule.MeshGeneration;
-using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
-using Mapbox.VectorModule.Unity;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorTile.Contants;
 using Mapbox.VectorTile.Geometry;
 using UnityEngine;
+using DecodeGeometry = Mapbox.VectorModule.ComponentSystem.Data.DecodeGeometry;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 {
     public class RoadComponentVisualizer : MapboxComponentVisualizer
     {
@@ -47,7 +46,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             Left
         }
         
-        public override HardcoreMeshData CreateMesh(CanonicalTileId tileId, PerfVectorTileLayer layer)
+        public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
@@ -85,7 +84,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 }
             }
 
-            var meshData = new HardcoreMeshData(info, info.TotalPointCount);
+            var meshData = new MeshData(info, info.TotalPointCount);
             meshData.UVs = new Vector2[info.TotalPointCount];
             var triList = new int[info.TotalTriangleCount];
 
@@ -384,7 +383,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return meshData;
         }
 
-        private int VertexNeed(MeshVertexData data)
+        private int VertexNeed(FeatureVertexData data)
         {
             var total = 0;
             for (var i = 0; i < data.Submeshes.Count - 1; i++)
@@ -396,7 +395,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return total;
         }
 
-        public override List<GameObject> CreateGo(CanonicalTileId tileId, HardcoreMeshData meshData)
+        public override List<GameObject> CreateGo(CanonicalTileId tileId, MeshData meshData)
         {
             var objectList = new List<GameObject>();
             var entity = _buildingObjectPool.GetObject();
@@ -444,11 +443,11 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return objectList;
         }
 
-        private RoadFeatureUnity GetFeature(PerfVectorTileLayer layer, int i)
+        private RoadFeatureUnity GetFeature(VectorTileLayer layer, int i)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);
-            var featureReader = new PerfPbfReader(layerData);
+            var featureReader = new PbfReader(layerData);
             var feature = new RoadFeatureUnity();
             bool geomTypeSet = false;
             while (featureReader.NextByte())
@@ -497,12 +496,12 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             public ulong Id;
             public GeomType GeometryType;
             public uint[] GeometryCommands;
-            public MeshVertexData VertexData;
+            public FeatureVertexData VertexData;
             public int[] Tags;
             public string Class;
             public string Type;
 
-            public void SetProperties(PerfVectorTileLayer layer)
+            public void SetProperties(VectorTileLayer layer)
             {
                 var tagCount = Tags.Length;
                 //some features have odd number of tags
@@ -521,9 +520,9 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 }
             }
 
-            public MeshVertexData Geometry(Vector3 scale)
+            public FeatureVertexData Geometry(Vector3 scale)
             {
-                return PerformanceDecodeGeometry.GetGeometry(GeometryCommands, scale);
+                return DecodeGeometry.GetGeometry(GeometryCommands, scale);
             }
         }
     }

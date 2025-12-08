@@ -5,9 +5,9 @@ using System.Text;
 using Mapbox.VectorTile.Contants;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Data
 {
-    public ref struct PerfPbfReader
+    public ref struct PbfReader
     {
         /// <summary>Tag at current position</summary>
         public int Tag;
@@ -28,7 +28,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         /// PbfReader constructor
         /// </summary>
         /// <param name="tileBuffer">Byte array containing the raw (already unzipped) tile data</param>
-        public PerfPbfReader(ReadOnlySpan<byte> tileBuffer)
+        public PbfReader(ReadOnlySpan<byte> tileBuffer)
         {
             _buffer = tileBuffer;
             _length = _buffer.Length;

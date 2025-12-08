@@ -5,9 +5,8 @@ using Mapbox.BaseModule.Unity;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 {
     [DisplayName("Building Component")]
     [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Buildings Component Visualizer")]

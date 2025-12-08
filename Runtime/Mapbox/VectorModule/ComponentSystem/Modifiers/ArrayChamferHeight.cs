@@ -1,19 +1,25 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Mapbox.BaseModule.Map;
-using Mapbox.BaseModule.Utilities;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public interface IPerformanceExtrusion
     {
         int CalculateTriCountFor(int totalPointCount);
 
-        int Run(Span<Vector3> vertices, Span<Vector3> normals, int vertexAnchorIndex, int[] triList, int triIndex,
-            PerfVectorFeatureUnity feature, float tileSizeX, IMapInformation mapInformation);
+        int Run(Span<Vector3> vertices, Span<Vector3> normals, 
+            int vertexAnchorIndex, 
+            int[] triList, 
+            int triIndex,
+            float height,
+            float minHeight,
+            FeatureVertexData vertexData,
+            float tileSizeX, 
+            float scale);
     }
     
     public class ArrayChamferHeight : IPerformanceExtrusion
@@ -29,20 +35,26 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             _settings = settings;
         }
         
-        public int Run(Span<Vector3> vertices, Span<Vector3> normals, int vertexAnchorIndex, int[] triList, int triIndex, PerfVectorFeatureUnity feature, float tileSizeX, IMapInformation mapInformation)
+        public int Run(Span<Vector3> vertices, 
+            Span<Vector3> normals, 
+            int vertexAnchorIndex, 
+            int[] triList, 
+            int triIndex, 
+            float height,
+            float minHeight,
+            FeatureVertexData vertexData,
+            float tileSizeX, 
+            float  scale)
         {
-            if (feature == null || feature.VertexData.Submeshes.Count < 1)
+            if (vertexData == null || vertexData.Submeshes.Count < 1)
                 return triIndex;
 
             _startIndex = vertexAnchorIndex;
-            var scaledOffset = (_settings.OffsetInMeters / tileSizeX) / mapInformation.Scale;
+            var scaledOffset = (_settings.OffsetInMeters / tileSizeX) / scale;
             
-            var height = feature.Height;
-            var minHeight = feature.MinHeight;
-
-            height = (height / mapInformation.Scale) / tileSizeX;
+            height = (height / scale) / tileSizeX;
             minHeight   = (minHeight > 0) 
-                ? (minHeight / mapInformation.Scale) / tileSizeX
+                ? (minHeight / scale) / tileSizeX
                 : 0;
             
             var max = 0f;
@@ -57,7 +69,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             // will need something like this for flat rooftops, which is disabled at the moment
             height = max + height;
             
-            triIndex = Chamfer(vertices, normals, feature, triList, triIndex, minHeight, height, scaledOffset);
+            triIndex = Chamfer(vertices, normals, vertexData, triList, triIndex, minHeight, height, scaledOffset);
             return triIndex;
         }
         
@@ -91,14 +103,14 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         private int Chamfer(
             Span<Vector3> vertices,
             Span<Vector3> normals,
-            PerfVectorFeatureUnity feature,
+            FeatureVertexData vertexData,
             int[] trilist,
             int triIndex,
             float minHeight,
             float height,
             float scaledOffset)
         {
-            int polyPointCount = feature.VertexData.VertexCount;
+            int polyPointCount = vertexData.VertexCount;
             int originalPolygonPointIndexer = 0;
             int addedPointCount = 0;
             const int vertPerStep = 4;
@@ -106,8 +118,8 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             // Local caches
             Vector3 v1, v2, n1, n2, pij1, pij2, pjk1, pjk2, poi;
             Vector3 prev, curr, next;
-            var verts = feature.VertexData.Vertices;
-            var submeshes = feature.VertexData.Submeshes;
+            var verts = vertexData.Vertices;
+            var submeshes = vertexData.Submeshes;
 
             for (int i = 1; i < submeshes.Count; i++)
             {

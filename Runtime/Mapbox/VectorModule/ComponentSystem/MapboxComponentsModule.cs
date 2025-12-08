@@ -1,18 +1,16 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Mapbox.BaseModule.Data.DataFetchers;
-using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Tasks;
-using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem
 {
     public class MapboxComponentsModule : VectorLayerModule
     {
@@ -33,7 +31,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                     var result = new BuildingLayerTaskResult();
                     result.MeshData = new List<BuildingLayerDataResult>();
                     var decompressed = Compression.Decompress(data.Data);
-                    var processedTile = new PerfVectorTile(decompressed);
+                    var processedTile = new Data.VectorTile(decompressed);
                     try
                     {
                         foreach (var pair in _layerVisualizers)
@@ -133,7 +131,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         public class BuildingLayerDataResult
         {
             public string LayerName;
-            public HardcoreMeshData MeshData;
+            public MeshData MeshData;
             public int LayerId;
         }
     }

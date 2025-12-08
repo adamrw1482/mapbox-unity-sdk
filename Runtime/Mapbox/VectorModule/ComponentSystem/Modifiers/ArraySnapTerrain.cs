@@ -1,8 +1,9 @@
 using System;
+using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public class ArraySnapTerrain
     {
@@ -12,7 +13,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             _mapInformation = mapInformation;
         }
 
-        public void SnapTerrain(Span<Vector3> vertices, int topPolyLength, PerfVectorFeatureUnity feature, float tileSize)
+        public void SnapTerrain(Span<Vector3> vertices, int topPolyLength, CanonicalTileId tileId, float tileSize)
         {
             for (var i = 0; i < topPolyLength; i++)
             {
@@ -21,7 +22,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
                 if (_mapInformation.QueryElevation != null)
                 {
                     h = (_mapInformation.QueryElevation(
-                            feature.TileId,
+                            tileId,
                             (vertex.x),
                             (vertex.z + 1)) / _mapInformation.Scale
                                             / tileSize);

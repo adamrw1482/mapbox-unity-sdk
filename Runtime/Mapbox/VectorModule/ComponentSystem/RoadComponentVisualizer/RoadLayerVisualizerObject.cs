@@ -1,18 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
-using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule.Filters;
-using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
-using Mapbox.VectorModule.MeshGeneration.Unity;
+using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 {
     [DisplayName("Road Component")]
     [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Road Component Visualizer")]

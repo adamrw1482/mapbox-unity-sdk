@@ -1,11 +1,11 @@
 using System;
 using System.Runtime.CompilerServices;
-using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Map;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public class ArrayHeight : IPerformanceExtrusion
     {
@@ -22,19 +22,21 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             int vertexAnchorIndex,
             int[] triList,
             int triIndex,
-            PerfVectorFeatureUnity feature,
+            float height,
+            float minHeight,
+            FeatureVertexData vertexData,
             float tileSizeX,
-            IMapInformation mapInformation)
+            float  scale)
         {
-            if (feature == null || feature.VertexData.Submeshes.Count < 1)
+            if (vertexData == null || vertexData.Submeshes.Count < 1)
                 return triIndex;
 
             var startIndex = vertexAnchorIndex;
 
             // Convert heights to local (tile) units once
-            float height = (feature.Height    / mapInformation.Scale) / tileSizeX;
-            float minH   = (feature.MinHeight > 0) 
-                ? (feature.MinHeight / mapInformation.Scale) / tileSizeX
+            height = (height / scale) / tileSizeX;
+            float minH   = (minHeight > 0) 
+                ? (minHeight / scale) / tileSizeX
                 : 0;
             
             // Determine current max Y among provided vertices (top ring)
@@ -53,7 +55,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             GenerateRoofMesh(vertices, height);
 
             // Build walls
-            triIndex = GenerateWallMesh(vertices, normals, feature, triList, triIndex, startIndex, wallHeight);
+            triIndex = GenerateWallMesh(vertices, normals, vertexData, triList, triIndex, startIndex, wallHeight);
 
             return triIndex;
         }
@@ -71,17 +73,17 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
         private int GenerateWallMesh(
             Span<Vector3> vertices,
             Span<Vector3> normals,
-            PerfVectorFeatureUnity feature,
+            FeatureVertexData vertexData,
             int[] trilist,
             int triIndex,
             int startIndex,
             float wallHeight)
         {
             // Aliases for quicker access
-            var verts     = feature.VertexData.Vertices;
-            var submeshes = feature.VertexData.Submeshes;
+            var verts     = vertexData.Vertices;
+            var submeshes = vertexData.Submeshes;
 
-            int topPolygonVertexCount = feature.VertexData.VertexCount;
+            int topPolygonVertexCount = vertexData.VertexCount;
 
             // For each ring (outer + holes)
             // We assume wall-vertex area starts after top polygon: each edge adds 4 vertices
@@ -185,9 +187,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
 
             return triIndex;
         }
-
         
-
         public int CalculateTriCountFor(int totalPointCount)
         {
             // 2 triangles per edge quad => 6 indices per edge

@@ -6,7 +6,7 @@ using Mapbox.BaseModule.Utilities;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem
 {
     public class MapboxComponentsModuleScript : ModuleConstructorScript
     {

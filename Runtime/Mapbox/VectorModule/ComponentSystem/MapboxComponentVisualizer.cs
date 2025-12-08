@@ -4,14 +4,10 @@ using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule.MeshGeneration;
-using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
-using Mapbox.VectorModule.Unity;
-using Mapbox.VectorTile.Contants;
-using Mapbox.VectorTile.Geometry;
+using Mapbox.VectorModule.ComponentSystem.Data;
 using UnityEngine;
 
-namespace Mapbox.VectorModule.BuildingLayerVisualizer
+namespace Mapbox.VectorModule.ComponentSystem
 {
     public abstract class MapboxComponentVisualizer : VectorLayerVisualizer
     {
@@ -22,12 +18,12 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             _buildingObjectPool = new ObjectPool<VectorEntity>(VectorEntityGenerator, 20);
         }
         
-        public virtual HardcoreMeshData CreateMesh(CanonicalTileId tileId, PerfVectorTileLayer layer)
+        public virtual MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
             return null;
         }
         
-        public virtual List<GameObject> CreateGo(CanonicalTileId tileId, HardcoreMeshData meshData)
+        public virtual List<GameObject> CreateGo(CanonicalTileId tileId, MeshData meshData)
         {
             return null;
         }
@@ -105,15 +101,7 @@ namespace Mapbox.VectorModule.BuildingLayerVisualizer
             return tempVectorEntity;
         }
         
-        public Action<CanonicalTileId, GameObject, HardcoreMeshData> OnBuildingMeshCreated = (id, list, info) => { };
+        public Action<CanonicalTileId, GameObject, MeshData> OnBuildingMeshCreated = (id, list, info) => { };
         public Action<CanonicalTileId, GameObject> OnBuildingMeshDestroyed = (id, list) => { };
-    }
-
-    public class PerfVectorFeatureUnity : VectorFeatureUnity
-    {
-        public MeshVertexData VertexData;
-        public float Height;
-        public float MinHeight;
-        public bool DoExtrude;
     }
 }
