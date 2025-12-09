@@ -9,6 +9,7 @@ using Mapbox.VectorTile.Contants;
 using Mapbox.VectorTile.Geometry;
 using UnityEngine;
 using DecodeGeometry = Mapbox.VectorModule.ComponentSystem.Data.DecodeGeometry;
+using Random = UnityEngine.Random;
 
 namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 {
@@ -48,6 +49,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
+            var rnd = new System.Random();
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
             var tileSize = Conversions.TileSizeInUnitySpace(tileId.Z, _mapInformation.Scale);
@@ -126,6 +128,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
                         //first point
                         
+                        var y = _settings.PushUp + current.y + (float)rnd.NextDouble() * _settings.RandomOffsetRange;
+                        
                         if(k > 0)
                         {
                             var prev = featureResult.VertexData.Vertices[startVertex + k - 1];
@@ -154,7 +158,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             //featureTriIndex is the start of the feature
                             //baseVertIndex is the start of this section (like corner)
 
-                            var y = _settings.PushUp + current.y;
+                            
 
                             // precompute side offsets with sign depending on isRight
                             var isRight = Vector3.Dot(prevSideNormal, dirNext) > 0;
@@ -275,7 +279,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             var side2x = current.x - sideNormal.x;
                             var side2z = current.z - sideNormal.z;
                             
-                            var y = _settings.PushUp + current.y;
                             vertices[subVertIndex    ] = new Vector3(capSide1x, y, capSide1z);
                             vertices[subVertIndex + 1] = new Vector3(capSide2x, y, capSide2z);
                             vertices[subVertIndex + 2] = new Vector3(side1x, y, side1z);
@@ -337,7 +340,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             var capSide2x = current.x + (dir.x * scaledRoadWidth / 2) - (sideNormal.x / 2);
                             var capSide2z = current.z + (dir.z * scaledRoadWidth / 2) - (sideNormal.z / 2);
                             
-                            var y = _settings.PushUp + current.y;
                             vertices[subVertIndex    ] = new Vector3(side1x, y, side1z);
                             vertices[subVertIndex + 1] = new Vector3(side2x, y, side2z);
                             vertices[subVertIndex + 2] = new Vector3(capSide1x, y, capSide1z);

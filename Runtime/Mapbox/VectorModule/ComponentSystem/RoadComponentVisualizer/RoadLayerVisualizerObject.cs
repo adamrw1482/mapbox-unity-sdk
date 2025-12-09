@@ -42,8 +42,11 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
     public class RoadComponentSettings
     {
         public float RoadWidth = 2;
+        [Tooltip("Move road meshes up for basic layering support, like roads above park.")]
         public float PushUp;
         public Material Material;
+        [Tooltip("Road segments will be offset by a small amount to prevent z-fighting issues.")]
+        public float RandomOffsetRange = 0.0001f;
         public List<RoadStyle> Styles;
         
         public RoadComponentSettings()
