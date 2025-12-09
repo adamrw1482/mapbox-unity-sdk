@@ -10,14 +10,14 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public class ArrayPolygon
     {
-
         public int Polygonize(
             Span<Vector3> vertices,
             Span<Vector3> normals,
             int vertexAnchorIndex,
             int[] triList,
             int triIndex,
-            FeatureVertexData vertexData)
+            FeatureVertexData vertexData,
+            float pushUp = 0)
         {
             int arrayMaxLength = triList.Length;
             var submeshes = vertexData.Submeshes;
@@ -70,6 +70,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 
                 for (int j = 0; j < prevLength; j++)
                 {
+                    subVert[j].y += pushUp;
                     vertices[vertWriteIndex] = subVert[j];
                     normals[vertWriteIndex++] = Constants.Math.Vector3Up;
                 }

@@ -10,6 +10,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
         public Vector2[] UVs;
         public List<int[]> Triangles;
         public StackMeshInfo MeshInfo;
+        public List<Material> Materials;
         
         public MeshData(StackMeshInfo meshInfo, int featureCount)
         {
@@ -17,6 +18,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
             Vertices = new Vector3[featureCount];
             Normals = new Vector3[featureCount];
             Triangles = new List<int[]>(15);
+            Materials = new List<Material>();
         }
     }
 }

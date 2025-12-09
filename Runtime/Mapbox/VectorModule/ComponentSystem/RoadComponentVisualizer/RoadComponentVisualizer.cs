@@ -488,7 +488,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
             var layerExtent = (float)layer.Extent;
 
-            feature.SetProperties(layer);
+            feature.SetProperties(ref layer);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
         }
@@ -503,7 +503,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             public string Class;
             public string Type;
 
-            public void SetProperties(VectorTileLayer layer)
+            public void SetProperties(ref VectorTileLayer layer)
             {
                 var tagCount = Tags.Length;
                 //some features have odd number of tags
