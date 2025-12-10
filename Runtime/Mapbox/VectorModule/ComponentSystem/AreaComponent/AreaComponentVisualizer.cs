@@ -16,7 +16,9 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
     public class AreaComponentVisualizer : MapboxComponentVisualizer
     {
         private AreaComponentSettings _settings;
-
+        private int _classTagIndex = -1;
+        private int _typeTagIndex = -1;
+        
         public AreaComponentVisualizer(string name, IMapInformation mapInformation,
             UnityContext unityContext = null, AreaComponentSettings settings = null) : base(name, mapInformation,
             unityContext)
@@ -30,6 +32,13 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
+            for (var i = 0; i < layer.Keys.Count; i++)
+            {
+                var key = layer.Keys[i];
+                if (key == "class") _classTagIndex = i;
+                if (key == "type") _typeTagIndex = i;
+            }
+            
             var arrayPolygon = new ArrayPolygon();
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
@@ -203,7 +212,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             }
 
             var layerExtent = (float)layer.Extent;
-            feature.SetProperties(ref layer);
+            feature.SetProperties(ref layer, _classTagIndex, _typeTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
         }
@@ -218,10 +227,9 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             public string Class;
             public string Type;
 
-            public void SetProperties(ref VectorTileLayer layer)
+            public void SetProperties(ref VectorTileLayer layer, int classTagIndex, int typeTagIndex)
             {
-                if (Tags == null) //water layer has no tags
-                    return;
+                if (Tags == null) return; //water has no tags
                 
                 var tagCount = Tags.Length;
                 //some features have odd number of tags
@@ -229,11 +237,11 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                 //so -1 here to skip last single tag
                 for (int i = 0; i < tagCount - 1; i += 2)
                 {
-                    if (layer.Keys[Tags[i]] == "class")
+                    if (classTagIndex != -1 && Tags[i] == classTagIndex)
                     {
                         Class = layer.Values[Tags[i + 1]].ToString();
                     }
-                    else if (layer.Keys[Tags[i]] == "type")
+                    else if (typeTagIndex != -1 && Tags[i] == typeTagIndex)
                     {
                         Type = layer.Values[Tags[i + 1]].ToString();
                     }
