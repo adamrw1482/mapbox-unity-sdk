@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using Mapbox.BaseModule.Map;
+using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
 using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using UnityEngine;
@@ -9,9 +10,9 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 {
     public class ArrayHeight : IPerformanceExtrusion
     {
-        private readonly GeometryExtrusionOptions _settings;
+        private readonly BasicExtrusionSettings _settings;
 
-        public ArrayHeight(GeometryExtrusionOptions settings)
+        public ArrayHeight(BasicExtrusionSettings settings)
         {
             _settings = settings;
         }

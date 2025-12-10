@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using Mapbox.BaseModule.Map;
+using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
 using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
 using UnityEngine;
@@ -24,13 +25,13 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
     
     public class ArrayChamferHeight : IPerformanceExtrusion
     {
-        private ChamferModifierSettings _settings;
+        private ChamferSettings _settings;
 
         private int _startIndex;
         private float _offsetInTile;
         private static readonly Vector3 Up = Vector3.up;
         
-        public ArrayChamferHeight(ChamferModifierSettings settings)
+        public ArrayChamferHeight(ChamferSettings settings)
         {
             _settings = settings;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
@@ -44,21 +45,20 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
         public bool RoundBuildingCorners = false;
         public Material Material;
 
-        public ChamferModifierSettings ChamferExtrusionSettings;
-        public GeometryExtrusionOptions BasicExtrusionSettings;
+        public ChamferSettings ChamferExtrusionSettings;
+        public BasicExtrusionSettings BasicExtrusionSettings;
 
         public BuildingComponentSettings()
         {
             EnableTerrainSnapping = false;
-            ChamferExtrusionSettings = new ChamferModifierSettings() { FlatTops = true, OffsetInMeters = 1 };
-            BasicExtrusionSettings = new GeometryExtrusionOptions();
+            ChamferExtrusionSettings = new ChamferSettings() { OffsetInMeters = 1 };
+            BasicExtrusionSettings = new BasicExtrusionSettings();
         }
     }
-    
+
+    //necessary of editor script stuff
     public interface IPerformanceLayerVisualizer
     {
         
     }
-
-    
 }

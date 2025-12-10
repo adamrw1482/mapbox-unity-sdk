@@ -8,8 +8,9 @@ using Mapbox.VectorModule.ComponentSystem.Data;
 using Mapbox.VectorTile.Contants;
 using Mapbox.VectorTile.Geometry;
 using UnityEngine;
+using UnityEngine.Rendering;
 using DecodeGeometry = Mapbox.VectorModule.ComponentSystem.Data.DecodeGeometry;
-using Random = UnityEngine.Random;
+using Random = System.Random;
 
 namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 {
@@ -49,7 +50,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
-            var rnd = new System.Random();
+            var rnd = new Random();
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
             var tileSize = Conversions.TileSizeInUnitySpace(tileId.Z, _mapInformation.Scale);
@@ -417,7 +418,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             mesh.SetVertices(meshData.Vertices);
             mesh.SetNormals(meshData.Normals);
             mesh.SetUVs(0, meshData.UVs);
-            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.indexFormat = IndexFormat.UInt32;
 
             mesh.subMeshCount = meshData.Triangles.Count;
             for (var index = 0; index < meshData.Triangles.Count; index++)
@@ -472,7 +473,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                     case FeatureType.Geometry:
                         if (null != feature.GeometryCommands)
                         {
-                            throw new System.Exception(string.Format("Layer [{0}], feature already has a geometry",
+                            throw new Exception(string.Format("Layer [{0}], feature already has a geometry",
                                 layer.Name));
                         }
 

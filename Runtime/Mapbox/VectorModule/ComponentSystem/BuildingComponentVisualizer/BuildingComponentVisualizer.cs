@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
@@ -32,9 +33,19 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             {
                 arraySnapTerrain = new ArraySnapTerrain(_mapInformation);
             }
-            IPerformanceExtrusion arrayHeight = _settings.RoundBuildingCorners
-                ? new ArrayChamferHeight(_settings.ChamferExtrusionSettings)
-                : new ArrayHeight(_settings.BasicExtrusionSettings);
+            IPerformanceExtrusion arrayHeight;
+            IHeightFilter settings;
+            if (_settings.RoundBuildingCorners)
+            {
+                arrayHeight = new ArrayChamferHeight(_settings.ChamferExtrusionSettings);
+                settings = _settings.ChamferExtrusionSettings;
+            }
+            else
+            {
+                arrayHeight = new ArrayHeight(_settings.BasicExtrusionSettings);
+                settings = _settings.BasicExtrusionSettings;
+            }
+            
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
 
@@ -95,7 +106,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                 {
                     arraySnapTerrain.SnapTerrain(vertices, vertices.Length / 5, tileId, tileSize);
                 }
-
+                
                 var triSpaceRequired = arrayHeight.CalculateTriCountFor(featureResult.VertexData.VertexCount);
                 if (triSpaceRequired + triIndex >= triList.Length)
                 {
@@ -114,13 +125,17 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                 }
                 else
                 {
+                    var height = featureResult.Height;
+                    var minHeight = featureResult.MinHeight;
+                    settings.FilterHeight(ref height, ref minHeight);
+
                     triIndex = arrayHeight.Run(vertices, 
                         normals, 
                         vertexAnchorIndex, 
                         triList, 
                         triIndex, 
-                        featureResult.Height,
-                        featureResult.MinHeight,
+                        height,
+                        minHeight,
                         featureResult.VertexData,
                         tileSize, 
                         _mapInformation.Scale);

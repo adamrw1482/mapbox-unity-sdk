@@ -48,14 +48,12 @@ namespace Mapbox.VectorModule.ComponentSystem.Editor
             enableChamfer.boolValue = EditorGUILayout.Toggle("Enable Rounded Corners", enableChamfer.boolValue);
             if (enableChamfer.boolValue)
             {
-                EditorGUILayout.LabelField("Chamfer Extrusion Settings", EditorStyles.boldLabel);
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(chamferSettings, true);
                 EditorGUI.indentLevel--;
             }
             else
             {
-                EditorGUILayout.LabelField("Basic Extrusion Settings", EditorStyles.boldLabel);
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(basicSettings, true);
                 EditorGUI.indentLevel--;
