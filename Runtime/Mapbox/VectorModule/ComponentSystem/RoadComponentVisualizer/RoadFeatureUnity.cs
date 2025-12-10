@@ -15,7 +15,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public string Class;
         public string Type;
 
-        public void SetProperties(ref VectorTileLayer layer)
+        public void SetProperties(ref VectorTileLayer layer, int classTagIndex, int typeTagIndex)
         {
             var tagCount = Tags.Length;
             //some features have odd number of tags
@@ -23,11 +23,11 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             //so -1 here to skip last single tag
             for (int i = 0; i < tagCount - 1; i += 2)
             {
-                if (layer.Keys[Tags[i]] == "class")
+                if (classTagIndex != -1 && Tags[i] == classTagIndex)
                 {
                     Class = layer.Values[Tags[i + 1]].ToString();
                 }
-                else if (layer.Keys[Tags[i]] == "type")
+                else if (typeTagIndex != -1 && Tags[i] == typeTagIndex)
                 {
                     Type = layer.Values[Tags[i + 1]].ToString();
                 }

@@ -17,7 +17,9 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
     public class RoadComponentVisualizer : MapboxComponentVisualizer
     {
         private RoadComponentSettings _settings;
-
+        private int _classTagIndex = -1;
+        private int _typeTagIndex = -1;
+        
         public RoadComponentVisualizer(string name, IMapInformation mapInformation, UnityContext unityContext = null,
             RoadComponentSettings settings = null) : base(name, mapInformation, unityContext)
         {
@@ -47,6 +49,13 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         {
             if (_settings.RoadStyleSheet == null || _settings.RoadStyleSheet.Styles.Count == 0)
                 return null;
+            
+            for (var i = 0; i < layer.Keys.Count; i++)
+            {
+                var key = layer.Keys[i];
+                if (key == "class") _classTagIndex = i;
+                if (key == "type") _typeTagIndex = i;
+            }
             
             var rnd = new Random();
             var featureCount = layer.FeatureCount();
@@ -529,7 +538,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
             var layerExtent = (float)layer.Extent;
 
-            feature.SetProperties(ref layer);
+            feature.SetProperties(ref layer, _classTagIndex, _typeTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
         }
