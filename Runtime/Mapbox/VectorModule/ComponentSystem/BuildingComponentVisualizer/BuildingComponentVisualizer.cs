@@ -17,7 +17,10 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
     public class BuildingComponentVisualizer : MapboxComponentVisualizer
     {
         private BuildingComponentSettings _settings;
-
+        private int _heightTagIndex = -1;
+        private int _minHeightTagIndex = -1;
+        private int _extrudeTagIndex = -1;
+        
         public BuildingComponentVisualizer(string name, IMapInformation mapInformation,
             UnityContext unityContext = null, BuildingComponentSettings settings = null) : base(name, mapInformation,
             unityContext)
@@ -27,6 +30,14 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
+            for (var i = 0; i < layer.Keys.Count; i++)
+            {
+                var key = layer.Keys[i];
+                if (key == "height") _heightTagIndex = i;
+                if (key == "min_Height") _minHeightTagIndex = i;
+                if (key == "extrude") _extrudeTagIndex = i;
+            }
+
             var arrayPolygon = new ArrayPolygon();
             ArraySnapTerrain arraySnapTerrain = null;
             if (_settings.EnableTerrainSnapping)
@@ -229,7 +240,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             }
 
             var layerExtent = (float)layer.Extent;
-            feature.SetProperties(ref layer);
+            feature.SetProperties(ref layer, _heightTagIndex, _minHeightTagIndex, _extrudeTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
         }
@@ -245,22 +256,23 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             public float MinHeight;
             public bool DoExtrude;
 
-            public void SetProperties(ref VectorTileLayer layer)
+            public void SetProperties(ref VectorTileLayer layer, int heightTagIndex, int minHeightTagIndex = 0, int extrudeTagIndex = 0)
             {
                 var tagCount = Tags.Length;
+                
                 for (int i = 0; i < tagCount; i += 2)
                 {
-                    if (layer.Keys[Tags[i]] == "height")
+                    if (heightTagIndex != -1 && Tags[i] == heightTagIndex)
                     {
                         Height = Convert.ToSingle(layer.Values[Tags[i + 1]]);
                     }
-                    else if (layer.Keys[Tags[i]] == "min_height")
+                    else if (minHeightTagIndex != -1 && Tags[i] == minHeightTagIndex)
                     {
                         MinHeight = Convert.ToSingle(layer.Values[Tags[i + 1]]);
                     }
-                    else if (layer.Keys[Tags[i]] == "extrude")
+                    else if (extrudeTagIndex != -1 && Tags[i] == extrudeTagIndex)
                     {
-                        DoExtrude = bool.Parse(layer.Values[Tags[i + 1]].ToString());
+                        DoExtrude = Convert.ToBoolean(layer.Values[Tags[i + 1]]);
                     }
                 }
             }
