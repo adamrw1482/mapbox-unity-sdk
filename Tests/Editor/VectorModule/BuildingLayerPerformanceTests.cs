@@ -221,7 +221,7 @@ namespace Mapbox.VectorModuleTests
         [UnityTest, Performance]
         public IEnumerator RoadVisualizer()
         {
-            var viz = new RoadComponentVisualizer("test", GetMapInformation(), null, new RoadComponentSettings() { RoadWidth  = 3 });
+            var viz = new RoadComponentVisualizer("test", GetMapInformation(), null, new RoadComponentSettings());
             yield return viz.Initialize();
             
             Measure.Method(() =>

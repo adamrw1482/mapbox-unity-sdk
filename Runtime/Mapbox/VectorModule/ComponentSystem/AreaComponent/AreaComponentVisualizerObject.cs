@@ -51,6 +51,8 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
     public class AreaComponentSettings
     {
         public string LayerName;
+        [Tooltip("Vertical offset to be applied to the road component.")]
+        public float GameObjectOffset;
         public Dictionary<string, AreaStyle> StyleDictionary = new Dictionary<string, AreaStyle>();
         public List<AreaStyle> Styles;
     }

@@ -22,6 +22,10 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             unityContext)
         {
             _settings = settings ?? new AreaComponentSettings();
+            _layerRootObject.transform.position = new Vector3(
+                _layerRootObject.transform.position.x, 
+                _settings.GameObjectOffset, 
+                _layerRootObject.transform.position.z);
         }
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)

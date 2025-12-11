@@ -25,11 +25,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public bool Invert;
         private HashSet<string> _types;
         
-        public RoadClassFilter()
-        {
-            //PropertyFilterSettings = new FeatureStringPropertyFilterSettings();
-        }
-        
         public override void Initialize()
         {
             if (CheckOperation == StringCheckOperation.Contains)
