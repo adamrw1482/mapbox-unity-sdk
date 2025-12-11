@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
@@ -30,11 +31,38 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             Left
         }
         
+        private class RoadMeshInfo : StackMeshInfo
+        {
+            public List<Material> Materials;
+            public int[] TriangleSizes;
+            public Dictionary<Material, int[]> TrianglesPerMaterial;
+            public RoadMeshInfo(int featureCount) : base(featureCount)
+            {
+                Materials = new List<Material>();
+                TrianglesPerMaterial = new Dictionary<Material, int[]>();
+            }
+        }
+        
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
             var rnd = new Random();
             var featureCount = layer.FeatureCount();
-            var info = new StackMeshInfo(featureCount);
+            var info = new RoadMeshInfo(featureCount);
+
+            foreach (var style in _settings.RoadStyleSheet.Styles)
+            {
+                if (!info.Materials.Contains(style.Material))
+                {
+                    style.RuntimeId = info.Materials.Count;
+                    info.Materials.Add(style.Material);
+                }
+                else
+                {
+                    style.RuntimeId = info.Materials.IndexOf(style.Material);
+                }
+            }
+            info.TriangleSizes = new int[info.Materials.Count];
+            
             var tileSize = Conversions.TileSizeInUnitySpace(tileId.Z, _mapInformation.Scale);
             
             var featureArray = new RoadFeatureUnity[featureCount];
@@ -44,13 +72,14 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 var feature = GetFeature(layer, i);
                 if (feature.VertexData.VertexCount <= 1) continue;
                 if(feature.GeometryType != GeomType.LINESTRING) continue;
-                if(!_settings.RoadStyleSheet.Contains(feature))
+                if(!_settings.RoadStyleSheet.TryGetStyle(feature, out var style))
                 {
                     continue;
                 }
                 featureArray[i] = feature;
 
-                info.triRanges[i] = info.TotalTriangleCount;
+                //info.triRanges[i] = info.TotalTriangleCount;
+                info.triRanges[i] = info.TriangleSizes[style.RuntimeId];
                 info.vertexRanges[i] = info.TotalPointCount;
 
                 var vertNeeded = VertexNeed(feature.VertexData);
@@ -59,6 +88,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 if (feature.VertexData.VertexCount == 2)
                 {
                     info.triSize[i] = 12 + 6;
+                    info.TriangleSizes[style.RuntimeId] += 12 + 6;
                     info.TotalTriangleCount += 12 + 6; //2 tri 3 vert + 12 for caps
                 }
                 else
@@ -68,13 +98,20 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                     // 12 per middle vertex
                     var triSize = 12 + 6 + ((feature.VertexData.VertexCount - 2) * 12);
                     info.triSize[i] = triSize;
+                    info.TriangleSizes[style.RuntimeId] += triSize;
                     info.TotalTriangleCount += triSize;
                 }
             }
 
+            for (var i = 0; i < info.TriangleSizes.Length; i++)
+            {
+                var size = info.TriangleSizes[i];
+                info.TrianglesPerMaterial.Add(_settings.RoadStyleSheet.Styles.First(x => x.RuntimeId == i).Material, new int[size]);
+            }
+
             var meshData = new MeshData(info, info.TotalPointCount);
             meshData.UVs = new Vector2[info.TotalPointCount];
-            var triList = new int[info.TotalTriangleCount];
+            int[] triList;
 
             var featureTriIndex = 0;
             for (int i = 0; i < featureArray.Length; i++)
@@ -87,6 +124,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 {
                     continue;
                 }
+                
+                triList = info.TrianglesPerMaterial[style.Material];
                 
                 var scaledRoadWidth = style.Width / _mapInformation.Scale / tileSize;
                 var designedVertCount = meshData.MeshInfo.vertexSize[i];
@@ -369,7 +408,13 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 featureTriIndex += designedVertCount;
             }
 
-            meshData.Triangles.Add(triList);
+            foreach (var pair in info.TrianglesPerMaterial)
+            {
+                meshData.Triangles.Add(pair.Value);
+                meshData.Materials.Add(pair.Key);
+            }
+            
+            //meshData.Triangles.Add(triList);
             return meshData;
         }
 
@@ -390,9 +435,13 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             var objectList = new List<GameObject>();
             var entity = _buildingObjectPool.GetObject();
             var mats = new Material[meshData.Triangles.Count];
-            for (int i = 0; i < meshData.Triangles.Count; i++)
+            // for (int i = 0; i < meshData.Triangles.Count; i++)
+            // {
+            //     mats[i] = _settings.Material;
+            // }
+            for (var i = 0; i < meshData.Triangles.Count; i++)
             {
-                mats[i] = _settings.Material;
+                mats[i] = meshData.Materials[i];
             }
 
             entity.MeshRenderer.materials = mats;
