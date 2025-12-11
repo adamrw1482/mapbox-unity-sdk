@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
+using Mapbox.VectorModule.Filters;
 using Mapbox.VectorModule.Unity;
 using UnityEngine;
 
@@ -25,6 +26,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 		
         public override IVectorLayerVisualizer ConstructLayerVisualizer(IMapInformation mapInformation, UnityContext unityContext)
         {
+            Settings.RoadStyleSheet.Initialize();
             _layerVisualizer = new RoadComponentVisualizer("road", mapInformation, unityContext, Settings);
             _layerVisualizer.Active = IsActive;
 
@@ -47,16 +49,10 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public Material Material;
         [Tooltip("Road segments will be offset by a small amount to prevent z-fighting issues.")]
         public float RandomOffsetRange = 0.0001f;
-        public List<RoadStyle> Styles;
+        public RoadStyleSheet RoadStyleSheet;
         
         public RoadComponentSettings()
         {
         }
-    }
-
-    [Serializable]
-    public class RoadStyle
-    {
-        
     }
 }

@@ -9,7 +9,6 @@ using Mapbox.VectorTile.Contants;
 using Mapbox.VectorTile.Geometry;
 using UnityEngine;
 using UnityEngine.Rendering;
-using DecodeGeometry = Mapbox.VectorModule.ComponentSystem.Data.DecodeGeometry;
 using Random = System.Random;
 
 namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
@@ -22,23 +21,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             RoadComponentSettings settings = null) : base(name, mapInformation, unityContext)
         {
             _settings = settings ?? new RoadComponentSettings();
-        }
-
-        private string[] Skip = new[]
-        {
-            "path",
-            "pedestrian",
-            "major_rail"
-        };
-
-        private bool ShouldSkip(RoadFeatureUnity feature)
-        {
-            for (int i = 0; i < Skip.Length; i++)
-            {
-                if (Skip[i] == feature.Class) return true;
-            }
-
-            return false;
         }
 
         private enum Turn
@@ -54,15 +36,18 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
             var tileSize = Conversions.TileSizeInUnitySpace(tileId.Z, _mapInformation.Scale);
-            var scaledRoadWidth = _settings.RoadWidth / _mapInformation.Scale / tileSize;
+            
             var featureArray = new RoadFeatureUnity[featureCount];
 
             for (var i = 0; i < featureCount; i++)
             {
                 var feature = GetFeature(layer, i);
                 if (feature.VertexData.VertexCount <= 1) continue;
-                if (ShouldSkip(feature)) continue;
-
+                if(feature.GeometryType != GeomType.LINESTRING) continue;
+                if(!_settings.RoadStyleSheet.Contains(feature))
+                {
+                    continue;
+                }
                 featureArray[i] = feature;
 
                 info.triRanges[i] = info.TotalTriangleCount;
@@ -96,7 +81,14 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             {
                 var featureResult = featureArray[i];
                 if (featureResult == null) continue;
+
+                RoadStyle style;
+                if(!_settings.RoadStyleSheet.TryGetStyle(featureResult, out style))
+                {
+                    continue;
+                }
                 
+                var scaledRoadWidth = style.Width / _mapInformation.Scale / tileSize;
                 var designedVertCount = meshData.MeshInfo.vertexSize[i];
                 if (designedVertCount <= 2 || meshData.MeshInfo.triSize[i] < 3) continue;
 
@@ -104,15 +96,12 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 var normals = meshData.Normals.AsSpan(meshData.MeshInfo.vertexRanges[i], designedVertCount);
                 var uvs = meshData.UVs.AsSpan(meshData.MeshInfo.vertexRanges[i], designedVertCount);
                 var tris = triList.AsSpan(meshData.MeshInfo.triRanges[i], meshData.MeshInfo.triSize[i]);
-
-                
                 
                 var lastTurnWas = Turn.Start;
                 var prevFirst = -2;
                 var prevSecond = -1;
                 var subVertIndex = 0;
                 var subTriIndex = 0;
-                
                 
                 for (var j = 0; j < featureResult.VertexData.Submeshes.Count - 1; j++)
                 {
@@ -122,21 +111,21 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                     var sideNormal = new Vector3(0, 0, 0);
                     var finishLine = false;
                     var distance = 0f;
+                    Vector3 dirNext = new Vector3(0, 0, 0);
+                    Vector3 dirPrev;
                     for (int k = 0; k < subSize - 1; k++)
                     {
                         var current = featureResult.VertexData.Vertices[startVertex + k];
                         var next = featureResult.VertexData.Vertices[startVertex + k + 1];
 
-                        //first point
-                        
-                        var y = _settings.PushUp + current.y + (float)rnd.NextDouble() * _settings.RandomOffsetRange;
+                        var elevation = _settings.PushUp + current.y + (float)rnd.NextDouble() * _settings.RandomOffsetRange;
                         
                         if(k > 0)
                         {
-                            var prev = featureResult.VertexData.Vertices[startVertex + k - 1];
+                            //var prev = featureResult.VertexData.Vertices[startVertex + k - 1];
                             var movement = next - current;
-                            var dirNext = movement.normalized;
-                            var dirPrev = (prev - current).normalized;
+                            dirPrev = -dirNext; //(prev - current).normalized;
+                            dirNext = movement.normalized;
                             var dirInside = (dirNext + dirPrev).normalized * scaledRoadWidth;
                             var prevSideNormal = sideNormal;
                             sideNormal = new Vector3(dirNext.z  * scaledRoadWidth, 0, -dirNext.x  * scaledRoadWidth);
@@ -158,9 +147,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             
                             //featureTriIndex is the start of the feature
                             //baseVertIndex is the start of this section (like corner)
-
                             
-
                             // precompute side offsets with sign depending on isRight
                             var isRight = Vector3.Dot(prevSideNormal, dirNext) > 0;
                             int sign = isRight ? -1 : 1;
@@ -182,10 +169,10 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             float v3z = current.z + dirInside.z;
 
                             // write vertices
-                            vertices[baseVertIndex    ] = new Vector3(v0x, y, v0z);
-                            vertices[baseVertIndex + 1] = new Vector3(v1x, y, v1z);
-                            vertices[baseVertIndex + 2] = new Vector3(v2x, y, v2z);
-                            vertices[baseVertIndex + 3] = new Vector3(v3x, y, v3z);
+                            vertices[baseVertIndex    ] = new Vector3(v0x, elevation, v0z);
+                            vertices[baseVertIndex + 1] = new Vector3(v1x, elevation, v1z);
+                            vertices[baseVertIndex + 2] = new Vector3(v2x, elevation, v2z);
+                            vertices[baseVertIndex + 3] = new Vector3(v3x, elevation, v3z);
 
                             // write normals (all up)
                             normals[baseVertIndex    ] =Vector3.up;
@@ -267,23 +254,23 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                         {
                             distance = 0;
                             var movement = next - current;
-                            var dir = movement.normalized;
-                            sideNormal = new Vector3(dir.z * scaledRoadWidth, 0, -dir.x * scaledRoadWidth);
+                            dirNext = movement.normalized;
+                            sideNormal = new Vector3(dirNext.z * scaledRoadWidth, 0, -dirNext.x * scaledRoadWidth);
 
                             // round caps are width/2 back and then width/2 to sides
-                            var capSide1x = current.x - (dir.x * scaledRoadWidth/2) + (sideNormal.x/2);
-                            var capSide1z = current.z - (dir.z * scaledRoadWidth/2) + (sideNormal.z/2);
-                            var capSide2x = current.x - (dir.x * scaledRoadWidth/2) - (sideNormal.x/2);
-                            var capSide2z = current.z - (dir.z * scaledRoadWidth/2) - (sideNormal.z/2);
+                            var capSide1x = current.x - (dirNext.x * scaledRoadWidth/2) + (sideNormal.x/2);
+                            var capSide1z = current.z - (dirNext.z * scaledRoadWidth/2) + (sideNormal.z/2);
+                            var capSide2x = current.x - (dirNext.x * scaledRoadWidth/2) - (sideNormal.x/2);
+                            var capSide2z = current.z - (dirNext.z * scaledRoadWidth/2) - (sideNormal.z/2);
                             var side1x = current.x + sideNormal.x;
                             var side1z = current.z + sideNormal.z;
                             var side2x = current.x - sideNormal.x;
                             var side2z = current.z - sideNormal.z;
                             
-                            vertices[subVertIndex    ] = new Vector3(capSide1x, y, capSide1z);
-                            vertices[subVertIndex + 1] = new Vector3(capSide2x, y, capSide2z);
-                            vertices[subVertIndex + 2] = new Vector3(side1x, y, side1z);
-                            vertices[subVertIndex + 3] = new Vector3(side2x, y, side2z);
+                            vertices[subVertIndex    ] = new Vector3(capSide1x, elevation, capSide1z);
+                            vertices[subVertIndex + 1] = new Vector3(capSide2x, elevation, capSide2z);
+                            vertices[subVertIndex + 2] = new Vector3(side1x, elevation, side1z);
+                            vertices[subVertIndex + 3] = new Vector3(side2x, elevation, side2z);
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
@@ -341,10 +328,10 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                             var capSide2x = current.x + (dir.x * scaledRoadWidth / 2) - (sideNormal.x / 2);
                             var capSide2z = current.z + (dir.z * scaledRoadWidth / 2) - (sideNormal.z / 2);
                             
-                            vertices[subVertIndex    ] = new Vector3(side1x, y, side1z);
-                            vertices[subVertIndex + 1] = new Vector3(side2x, y, side2z);
-                            vertices[subVertIndex + 2] = new Vector3(capSide1x, y, capSide1z);
-                            vertices[subVertIndex + 3] = new Vector3(capSide2x, y, capSide2z);
+                            vertices[subVertIndex    ] = new Vector3(side1x, elevation, side1z);
+                            vertices[subVertIndex + 1] = new Vector3(side2x, elevation, side2z);
+                            vertices[subVertIndex + 2] = new Vector3(capSide1x, elevation, capSide1z);
+                            vertices[subVertIndex + 3] = new Vector3(capSide2x, elevation, capSide2z);
 
                             normals[subVertIndex    ] = Vector3.up;
                             normals[subVertIndex + 1] = Vector3.up;
@@ -492,41 +479,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             feature.SetProperties(ref layer);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
-        }
-
-        private class RoadFeatureUnity
-        {
-            public ulong Id;
-            public GeomType GeometryType;
-            public uint[] GeometryCommands;
-            public FeatureVertexData VertexData;
-            public int[] Tags;
-            public string Class;
-            public string Type;
-
-            public void SetProperties(ref VectorTileLayer layer)
-            {
-                var tagCount = Tags.Length;
-                //some features have odd number of tags
-                //not sure if it's a bug or data issue
-                //so -1 here to skip last single tag
-                for (int i = 0; i < tagCount - 1; i += 2)
-                {
-                    if (layer.Keys[Tags[i]] == "class")
-                    {
-                        Class = layer.Values[Tags[i + 1]].ToString();
-                    }
-                    else if (layer.Keys[Tags[i]] == "type")
-                    {
-                        Type = layer.Values[Tags[i + 1]].ToString();
-                    }
-                }
-            }
-
-            public FeatureVertexData Geometry(Vector3 scale)
-            {
-                return DecodeGeometry.GetGeometry(GeometryCommands, scale);
-            }
         }
     }
 }
