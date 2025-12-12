@@ -16,13 +16,13 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 {
     public class BuildingComponentVisualizer : MapboxComponentVisualizer
     {
-        private BuildingComponentSettings _settings;
+        private BuildingComponentSettings _buildingSettings;
         
         public BuildingComponentVisualizer(string name, IMapInformation mapInformation,
             UnityContext unityContext = null, BuildingComponentSettings settings = null) : base(name, mapInformation,
             unityContext)
         {
-            _settings = settings ?? new BuildingComponentSettings();
+            _buildingSettings = settings ?? new BuildingComponentSettings();
         }
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
@@ -41,21 +41,21 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
             var arrayPolygon = new ArrayPolygon();
             ArraySnapTerrain arraySnapTerrain = null;
-            if (_settings.EnableTerrainSnapping)
+            if (_buildingSettings.EnableTerrainSnapping)
             {
                 arraySnapTerrain = new ArraySnapTerrain(_mapInformation);
             }
             IPerformanceExtrusion arrayHeight;
             IHeightFilter settings;
-            if (_settings.RoundBuildingCorners)
+            if (_buildingSettings.RoundBuildingCorners)
             {
-                arrayHeight = new ArrayChamferHeight(_settings.ChamferExtrusionSettings);
-                settings = _settings.ChamferExtrusionSettings;
+                arrayHeight = new ArrayChamferHeight(_buildingSettings.ChamferExtrusionSettings);
+                settings = _buildingSettings.ChamferExtrusionSettings;
             }
             else
             {
-                arrayHeight = new ArrayHeight(_settings.BasicExtrusionSettings);
-                settings = _settings.BasicExtrusionSettings;
+                arrayHeight = new ArrayHeight(_buildingSettings.BasicExtrusionSettings);
+                settings = _buildingSettings.BasicExtrusionSettings;
             }
             
             var featureCount = layer.FeatureCount();
@@ -66,7 +66,8 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i, heightTagIndex, minHeightTagIndex, extrudeTagIndex);
+                //for some reason passing ref values here effects performance quite a bit
+                var feature = GetFeature(layer, i, ref heightTagIndex, ref minHeightTagIndex, ref extrudeTagIndex);
                 if (feature == null) continue;
                 featureArray[i] = feature;
 
@@ -114,7 +115,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                     continue;
                 }
 
-                if (_settings.EnableTerrainSnapping)
+                if (_buildingSettings.EnableTerrainSnapping)
                 {
                     arraySnapTerrain.SnapTerrain(vertices, vertices.Length / 5, tileId, tileSize);
                 }
@@ -168,7 +169,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             var mats = new Material[meshData.Triangles.Count];
             for (int i = 0; i < meshData.Triangles.Count; i++)
             {
-                mats[i] = _settings.Material;
+                mats[i] = _buildingSettings.Material;
             }
 
             entity.MeshRenderer.materials = mats;
@@ -200,13 +201,12 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             return objectList;
         }
 
-        private BuildingFeatureUnity GetFeature(VectorTileLayer layer, int i, int heightTagIndex, int minHeightTagIndex, int extrudeTagIndex)
+        private BuildingFeatureUnity GetFeature(VectorTileLayer layer, int i, ref int heightTagIndex, ref int minHeightTagIndex, ref int extrudeTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);
             var featureReader = new PbfReader(layerData);
             var feature = new BuildingFeatureUnity();
-            bool geomTypeSet = false;
             while (featureReader.NextByte())
             {
                 int featureType = featureReader.Tag;
@@ -222,7 +222,6 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                     case FeatureType.Type:
                         int geomType = (int)featureReader.Varint();
                         feature.GeometryType = (GeomType)geomType;
-                        geomTypeSet = true;
                         break;
                     case FeatureType.Geometry:
                         if (null != feature.GeometryCommands)
@@ -240,9 +239,8 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                 }
             }
 
-            var layerExtent = (float)layer.Extent;
-            feature.SetProperties(ref layer, heightTagIndex, minHeightTagIndex, extrudeTagIndex);
-            feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
+            feature.SetProperties(ref layer, ref heightTagIndex, ref minHeightTagIndex, ref extrudeTagIndex);
+            feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
             return feature;
         }
 
@@ -257,7 +255,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             public float MinHeight;
             public bool DoExtrude;
 
-            public void SetProperties(ref VectorTileLayer layer, int heightTagIndex, int minHeightTagIndex = 0, int extrudeTagIndex = 0)
+            public void SetProperties(ref VectorTileLayer layer, ref int heightTagIndex, ref int minHeightTagIndex, ref int extrudeTagIndex)
             {
                 var tagCount = Tags.Length;
                 

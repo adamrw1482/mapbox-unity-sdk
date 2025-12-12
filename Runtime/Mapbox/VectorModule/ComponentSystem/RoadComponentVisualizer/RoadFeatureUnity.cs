@@ -15,7 +15,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public string Class;
         public string Type;
 
-        public void SetProperties(ref VectorTileLayer layer, int classTagIndex, int typeTagIndex)
+        public void SetProperties(ref VectorTileLayer layer, ref int classTagIndex, ref int typeTagIndex)
             {
                 var tagCount = Tags.Length;
                 //some features have odd number of tags

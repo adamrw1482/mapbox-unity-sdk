@@ -42,13 +42,12 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             var arrayPolygon = new ArrayPolygon();
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
-
-            var tileSize = Conversions.TileSizeInUnitySpace(tileId.Z, _mapInformation.Scale);
             var featureArray = new AreaFeatureUnity[featureCount];
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i, classTagIndex, typeTagIndex);
+                //for some reason passing ref values here effects performance quite a bit
+                var feature = GetFeature(layer, i, ref classTagIndex, ref typeTagIndex);
                 if (feature == null) continue;
                 featureArray[i] = feature;
 
@@ -78,7 +77,6 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                     //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
                     continue;
                 }
-
                 
                 if (_settings.LayerName == "water")
                 {
@@ -133,10 +131,6 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             var objectList = new List<GameObject>();
             var entity = _buildingObjectPool.GetObject();
             var mats = new Material[meshData.Triangles.Count];
-            // for (int i = 0; i < meshData.Triangles.Count; i++)
-            // {
-            //     mats[i] = _settings.Material;
-            // }
             for (var i = 0; i < meshData.Triangles.Count; i++)
             {
                 mats[i] = meshData.Materials[i];
@@ -171,7 +165,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             return objectList;
         }
 
-        private AreaFeatureUnity GetFeature(VectorTileLayer layer, int i, int _classTagIndex, int _typeTagIndex)
+        private AreaFeatureUnity GetFeature(VectorTileLayer layer, int i, ref int classTagIndex, ref int typeTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);
@@ -211,9 +205,8 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                 }
             }
 
-            var layerExtent = (float)layer.Extent;
-            feature.SetProperties(ref layer, _classTagIndex, _typeTagIndex);
-            feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
+            feature.SetProperties(ref layer, ref classTagIndex, ref typeTagIndex);
+            feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
             return feature;
         }
 
@@ -227,7 +220,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             public string Class;
             public string Type;
 
-            public void SetProperties(ref VectorTileLayer layer, int classTagIndex, int typeTagIndex)
+            public void SetProperties(ref VectorTileLayer layer, ref int classTagIndex, ref int typeTagIndex)
             {
                 if (Tags == null) return; //water has no tags
                 

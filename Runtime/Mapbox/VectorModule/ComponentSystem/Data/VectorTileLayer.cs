@@ -51,7 +51,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
 
 
         /// <summary>Extent of this layer https://github.com/mapbox/vector-tile-spec/blob/master/2.1/vector_tile.proto#L70</summary>
-        public ulong Extent { get; set; }
+        public float Extent;
 
 
         /// <summary>Raw data of the features contained in this layer</summary>
