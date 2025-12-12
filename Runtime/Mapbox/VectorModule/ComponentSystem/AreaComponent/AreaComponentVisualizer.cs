@@ -16,8 +16,6 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
     public class AreaComponentVisualizer : MapboxComponentVisualizer
     {
         private AreaComponentSettings _settings;
-        private int _classTagIndex = -1;
-        private int _typeTagIndex = -1;
         
         public AreaComponentVisualizer(string name, IMapInformation mapInformation,
             UnityContext unityContext = null, AreaComponentSettings settings = null) : base(name, mapInformation,
@@ -32,11 +30,13 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
+            int classTagIndex = -1;
+            int typeTagIndex = -1;
             for (var i = 0; i < layer.Keys.Count; i++)
             {
                 var key = layer.Keys[i];
-                if (key == "class") _classTagIndex = i;
-                if (key == "type") _typeTagIndex = i;
+                if (key == "class") classTagIndex = i;
+                if (key == "type") typeTagIndex = i;
             }
             
             var arrayPolygon = new ArrayPolygon();
@@ -48,7 +48,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i);
+                var feature = GetFeature(layer, i, classTagIndex, typeTagIndex);
                 if (feature == null) continue;
                 featureArray[i] = feature;
 
@@ -73,7 +73,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             for (int i = 0; i < featureCount; i++)
             {
                 var featureResult = featureArray[i];
-                if (featureResult == null)
+                if (featureResult == null || string.IsNullOrEmpty(featureResult.Class))
                 {
                     //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
                     continue;
@@ -171,7 +171,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             return objectList;
         }
 
-        private AreaFeatureUnity GetFeature(VectorTileLayer layer, int i)
+        private AreaFeatureUnity GetFeature(VectorTileLayer layer, int i, int _classTagIndex, int _typeTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);

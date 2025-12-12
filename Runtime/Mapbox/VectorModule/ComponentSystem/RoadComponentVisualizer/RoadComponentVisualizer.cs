@@ -17,8 +17,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
     public class RoadComponentVisualizer : MapboxComponentVisualizer
     {
         private RoadComponentSettings _settings;
-        private int _classTagIndex = -1;
-        private int _typeTagIndex = -1;
         
         public RoadComponentVisualizer(string name, IMapInformation mapInformation, UnityContext unityContext = null,
             RoadComponentSettings settings = null) : base(name, mapInformation, unityContext)
@@ -50,11 +48,13 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             if (_settings.RoadStyleSheet == null || _settings.RoadStyleSheet.Styles.Count == 0)
                 return null;
             
+            int classTagIndex = -1;
+            int typeTagIndex = -1;
             for (var i = 0; i < layer.Keys.Count; i++)
             {
                 var key = layer.Keys[i];
-                if (key == "class") _classTagIndex = i;
-                if (key == "type") _typeTagIndex = i;
+                if (key == "class") classTagIndex = i;
+                if (key == "type") typeTagIndex = i;
             }
             
             var rnd = new Random();
@@ -80,7 +80,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i);
+                var feature = GetFeature(layer, i, classTagIndex, typeTagIndex);
                 if (feature == null) continue;
                 if (feature.VertexData.VertexCount <= 1) continue;
                 if (feature.GeometryType != GeomType.LINESTRING) continue;
@@ -495,7 +495,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             return objectList;
         }
 
-        private RoadFeatureUnity GetFeature(VectorTileLayer layer, int i)
+        private RoadFeatureUnity GetFeature(VectorTileLayer layer, int i, int _classTagIndex, int _typeTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);

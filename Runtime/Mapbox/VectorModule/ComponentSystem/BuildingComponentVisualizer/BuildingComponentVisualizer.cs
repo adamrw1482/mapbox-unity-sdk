@@ -17,9 +17,6 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
     public class BuildingComponentVisualizer : MapboxComponentVisualizer
     {
         private BuildingComponentSettings _settings;
-        private int _heightTagIndex = -1;
-        private int _minHeightTagIndex = -1;
-        private int _extrudeTagIndex = -1;
         
         public BuildingComponentVisualizer(string name, IMapInformation mapInformation,
             UnityContext unityContext = null, BuildingComponentSettings settings = null) : base(name, mapInformation,
@@ -30,12 +27,16 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
         {
+            int heightTagIndex = -1;
+            int minHeightTagIndex = -1;
+            int extrudeTagIndex = -1;
+            
             for (var i = 0; i < layer.Keys.Count; i++)
             {
                 var key = layer.Keys[i];
-                if (key == "height") _heightTagIndex = i;
-                if (key == "min_Height") _minHeightTagIndex = i;
-                if (key == "extrude") _extrudeTagIndex = i;
+                if (key == "height") heightTagIndex = i;
+                if (key == "min_Height") minHeightTagIndex = i;
+                if (key == "extrude") extrudeTagIndex = i;
             }
 
             var arrayPolygon = new ArrayPolygon();
@@ -65,7 +66,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i);
+                var feature = GetFeature(layer, i, heightTagIndex, minHeightTagIndex, extrudeTagIndex);
                 if (feature == null) continue;
                 featureArray[i] = feature;
 
@@ -199,7 +200,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             return objectList;
         }
 
-        private BuildingFeatureUnity GetFeature(VectorTileLayer layer, int i)
+        private BuildingFeatureUnity GetFeature(VectorTileLayer layer, int i, int heightTagIndex, int minHeightTagIndex, int extrudeTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);
@@ -240,7 +241,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             }
 
             var layerExtent = (float)layer.Extent;
-            feature.SetProperties(ref layer, _heightTagIndex, _minHeightTagIndex, _extrudeTagIndex);
+            feature.SetProperties(ref layer, heightTagIndex, minHeightTagIndex, extrudeTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layerExtent, 0, -layerExtent));
             return feature;
         }
