@@ -27,6 +27,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         
         public override void Initialize()
         {
+            FilterString = FilterString.ToLowerInvariant();
             if (CheckOperation == StringCheckOperation.Contains)
             {
                 _types = new HashSet<string>();
@@ -42,11 +43,11 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             var result = false;
             if (CheckOperation == StringCheckOperation.Equals)
             {
-                result = FilterString.ToLowerInvariant() == feature.Class.ToLowerInvariant();
+                result = FilterString == feature.Class;
             }
             else if (CheckOperation == StringCheckOperation.Contains)
             {
-                result = _types.Contains(feature.Class.ToLowerInvariant());
+                result = _types.Contains(feature.Class);
             }
 
             return !Invert ? result : !result; 
