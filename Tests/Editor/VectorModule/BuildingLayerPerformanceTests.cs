@@ -216,7 +216,23 @@ namespace Mapbox.VectorModuleTests
                 .Run();
             
         }
+    }
+
+    public class RoadLayerPerformanceTests
+    {
+        private int SampleCount = 100;
+        private ResilientWebRequestFileSource _fs;
+        private byte[] buffer;
+        private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
+        private string LatLng = "60.1664427,24.9318587";
         
+        private IMapInformation GetMapInformation()
+        {
+            var mapInformation = new MapInformation(LatLng);
+            mapInformation.SetInformation(null, 16, 0, 0, 1000);
+            mapInformation.Initialize();
+            return mapInformation;
+        }
         
         [UnityTest, Performance]
         public IEnumerator RoadVisualizer()
@@ -262,5 +278,23 @@ namespace Mapbox.VectorModuleTests
                 .GC()
                 .Run();
         }
+        
+        private VectorLayerVisualizer RegularRoadLayer(IMapInformation mapInformation)
+        {
+            var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
+            var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
+            var modStack = new ModifierStack(modStackSettings, null);
+            modStack.MeshModifiers.Add(new LineMeshForPolygonsModifier(new LineMeshParameters()
+            {
+                CapType = JoinType.Butt,
+                JoinType = JoinType.Round,
+                Width = 6
+            } ));
+
+            viz.AddModifierStack(new List<ModifierStack>() { modStack });
+            viz.Initialize();
+            return viz;
+        }
+
     }
 }
