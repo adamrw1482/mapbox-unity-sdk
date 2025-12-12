@@ -9,12 +9,12 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.VectorModule;
 using Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer;
-using Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer;
 using Mapbox.VectorModule.MeshGeneration;
 using Mapbox.VectorModule.MeshGeneration.MeshModifiers;
+using Mapbox.VectorModule.Unity;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
-
+using UnityEditor;
 using UnityEngine.TestTools;
 
 namespace Mapbox.VectorModuleTests
@@ -27,6 +27,8 @@ namespace Mapbox.VectorModuleTests
         private byte[] buffer;
         private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
         private string LatLng = "60.1664427,24.9318587";
+        private string _buildingVisualizerAssetPath = "Packages/com.mapbox.sdk/Tests/Editor/VectorModule/BuildingSetups/TEST_BuildingLayerVisualizerObject.asset";
+        private string _oldBuildVisAssetPath = "Packages/com.mapbox.sdk/Tests/Editor/VectorModule/BuildingSetups/TEST_OldLayerVisualizer.asset";
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -119,25 +121,19 @@ namespace Mapbox.VectorModuleTests
 
         private static bool[] _doChamfer = new bool[] { true, false};
         
+        
         [UnityTest, Performance, Order(1)]
         public IEnumerator BuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
         {
             var settings = doChamfer
                 ? new BuildingComponentSettings() { RoundBuildingCorners = true }
                 : new BuildingComponentSettings() { RoundBuildingCorners = false };
-            var viz = new BuildingComponentVisualizer("test", GetMapInformation(), null, settings);
+            var vizObj = (BuildingComponentVisualizerObject) AssetDatabase.LoadAssetAtPath(_buildingVisualizerAssetPath, typeof(BuildingComponentVisualizerObject));
+            vizObj.Settings = settings;
+            var viz = (BuildingComponentVisualizer) vizObj.ConstructLayerVisualizer(GetMapInformation(), null);
             yield return viz.Initialize();
             
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
-                    viz.ClearCaches();
-                    if (tt.TryGetLayer("building", out var layer))
-                    {
-                        viz.CreateMesh(tileId, layer);
-                    }
-                })
+            Measure.Method(() => { RunBuildingComponent(viz); })
                 .WarmupCount(5)
                 .MeasurementCount(SampleCount)
                 .IterationsPerMeasurement(1)
@@ -145,47 +141,18 @@ namespace Mapbox.VectorModuleTests
                 .Run();
         }
         
-        [Test, Performance, Order(1)]
-        public void BuildingVisualizerOld([ValueSource("_doChamfer")] bool doChamfer)
-        {
-            var reg = RegularLayer(GetMapInformation(), doChamfer);
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorTile.VectorTile(decompressed, false);
-                    reg.ClearCaches();
-                    var layer = tt.GetLayer("building");
-                    //if (tt.TryGetLayer("building", out var layer))
-                    {
-                        reg.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(5)
-                .MeasurementCount(SampleCount)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
-        
-        [UnityTest, Performance, Order(1)]
+        [UnityTest, Performance, Order(3)]
         public IEnumerator SingleBuildingVisualizer([ValueSource("_doChamfer")] bool doChamfer)
         {
             var settings = doChamfer
                 ? new BuildingComponentSettings() { RoundBuildingCorners = true }
                 : new BuildingComponentSettings() { RoundBuildingCorners = false };
-            var viz = new BuildingComponentVisualizer("test", GetMapInformation(), null, settings);
+            var vizObj = (BuildingComponentVisualizerObject) AssetDatabase.LoadAssetAtPath(_buildingVisualizerAssetPath, typeof(BuildingComponentVisualizerObject));
+            vizObj.Settings = settings;
+            var viz = (BuildingComponentVisualizer) vizObj.ConstructLayerVisualizer(GetMapInformation(), null);
             yield return viz.Initialize();
             
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
-                    viz.ClearCaches();
-                    if (tt.TryGetLayer("building", out var layer))
-                    {
-                        viz.CreateMesh(tileId, layer);
-                    }
-                })
+            Measure.Method(() => { RunBuildingComponent(viz); })
                 .WarmupCount(0)
                 .MeasurementCount(5)
                 .IterationsPerMeasurement(1)
@@ -193,108 +160,57 @@ namespace Mapbox.VectorModuleTests
                 .Run();
         }
         
-        
-        [Test, Performance, Order(1)]
-        public void SingleBuildingVisualizerOld([ValueSource("_doChamfer")] bool doChamfer)
+        private void RunBuildingComponent(BuildingComponentVisualizer viz)
         {
-            var reg = RegularLayer(GetMapInformation(), doChamfer);
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorTile.VectorTile(decompressed, false);
-                    reg.ClearCaches();
-                    var layer = tt.GetLayer("building");
-                    //if (tt.TryGetLayer("building", out var layer))
-                    {
-                        reg.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(0)
-                .MeasurementCount(5)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-            
-        }
-    }
-
-    public class RoadLayerPerformanceTests
-    {
-        private int SampleCount = 100;
-        private ResilientWebRequestFileSource _fs;
-        private byte[] buffer;
-        private CanonicalTileId tileId = new CanonicalTileId(15, 18654, 9481);
-        private string LatLng = "60.1664427,24.9318587";
-        
-        private IMapInformation GetMapInformation()
-        {
-            var mapInformation = new MapInformation(LatLng);
-            mapInformation.SetInformation(null, 16, 0, 0, 1000);
-            mapInformation.Initialize();
-            return mapInformation;
-        }
-        
-        [UnityTest, Performance]
-        public IEnumerator RoadVisualizer()
-        {
-            var viz = new RoadComponentVisualizer("test", GetMapInformation(), null, new RoadComponentSettings());
-            yield return viz.Initialize();
-            
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
-                    viz.ClearCaches();
-                    if (tt.TryGetLayer("road", out var layer))
-                    {
-                        viz.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(5)
-                .MeasurementCount(SampleCount)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
-        
-        [Test, Performance]
-        public void RoadVisualizerOld()
-        {
-            var reg = RegularRoadLayer(GetMapInformation());
-            Measure.Method(() =>
-                {
-                    var decompressed = Compression.Decompress(buffer);
-                    var tt = new VectorTile.VectorTile(decompressed, false);
-                    reg.ClearCaches();
-                    var layer = tt.GetLayer("road");
-                    //if (tt.TryGetLayer("building", out var layer))
-                    {
-                        reg.CreateMesh(tileId, layer);
-                    }
-                })
-                .WarmupCount(5)
-                .MeasurementCount(SampleCount)
-                .IterationsPerMeasurement(1)
-                .GC()
-                .Run();
-        }
-        
-        private VectorLayerVisualizer RegularRoadLayer(IMapInformation mapInformation)
-        {
-            var viz = new VectorLayerVisualizer("test", mapInformation, null, null);
-            var modStackSettings = new ModifierStackSettings() { MergeObjects = true };
-            var modStack = new ModifierStack(modStackSettings, null);
-            modStack.MeshModifiers.Add(new LineMeshForPolygonsModifier(new LineMeshParameters()
+            var decompressed = Compression.Decompress(buffer);
+            var tt = new VectorModule.ComponentSystem.Data.VectorTile(decompressed);
+            viz.ClearCaches();
+            if (tt.TryGetLayer("building", out var layer))
             {
-                CapType = JoinType.Butt,
-                JoinType = JoinType.Round,
-                Width = 6
-            } ));
-
-            viz.AddModifierStack(new List<ModifierStack>() { modStack });
-            viz.Initialize();
-            return viz;
+                viz.CreateMesh(tileId, layer);
+            }
         }
 
+        
+        [Test, Performance, Order(2)]
+        public void BuildingVisualizerOldChamfer()
+        {
+            var vizObj = (VectorLayerVisualizerObject) AssetDatabase.LoadAssetAtPath(_oldBuildVisAssetPath, typeof(VectorLayerVisualizerObject));
+            var viz = (VectorLayerVisualizer) vizObj.ConstructLayerVisualizer(GetMapInformation(), null);
+            
+            Measure.Method(() => { RunOldBuildings(viz); })
+                .WarmupCount(5)
+                .MeasurementCount(SampleCount)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+        }
+
+        [Test, Performance, Order(4)]
+        public void SingleBuildingVisualizerOldChamfer()
+        {
+            var vizObj = (VectorLayerVisualizerObject) AssetDatabase.LoadAssetAtPath(_oldBuildVisAssetPath, typeof(VectorLayerVisualizerObject));
+            var viz = (VectorLayerVisualizer) vizObj.ConstructLayerVisualizer(GetMapInformation(), null);
+
+            Measure.Method(() => { RunOldBuildings(viz); })
+                .WarmupCount(0)
+                .MeasurementCount(5)
+                .IterationsPerMeasurement(1)
+                .GC()
+                .Run();
+
+        }
+        
+        private void RunOldBuildings(VectorLayerVisualizer viz)
+        {
+            var decompressed = Compression.Decompress(buffer);
+            var tt = new VectorTile.VectorTile(decompressed, false);
+            viz.ClearCaches();
+            var layer = tt.GetLayer("building");
+            //if (tt.TryGetLayer("building", out var layer))
+            {
+                viz.CreateMesh(tileId, layer);
+            }
+        }
     }
 }

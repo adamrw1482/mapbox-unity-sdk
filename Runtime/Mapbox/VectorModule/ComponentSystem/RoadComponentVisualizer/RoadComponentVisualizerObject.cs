@@ -12,7 +12,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 {
     [DisplayName("Road Component")]
     [CreateAssetMenu(menuName = "Mapbox/Layer Visualizers/Road Component Visualizer")]
-    public class RoadLayerVisualizerObject : LayerVisualizerConstructor, IPerformanceLayerVisualizer
+    public class RoadComponentVisualizerObject : LayerVisualizerConstructor, IPerformanceLayerVisualizer
     {
         public RoadComponentSettings Settings;
         public bool IsActive = true;

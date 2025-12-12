@@ -12,7 +12,59 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bf8c281932374fb0b5c80fa7fbca2b5b, type: 3}
   m_Name: TEST_BasicRoadStyleSheet
   m_EditorClassIdentifier: 
-  Styles: []
+  Styles:
+  - Name: secondary,tertiary
+    Filters:
+      Filters:
+      - rid: 5722777937161748527
+      Type: 0
+    Width: 4.8
+    Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
+  - Name: primary
+    Filters:
+      Filters:
+      - rid: 5722777937161748529
+      Type: 0
+    Width: 5.2
+    Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
+  - Name: street,street_limited
+    Filters:
+      Filters:
+      - rid: 5722777937161748530
+      Type: 0
+    Width: 3.6
+    Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
+  - Name: service
+    Filters:
+      Filters:
+      - rid: 5722777937161748531
+      Type: 0
+    Width: 1.8
+    Material: {fileID: 2100000, guid: d449f6eb93a644716baa6f1f4c730813, type: 2}
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 5722777937161748527
+      type: {class: RoadClassFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 1
+        FilterString: secondary,tertiary
+        Invert: 0
+    - rid: 5722777937161748529
+      type: {class: RoadClassFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 0
+        FilterString: primary
+        Invert: 0
+    - rid: 5722777937161748530
+      type: {class: RoadClassFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 1
+        FilterString: street,street_limited
+        Invert: 0
+    - rid: 5722777937161748531
+      type: {class: RoadClassFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 0
+        FilterString: service
+        Invert: 0

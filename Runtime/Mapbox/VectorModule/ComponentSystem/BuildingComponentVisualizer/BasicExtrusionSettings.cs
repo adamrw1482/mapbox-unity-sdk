@@ -13,7 +13,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
     [Serializable]
     public class BasicExtrusionSettings : IHeightFilter
     {
-        public ExtrusionOptions ExtrusionOptions;
+        public ExtrusionOptions ExtrusionOptions = new ExtrusionOptions();
         public void FilterHeight(ref float height, ref float minHeight)
         {
             switch (ExtrusionOptions.extrusionType)
@@ -47,7 +47,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
     public class ChamferSettings : IHeightFilter
     {
         public float OffsetInMeters;
-        public ExtrusionOptions ExtrusionOptions;
+        public ExtrusionOptions ExtrusionOptions = new ExtrusionOptions();
         public void FilterHeight(ref float height, ref float minHeight)
         {
             switch (ExtrusionOptions.extrusionType)
@@ -68,6 +68,8 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                     height = Mathf.Clamp(height, ExtrusionOptions.minimumHeight, ExtrusionOptions.maximumHeight);
                     minHeight = 0;
                     break;
+                case ExtrusionType.None:
+                case ExtrusionType.PropertyHeight:
                 default:
                     break;
             }

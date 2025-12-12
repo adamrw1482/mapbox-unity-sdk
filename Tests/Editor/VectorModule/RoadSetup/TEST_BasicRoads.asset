@@ -15,5 +15,5 @@ MonoBehaviour:
   Settings:
     GameObjectOffset: 0.0001
     RandomOffsetRange: 0.0001
-    RoadStyleSheet: {fileID: 0}
+    RoadStyleSheet: {fileID: 11400000, guid: 128b299ad7c164ddbb2d2d02f2b18ed7, type: 2}
   IsActive: 1
