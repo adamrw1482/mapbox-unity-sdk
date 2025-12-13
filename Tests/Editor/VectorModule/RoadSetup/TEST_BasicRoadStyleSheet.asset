@@ -19,6 +19,7 @@ MonoBehaviour:
       - rid: 5722777937161748527
       Type: 0
     Width: 4.8
+    PushUp: 0.0008
     Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
   - Name: primary
     Filters:
@@ -26,6 +27,7 @@ MonoBehaviour:
       - rid: 5722777937161748529
       Type: 0
     Width: 5.2
+    PushUp: 0.001
     Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
   - Name: street,street_limited
     Filters:
@@ -33,6 +35,7 @@ MonoBehaviour:
       - rid: 5722777937161748530
       Type: 0
     Width: 3.6
+    PushUp: 0.0004
     Material: {fileID: 2100000, guid: 8917c0d338e58481388fbe080cf36caf, type: 2}
   - Name: service
     Filters:
@@ -40,7 +43,16 @@ MonoBehaviour:
       - rid: 5722777937161748531
       Type: 0
     Width: 1.8
+    PushUp: 0.0002
     Material: {fileID: 2100000, guid: d449f6eb93a644716baa6f1f4c730813, type: 2}
+  - Name: path
+    Filters:
+      Filters:
+      - rid: 5722777987101753359
+      Type: 0
+    Width: 1
+    PushUp: 0
+    Material: {fileID: 2100000, guid: c3c69f315ce7c4100a0ff6f40305bfe9, type: 2}
   references:
     version: 2
     RefIds:
@@ -67,4 +79,10 @@ MonoBehaviour:
       data:
         CheckOperation: 0
         FilterString: service
+        Invert: 0
+    - rid: 5722777987101753359
+      type: {class: RoadClassFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 0
+        FilterString: path
         Invert: 0

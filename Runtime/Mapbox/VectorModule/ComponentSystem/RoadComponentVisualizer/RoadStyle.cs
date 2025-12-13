@@ -11,6 +11,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public string Name;
         public ComponentFilterStack Filters;
         public float Width;
+        public float PushUp;
         public Material Material;
 
         public void Initialize()

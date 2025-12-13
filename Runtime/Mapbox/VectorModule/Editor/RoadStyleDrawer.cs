@@ -15,6 +15,7 @@ public class RoadStyleDrawer : PropertyDrawer
 
         var nameProp      = property.FindPropertyRelative("Name");
         var widthProp     = property.FindPropertyRelative("Width");
+        var pushUpProp     = property.FindPropertyRelative("PushUp");
         var materialProp  = property.FindPropertyRelative("Material");
         var filtersProp   = property.FindPropertyRelative("Filters");
 
@@ -46,6 +47,14 @@ public class RoadStyleDrawer : PropertyDrawer
         {
             Rect r = new Rect(position.x, y, width, EditorGUIUtility.singleLineHeight);
             EditorGUI.PropertyField(r, widthProp);
+            y += EditorGUIUtility.singleLineHeight + LineSpacing;
+        }
+        
+        // Width
+        if (pushUpProp != null)
+        {
+            Rect r = new Rect(position.x, y, width, EditorGUIUtility.singleLineHeight);
+            EditorGUI.PropertyField(r, pushUpProp);
             y += EditorGUIUtility.singleLineHeight + LineSpacing;
         }
 
@@ -80,6 +89,7 @@ public class RoadStyleDrawer : PropertyDrawer
         float spacing = LineSpacing;
         var nameProp = property.FindPropertyRelative("Name");
         var widthProp     = property.FindPropertyRelative("Width");
+        var pushUpProp     = property.FindPropertyRelative("PushUp");
         var materialProp  = property.FindPropertyRelative("Material");
         var filtersProp   = property.FindPropertyRelative("Filters");
 
@@ -87,6 +97,9 @@ public class RoadStyleDrawer : PropertyDrawer
             height += EditorGUIUtility.singleLineHeight + spacing;
 
         if (widthProp != null)
+            height += EditorGUIUtility.singleLineHeight + spacing;
+        
+        if (pushUpProp != null)
             height += EditorGUIUtility.singleLineHeight + spacing;
 
         if (materialProp != null)

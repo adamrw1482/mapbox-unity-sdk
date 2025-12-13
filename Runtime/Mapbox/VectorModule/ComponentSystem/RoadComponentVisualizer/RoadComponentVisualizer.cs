@@ -50,11 +50,13 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             
             int classTagIndex = -1;
             int typeTagIndex = -1;
+            int structureTagIndex = -1;
             for (var i = 0; i < layer.Keys.Count; i++)
             {
                 var key = layer.Keys[i];
                 if (key == "class") classTagIndex = i;
                 if (key == "type") typeTagIndex = i;
+                if (key == "structure") structureTagIndex = i;
             }
             
             var rnd = new Random();
@@ -80,7 +82,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
             for (var i = 0; i < featureCount; i++)
             {
-                var feature = GetFeature(layer, i, ref classTagIndex, ref typeTagIndex);
+                var feature = GetFeature(layer, i, ref classTagIndex, ref typeTagIndex, ref structureTagIndex);
                 if (feature == null) continue;
                 if (feature.VertexData.VertexCount <= 1) continue;
                 if (feature.GeometryType != GeomType.LINESTRING) continue;
@@ -154,6 +156,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                     var subSize = featureResult.VertexData.Submeshes[j + 1] - featureResult.VertexData.Submeshes[j];
                     var startVertex = featureResult.VertexData.Submeshes[j];
 
+                    var elevation = style.PushUp + (float)rnd.NextDouble() * _settings.RandomOffsetRange;
                     var sideNormal = new Vector3(0, 0, 0);
                     var finishLine = false;
                     var distance = 0f;
@@ -164,7 +167,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                         var current = featureResult.VertexData.Vertices[startVertex + k];
                         var next = featureResult.VertexData.Vertices[startVertex + k + 1];
 
-                        var elevation = current.y + (float)rnd.NextDouble() * _settings.RandomOffsetRange;
+                        
                         
                         if(k > 0)
                         {
@@ -495,7 +498,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             return objectList;
         }
 
-        private RoadFeatureUnity GetFeature(VectorTileLayer layer, int i, ref int classTagIndex, ref int typeTagIndex)
+        private RoadFeatureUnity GetFeature(VectorTileLayer layer, int i, ref int classTagIndex, ref int typeTagIndex, ref int structureTagIndex)
         {
             var view = layer.GetViewFor(i);
             var layerData = layer.Data.Slice(view.x, view.y);
@@ -535,7 +538,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 }
             }
 
-            feature.SetProperties(ref layer, ref classTagIndex, ref typeTagIndex);
+            feature.SetProperties(ref layer, ref classTagIndex, ref typeTagIndex, ref structureTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
             return feature;
         }

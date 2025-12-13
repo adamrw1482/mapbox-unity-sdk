@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Mapbox.VectorModule.Filters;
 
 namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
@@ -17,9 +18,47 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
     }
     
     [Serializable]
+    [DisplayName("Class Filter")]
     public class RoadClassFilter : RoadFilter
     {
-        //public FeatureStringPropertyFilterSettings PropertyFilterSettings;
+        public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
+        public string FilterString;
+        public bool Invert;
+        private HashSet<string> _types;
+        
+        public override void Initialize()
+        {
+            FilterString = FilterString.ToLowerInvariant();
+            if (CheckOperation == StringCheckOperation.Contains)
+            {
+                _types = new HashSet<string>();
+                foreach (var s in FilterString.Split(','))
+                {
+                    _types.Add(s.Trim().ToLowerInvariant());
+                }
+            }
+        }
+        
+        public override bool Try(RoadFeatureUnity feature)
+        {
+            var result = false;
+            if (CheckOperation == StringCheckOperation.Equals)
+            {
+                result = FilterString == feature.Class;
+            }
+            else if (CheckOperation == StringCheckOperation.Contains)
+            {
+                result = _types.Contains(feature.Class);
+            }
+
+            return !Invert ? result : !result; 
+        }
+    }
+    
+    [Serializable]
+    [DisplayName("Structure Filter")]
+    public class RoadStructureFilter : RoadFilter
+    {
         public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
         public string FilterString;
         public bool Invert;
@@ -43,11 +82,49 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             var result = false;
             if (CheckOperation == StringCheckOperation.Equals)
             {
-                result = FilterString == feature.Class;
+                result = FilterString == feature.Structure;
             }
             else if (CheckOperation == StringCheckOperation.Contains)
             {
-                result = _types.Contains(feature.Class);
+                result = _types.Contains(feature.Structure);
+            }
+
+            return !Invert ? result : !result; 
+        }
+    }
+    
+    [Serializable]
+    [DisplayName("Type Filter")]
+    public class RoadTypeFilter : RoadFilter
+    {
+        public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
+        public string FilterString;
+        public bool Invert;
+        private HashSet<string> _types;
+        
+        public override void Initialize()
+        {
+            FilterString = FilterString.ToLowerInvariant();
+            if (CheckOperation == StringCheckOperation.Contains)
+            {
+                _types = new HashSet<string>();
+                foreach (var s in FilterString.Split(','))
+                {
+                    _types.Add(s.Trim().ToLowerInvariant());
+                }
+            }
+        }
+
+        public override bool Try(RoadFeatureUnity feature)
+        {
+            var result = false;
+            if (CheckOperation == StringCheckOperation.Equals)
+            {
+                result = FilterString == feature.Type;
+            }
+            else if (CheckOperation == StringCheckOperation.Contains)
+            {
+                result = _types.Contains(feature.Type);
             }
 
             return !Invert ? result : !result; 
