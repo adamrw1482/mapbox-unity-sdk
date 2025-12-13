@@ -49,6 +49,8 @@ MonoBehaviour:
     Filters:
       Filters:
       - rid: 5722777987101753359
+      - rid: 5722777987101753361
+      - rid: 5722777987101753362
       Type: 0
     Width: 1
     PushUp: 0
@@ -86,3 +88,15 @@ MonoBehaviour:
         CheckOperation: 0
         FilterString: path
         Invert: 0
+    - rid: 5722777987101753361
+      type: {class: RoadStructureFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 0
+        FilterString: tunnel
+        Invert: 1
+    - rid: 5722777987101753362
+      type: {class: RoadTypeFilter, ns: Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer, asm: MapboxComponentSystem}
+      data:
+        CheckOperation: 0
+        FilterString: steps
+        Invert: 1
