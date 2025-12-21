@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Mapbox.BaseModule.Data.Platform;
+using Mapbox.BaseModule.Data.Tiles;
 
 namespace Mapbox.BaseModule.Data.DataFetchers
 {
     public class DataFetchingResult
     {
+        public Tile Tile;
         public WebResponseResult State;
 		
         protected List<Exception> _exceptions;
@@ -36,8 +38,9 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 			
         }
 		
-        public DataFetchingResult(WebRequestResponse webRequestResponse)
+        public DataFetchingResult(Tile tile, WebRequestResponse webRequestResponse)
         {
+            Tile = tile;
             State = webRequestResponse.Result;
             if (webRequestResponse.Exceptions != null)
             {

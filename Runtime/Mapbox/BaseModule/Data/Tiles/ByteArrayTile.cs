@@ -158,7 +158,7 @@ namespace Mapbox.BaseModule.Data.Tiles
 			}
 			
 			AddLog(string.Format("{0} - {1}", Time.unscaledTime, " tile finished"));
-			_callback(new DataFetchingResult(webRequestResponse));
+			_callback(new DataFetchingResult(this, webRequestResponse));
 			_webRequest = null;
 		}
 

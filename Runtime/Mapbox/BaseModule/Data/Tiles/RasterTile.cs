@@ -121,7 +121,7 @@ namespace Mapbox.BaseModule.Data.Tiles
 			}
 			
 			AddLog(string.Format("{0} - {1}", Time.unscaledTime, " tile finished"));
-			_callback(new DataFetchingResult(webRequestResponse));
+			_callback(new DataFetchingResult(this, webRequestResponse));
 			_webRequest = null;
 			//have to null the unity request AFTER the callback as texture itself is kept
 			//in the request object and request object should be kept until that's done.

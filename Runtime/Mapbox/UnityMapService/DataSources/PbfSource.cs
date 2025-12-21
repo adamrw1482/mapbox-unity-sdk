@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Mapbox.BaseModule.Data.DataFetchers;
+using Mapbox.BaseModule.Data.Platform;
 using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Tasks;
 using Mapbox.BaseModule.Data.Tiles;
@@ -274,23 +275,30 @@ namespace Mapbox.UnityMapService.DataSources
                 var dataTile = CreateTile(cacheItem.TileId, cacheItem.TilesetId);
                 dataTile.ETag = cacheItem.ETag;
                 _waitingList.Add(cacheItem.TileId, dataTile);
-                WebRequestUpdate(dataTile, (fetchingResult) =>
+                WebRequestUpdate(dataTile, (result) =>
                 {
-                    _waitingList.Remove(cacheItem.TileId);
-                    if (dataTile.CurrentTileState != TileState.Canceled)
+                    if (result.State == WebResponseResult.Failed)
                     {
-                        if (dataTile.StatusCode == 200)
+                        Debug.LogError(result.ExceptionsAsString);
+                        return;
+                    }
+                    if (result.Tile is not ByteArrayTile tile) return;
+                    
+                    _waitingList.Remove(cacheItem.TileId);
+                    if (tile.CurrentTileState != TileState.Canceled)
+                    {
+                        if (tile.StatusCode == 200)
                         {
                             //Debug.Log(string.Format("{0} - {1} : expired and returned 200, cached etag {0} new etag {1}", cacheItem.TileId, cacheItem.TilesetId, cacheItem.ETag, dataTile.ETag));
-                            VectorReceivedFromWeb(dataTile);
+                            VectorReceivedFromWeb(tile);
                         }
-                        else if (dataTile.StatusCode == 304)
+                        else if (tile.StatusCode == 304)
                         {
                             //not changed, just update meta?
                             //Debug.Log(string.Format("{0} - {1} : expired but not changed, just update meta?", cacheItem.TileId, cacheItem.TilesetId));
-                            UpdateExpiration(dataTile.Id, dataTile.TilesetId, dataTile.ExpirationDate);
+                            UpdateExpiration(tile.Id, tile.TilesetId, tile.ExpirationDate);
                         }
-                        TileUpdated(dataTile.TilesetId, dataTile.Id);
+                        TileUpdated(tile.TilesetId, tile.Id);
                     }
                 });
                 //Debug.Log(cacheItem.TileId + " tile needs an update");
