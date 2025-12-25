@@ -72,7 +72,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             for (int i = 0; i < featureCount; i++)
             {
                 var featureResult = featureArray[i];
-                if (featureResult == null || string.IsNullOrEmpty(featureResult.Class))
+                if (featureResult == null)
                 {
                     //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
                     continue;
