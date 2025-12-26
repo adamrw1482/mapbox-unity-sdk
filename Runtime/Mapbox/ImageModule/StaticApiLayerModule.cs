@@ -15,6 +15,7 @@ namespace Mapbox.ImageModule
 	{
 		protected StaticLayerModuleSettings _settings;
 		protected Source<RasterData> _rasterSource;
+		public Source<RasterData> RasterSource => _rasterSource;
 		private HashSet<CanonicalTileId> _retainedTiles;
 
 		public StaticApiLayerModule(Source<RasterData> source, StaticLayerModuleSettings settings) : base()
