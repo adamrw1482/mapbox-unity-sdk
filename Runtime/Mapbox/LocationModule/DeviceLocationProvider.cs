@@ -7,6 +7,7 @@ using Mapbox.LocationModule.AngleSmoothing;
 using Mapbox.LocationModule.UnityLocationWrappers;
 using Mapbox.Utils;
 using UnityEngine;
+using UnityEngine.Android;
 
 namespace Mapbox.LocationModule
 {
@@ -18,8 +19,6 @@ namespace Mapbox.LocationModule
 	/// </summary>
 	public class DeviceLocationProvider : AbstractLocationProvider
 	{
-
-
 		/// <summary>
 		/// Using higher value like 500 usually does not require to turn GPS chip on and thus saves battery power. 
 		/// Values like 5-10 could be used for getting best accuracy.
@@ -82,19 +81,8 @@ namespace Mapbox.LocationModule
 		/// <summary>minimum needed distance between oldest and newest position before UserHeading is calculated</summary>
 		private double _minDistanceOldestNewestPosition = 1.5;
 
-
-		// Android 6+ permissions have to be granted during runtime
-		// these are the callbacks for requesting location permission
-		// TODO: show message to users in case they accidentallly denied permission
-#if UNITY_ANDROID
-		private bool _gotPermissionRequestResponse = false;
-
-		private void OnAllow() { _gotPermissionRequestResponse = true; }
-		private void OnDeny() { _gotPermissionRequestResponse = true; }
-		private void OnDenyAndNeverAskAgain() { _gotPermissionRequestResponse = true; }
-#endif
-
-
+		private const string FineLocation = Permission.FineLocation;
+		
 		protected virtual void Awake()
 		{
 #if UNITY_EDITOR
@@ -115,7 +103,41 @@ namespace Mapbox.LocationModule
 			}
 #endif
 
-			Input.location.Start();
+#if UNITY_ANDROID && !UNITY_EDITOR
+			RequestLocationPermissionIfNeeded();
+#else
+			// Editor / non-Android: assume granted
+			OnPermissionGranted();
+#endif
+			
+#if UNITY_IOS && !UNITY_EDITOR
+			if (!Input.location.isEnabledByUser)
+			{
+				Input.location.Start();
+				
+				int waitTime = 10;
+			    while (Input.location.status == LocationServiceStatus.Initializing && waitTime > 0)
+			    {
+			        yield return new WaitForSeconds(1);
+			        waitTime--;
+			    }
+
+			    if (waitTime <= 0)
+			    {
+			        Debug.LogWarning("Location service init timeout");
+			        return null;
+			    }
+
+			    if (Input.location.status == LocationServiceStatus.Failed)
+			    {
+			        Debug.LogWarning("Location service failed (likely denied)");
+			        return null;
+			    }
+
+				OnPermissionGranted();
+			}
+#endif
+			
 			_currentLocation.Provider = "unity";
 			_wait1sec = new WaitForSeconds(1f);
 			_waitUpdateTime = _updateTimeInMilliSeconds < 500 ? new WaitForSeconds(0.5f) : new WaitForSeconds((float)_updateTimeInMilliSeconds / 1000.0f);
@@ -125,10 +147,64 @@ namespace Mapbox.LocationModule
 
 			_lastPositions = new CircularBuffer<LatitudeLongitude>(_maxLastPositions);
 
+			
+		}
+		
+#if UNITY_ANDROID
+		private void RequestLocationPermissionIfNeeded()
+		{
+			if (Permission.HasUserAuthorizedPermission(FineLocation))
+			{
+				OnPermissionGranted();
+				return;
+			}
+
+			var callbacks = new PermissionCallbacks();
+
+			callbacks.PermissionGranted += permission =>
+			{
+				if (permission == FineLocation)
+					OnPermissionGranted();
+			};
+
+			callbacks.PermissionDenied += permission =>
+			{
+				if (permission == FineLocation)
+					OnPermissionDenied();
+			};
+
+			callbacks.PermissionDeniedAndDontAskAgain += permission =>
+			{
+				if (permission == FineLocation)
+					OnPermissionDeniedPermanently();
+			};
+
+			Permission.RequestUserPermission(FineLocation, callbacks);
+		}
+#endif
+
+		private void OnPermissionGranted()
+		{
+			Debug.Log("Location permission GRANTED");
+			// Start location services, GPS, map loading, etc.
+			Input.location.Start();
+			
 			if (_pollRoutine == null)
 			{
 				_pollRoutine = StartCoroutine(PollLocationRoutine());
 			}
+		}
+
+		private void OnPermissionDenied()
+		{
+			Debug.LogWarning("Location permission DENIED");
+			// Show explanation UI / retry button
+		}
+
+		private void OnPermissionDeniedPermanently()
+		{
+			Debug.LogWarning("Location permission DENIED permanently (Don't ask again)");
+			// Show UI explaining how to enable permission in Android Settings
 		}
 
 
@@ -156,18 +232,7 @@ namespace Mapbox.LocationModule
 				yield return _wait1sec;
 			}
 #endif
-
-
-			//request runtime fine location permission on Android if not yet allowed
-#if UNITY_ANDROID
-			if (!_locationService.isEnabledByUser)
-			{
-				UniAndroidPermission.RequestPermission(AndroidPermission.ACCESS_FINE_LOCATION);
-				//wait for user to allow or deny
-				while (!_gotPermissionRequestResponse) { yield return _wait1sec; }
-			}
-#endif
-
+			
 
 			if (!_locationService.isEnabledByUser)
 			{
