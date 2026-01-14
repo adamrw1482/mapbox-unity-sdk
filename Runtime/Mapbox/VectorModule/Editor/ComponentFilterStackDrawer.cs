@@ -119,14 +119,18 @@ public class ComponentFilterStackDrawer : PropertyDrawer
                     float innerY = boxRect.y + BoxPadding;
                     float innerW = boxRect.width - BoxPadding * 2f;
 
-                    // Header: "Filter i (TypeName)" + Remove button
-                    string typeName = GetManagedReferenceTypeName(element) ?? "Null";
-                    string header   = string.Format("{0} - {1}", typeName, element.FindPropertyRelative("FilterString").stringValue);
+                    if (element != null)
+                    {
+                        // Header: "Filter i (TypeName)" + Remove button
+                        string typeName = GetManagedReferenceTypeName(element) ?? "Null";
+                        string header = string.Format("{0} - {1}", typeName, element.FindPropertyRelative("FilterString")?.stringValue);
 
-                    Rect headerLabelRect = new Rect(innerX, innerY, innerW - 70f, EditorGUIUtility.singleLineHeight);
-                    Rect removeRect      = new Rect(innerX + innerW - 65f, innerY, 60f, EditorGUIUtility.singleLineHeight);
+                        Rect headerLabelRect = new Rect(innerX, innerY, innerW - 70f, EditorGUIUtility.singleLineHeight);
+                        EditorGUI.LabelField(headerLabelRect, header, EditorStyles.boldLabel);
+                    }
 
-                    EditorGUI.LabelField(headerLabelRect, header, EditorStyles.boldLabel);
+                    Rect removeRect = new Rect(innerX + innerW - 65f, innerY, 60f,
+                        EditorGUIUtility.singleLineHeight);
                     if (GUI.Button(removeRect, "Remove"))
                     {
                         filtersProp.DeleteArrayElementAtIndex(i);
