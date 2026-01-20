@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using Mapbox.BaseModule.Data.Vector2d;
-using Mapbox.BaseModule.Plugins.Android.UniAndroidPermission;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.LocationModule.AngleSmoothing;
 using Mapbox.LocationModule.UnityLocationWrappers;
@@ -51,24 +50,6 @@ namespace Mapbox.LocationModule
 		[Tooltip("Smoothing strategy to applied to the DeviceOrientation.")]
 		public AngleSmoothingAbstractBase _deviceOrientationSmoothing;
 
-
-		[Serializable]
-		public struct DebuggingInEditor
-		{
-			[Header("Set 'EditorLocationProvider' to 'DeviceLocationProvider' and connect device with UnityRemote.")]
-			[SerializeField]
-			[Tooltip("Mock Unity's 'Input.Location' to route location log files through this class (eg fresh calculation of 'UserHeading') instead of just replaying them. To use set 'Editor Location Provider' in 'Location Factory' to 'Device Location Provider' and select a location log file below.")]
-			public bool _mockUnityInputLocation;
-
-			[SerializeField]
-			[Tooltip("Also see above. Location log file to mock Unity's 'Input.Location'.")]
-			public TextAsset _locationLogFile;
-		}
-
-		[Space(20)]
-		public DebuggingInEditor _editorDebuggingOnly;
-
-
 		private IMapboxLocationService _locationService;
 		private Coroutine _pollRoutine;
 		private double _lastLocationTimestamp;
@@ -85,32 +66,24 @@ namespace Mapbox.LocationModule
 		
 		protected virtual void Awake()
 		{
-#if UNITY_EDITOR
-			if (_editorDebuggingOnly._mockUnityInputLocation)
-			{
-				if (null == _editorDebuggingOnly._locationLogFile || null == _editorDebuggingOnly._locationLogFile.bytes)
-				{
-					throw new ArgumentNullException("Location Log File");
-				}
+			_locationService = new MapboxLocationServiceUnityWrapper();
+			HandlePermission();
 
-				_locationService = new MapboxLocationServiceMock(_editorDebuggingOnly._locationLogFile.bytes);
-			}
-			else
-			{
-#endif
-				_locationService = new MapboxLocationServiceUnityWrapper();
-#if UNITY_EDITOR
-			}
-#endif
+			_currentLocation.Provider = "unity";
+			_wait1sec = new WaitForSeconds(1f);
+			_waitUpdateTime = _updateTimeInMilliSeconds < 500 ? new WaitForSeconds(0.5f) : new WaitForSeconds((float)_updateTimeInMilliSeconds / 1000.0f);
 
+			if (null == _userHeadingSmoothing) { _userHeadingSmoothing = transform.gameObject.AddComponent<AngleSmoothingNoOp>(); }
+			if (null == _deviceOrientationSmoothing) { _deviceOrientationSmoothing = transform.gameObject.AddComponent<AngleSmoothingNoOp>(); }
+
+			_lastPositions = new CircularBuffer<LatitudeLongitude>(_maxLastPositions);
+		}
+
+		private void HandlePermission()
+		{
 #if UNITY_ANDROID && !UNITY_EDITOR
 			RequestLocationPermissionIfNeeded();
-#else
-			// Editor / non-Android: assume granted
-			OnPermissionGranted();
-#endif
-			
-#if UNITY_IOS && !UNITY_EDITOR
+#elif UNITY_IOS && !UNITY_EDITOR
 			if (!Input.location.isEnabledByUser)
 			{
 				Input.location.Start();
@@ -136,20 +109,12 @@ namespace Mapbox.LocationModule
 
 				OnPermissionGranted();
 			}
+#else
+			// Editor / non-Android: assume granted
+			OnPermissionGranted();
 #endif
-			
-			_currentLocation.Provider = "unity";
-			_wait1sec = new WaitForSeconds(1f);
-			_waitUpdateTime = _updateTimeInMilliSeconds < 500 ? new WaitForSeconds(0.5f) : new WaitForSeconds((float)_updateTimeInMilliSeconds / 1000.0f);
-
-			if (null == _userHeadingSmoothing) { _userHeadingSmoothing = transform.gameObject.AddComponent<AngleSmoothingNoOp>(); }
-			if (null == _deviceOrientationSmoothing) { _deviceOrientationSmoothing = transform.gameObject.AddComponent<AngleSmoothingNoOp>(); }
-
-			_lastPositions = new CircularBuffer<LatitudeLongitude>(_maxLastPositions);
-
-			
 		}
-		
+
 #if UNITY_ANDROID
 		private void RequestLocationPermissionIfNeeded()
 		{

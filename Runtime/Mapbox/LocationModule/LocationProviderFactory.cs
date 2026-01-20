@@ -129,11 +129,8 @@ namespace Mapbox.LocationModule
 			Debug.LogFormat("LocationProviderFactory: Injected EDITOR Location Provider - {0}", _editorLocationProvider.GetType());
 			DefaultLocationProvider = _editorLocationProvider;
 			#else
-			Debug.LogFormat("LocationProviderFactory: Injected DEVICE Location Provider - {0}", _deviceLocationProviderUnity.GetType());
-			DefaultLocationProvider = _deviceLocationProviderUnity;
+			InjectDeviceLocationProvider();
 			#endif
-			// InjectEditorLocationProvider();
-			// InjectDeviceLocationProvider();
 		}
 
 		/// <summary>
@@ -160,26 +157,24 @@ namespace Mapbox.LocationModule
 			if (match.Success) { int.TryParse(match.Groups[0].Value, out AndroidApiVersion); }
 			Debug.LogFormat("{0} => API version: {1}", SystemInfo.operatingSystem, AndroidApiVersion);
 
-			// // only inject native provider if platform requirement is met
-			// // and script itself as well as parent game object are active
-			// if (Application.platform == RuntimePlatform.Android
-			// 	&& null != _deviceLocationProviderAndroid
-			// 	&& _deviceLocationProviderAndroid.enabled
-			// 	&& _deviceLocationProviderAndroid.transform.gameObject.activeInHierarchy
-			// 	// API version 24 => Android 7 (Nougat): we are using GnssStatus 'https://developer.android.com/reference/android/location/GnssStatus.html'
-			// 	// in the native plugin.
-			// 	// GnssStatus is not available with versions lower than 24
-			// 	&& AndroidApiVersion >= 24
-			// )
-			// {
-			// 	Debug.LogFormat("LocationProviderFactory: Injected native Android DEVICE Location Provider - {0}", _deviceLocationProviderAndroid.GetType());
-			// 	DefaultLocationProvider = _deviceLocationProviderAndroid;
-			// }
-			// else
+#if UNITY_ANDROID && !UNITY_EDITOR
+			if (_deviceLocationProviderAndroid != null
+				&& _deviceLocationProviderAndroid.enabled
+				&& _deviceLocationProviderAndroid.transform.gameObject.activeInHierarchy
+				// API version 24 => Android 7 (Nougat): we are using GnssStatus 'https://developer.android.com/reference/android/location/GnssStatus.html'
+				// in the native plugin.
+				// GnssStatus is not available with versions lower than 24
+				&& AndroidApiVersion >= 24
+			)
+			else
 			{
 				Debug.LogFormat("LocationProviderFactory: Injected DEVICE Location Provider - {0}", _deviceLocationProviderUnity.GetType());
 				DefaultLocationProvider = _deviceLocationProviderUnity;
 			}
+#else
+			Debug.LogFormat("LocationProviderFactory: Injected DEVICE Location Provider - {0}", _deviceLocationProviderUnity.GetType());
+			DefaultLocationProvider = _deviceLocationProviderUnity;
+#endif
 		}
 	}
 }
