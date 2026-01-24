@@ -86,35 +86,42 @@ namespace Mapbox.LocationModule
 #elif UNITY_IOS && !UNITY_EDITOR
 			if (!Input.location.isEnabledByUser)
 			{
-				Input.location.Start();
-				
-				int waitTime = 10;
-			    while (Input.location.status == LocationServiceStatus.Initializing && waitTime > 0)
-			    {
-			        yield return new WaitForSeconds(1);
-			        waitTime--;
-			    }
-
-			    if (waitTime <= 0)
-			    {
-			        Debug.LogWarning("Location service init timeout");
-			        return null;
-			    }
-
-			    if (Input.location.status == LocationServiceStatus.Failed)
-			    {
-			        Debug.LogWarning("Location service failed (likely denied)");
-			        return null;
-			    }
-
-				OnPermissionGranted();
+				StartCoroutine(iOSAskPermission());
 			}
 #else
 			// Editor / non-Android: assume granted
 			OnPermissionGranted();
 #endif
 		}
+			
+#if UNITY_IOS && !UNITY_EDITOR
+		public IEnumerator iOSAskPermission()
+		{
+			Input.location.Start();
+				
+			int waitTime = 10;
+			while (Input.location.status == LocationServiceStatus.Initializing && waitTime > 0)
+			{
+				yield return new WaitForSeconds(1);
+				waitTime--;
+			}
 
+			if (waitTime <= 0)
+			{
+				Debug.LogWarning("Location service init timeout");
+				yield break;
+			}
+
+			if (Input.location.status == LocationServiceStatus.Failed)
+			{
+				Debug.LogWarning("Location service failed (likely denied)");
+				yield break;
+			}
+
+			OnPermissionGranted();
+		}
+#endif
+		
 #if UNITY_ANDROID
 		private void RequestLocationPermissionIfNeeded()
 		{
