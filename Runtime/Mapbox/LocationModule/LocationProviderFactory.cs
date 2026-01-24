@@ -1,5 +1,7 @@
+using System;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace Mapbox.LocationModule
 {
@@ -9,13 +11,16 @@ namespace Mapbox.LocationModule
 	/// </summary>
 	public class LocationProviderFactory : MonoBehaviour
 	{
+		public bool IsLocationProviderReady = false;
+		public Action<LocationProviderFactory> OnLocationProviderReady = (f) => { };
+		
+		[SerializeField]
+		[Tooltip("Custom native Android location provider. If this is not set above provider is used")]
+		public CommonAndroidDeviceLocationProvider _deviceLocationProviderAndroid = null;
+		
 		[SerializeField]
 		[Tooltip("Provider using Unity's builtin 'Input.Location' service")]
 		AbstractLocationProvider _deviceLocationProviderUnity;
-
-		[SerializeField]
-		[Tooltip("Custom native Android location provider. If this is not set above provider is used")]
-		DeviceLocationProviderAndroidNative _deviceLocationProviderAndroid;
 
 		[SerializeField]
 		AbstractLocationProvider _editorLocationProvider;
@@ -30,21 +35,7 @@ namespace Mapbox.LocationModule
 		/// <summary>
 		/// The singleton instance of this factory.
 		/// </summary>
-		private static LocationProviderFactory _instance;
-		public static LocationProviderFactory Instance
-		{
-			get
-			{
-				return _instance;
-			}
-
-			private set
-			{
-				_instance = value;
-			}
-		}
-
-		ILocationProvider _defaultLocationProvider;
+		public static LocationProviderFactory Instance { get; private set; }
 
 		/// <summary>
 		/// The default location provider. 
@@ -63,50 +54,22 @@ namespace Mapbox.LocationModule
 		/// }
 		/// </code>
 		/// </example>
-		public ILocationProvider DefaultLocationProvider
-		{
-			get
-			{
-				return _defaultLocationProvider;
-			}
-			set
-			{
-				_defaultLocationProvider = value;
-			}
-		}
+		public ILocationProvider DefaultLocationProvider { get; set; }
 
 		/// <summary>
 		/// Returns the serialized <see cref="T:Mapbox.Unity.Location.TransformLocationProvider"/>.
 		/// </summary>
-		public ILocationProvider TransformLocationProvider
-		{
-			get
-			{
-				return _transformLocationProvider;
-			}
-		}
+		public ILocationProvider TransformLocationProvider => _transformLocationProvider;
 
 		/// <summary>
 		/// Returns the serialized <see cref="T:Mapbox.LocationModule.EditorLocationProvider"/>.
 		/// </summary>
-		public ILocationProvider EditorLocationProvider
-		{
-			get
-			{
-				return _editorLocationProvider;
-			}
-		}
+		public ILocationProvider EditorLocationProvider => _editorLocationProvider;
 
 		/// <summary>
 		/// Returns the serialized <see cref="T:Mapbox.LocationModule.DeviceLocationProvider"/>
 		/// </summary>
-		public ILocationProvider DeviceLocationProvider
-		{
-			get
-			{
-				return _deviceLocationProviderUnity;
-			}
-		}
+		public ILocationProvider DeviceLocationProvider => _deviceLocationProviderUnity;
 
 		/// <summary>
 		/// Create singleton instance and inject the DefaultLocationProvider upon initialization of this component. 
@@ -125,37 +88,31 @@ namespace Mapbox.LocationModule
 				DontDestroyOnLoad(gameObject);
 			}
 
-			#if UNITY_EDITOR
-			Debug.LogFormat("LocationProviderFactory: Injected EDITOR Location Provider - {0}", _editorLocationProvider.GetType());
+#if UNITY_EDITOR
+			
 			DefaultLocationProvider = _editorLocationProvider;
-			#else
+			Debug.LogFormat("MAPBOX_UNITY_SDK: LocationProviderFactory: Injected EDITOR Location Provider - {0}", DefaultLocationProvider.GetType());
+#else
 			InjectDeviceLocationProvider();
-			#endif
-		}
-
-		/// <summary>
-		/// Injects the editor location provider.
-		/// Depending on the platform, this method and calls to it will be stripped during compile.
-		/// </summary>
-		[System.Diagnostics.Conditional("UNITY_EDITOR")]
-		void InjectEditorLocationProvider()
-		{
-			Debug.LogFormat("LocationProviderFactory: Injected EDITOR Location Provider - {0}", _editorLocationProvider.GetType());
-			DefaultLocationProvider = _editorLocationProvider;
+			Debug.LogFormat("MAPBOX_UNITY_SDK:  LocationProviderFactory: Injected DEVICE Location Provider - {0}", DefaultLocationProvider.GetType());
+#endif
+			
+			IsLocationProviderReady = true;
+			OnLocationProviderReady(this);
 		}
 
 		/// <summary>
 		/// Injects the device location provider.
 		/// Depending on the platform, this method and calls to it will be stripped during compile.
 		/// </summary>
-		[System.Diagnostics.Conditional("NOT_UNITY_EDITOR")]
+		[Preserve]
 		void InjectDeviceLocationProvider()
 		{
 			int AndroidApiVersion = 0;
 			var regex = new Regex(@"(?<=API-)-?\d+");
 			Match match = regex.Match(SystemInfo.operatingSystem); // eg 'Android OS 8.1.0 / API-27 (OPM2.171019.029/4657601)'
 			if (match.Success) { int.TryParse(match.Groups[0].Value, out AndroidApiVersion); }
-			Debug.LogFormat("{0} => API version: {1}", SystemInfo.operatingSystem, AndroidApiVersion);
+			Debug.LogFormat("MAPBOX_UNITY_SDK: {0} => API version: {1}", SystemInfo.operatingSystem, AndroidApiVersion);
 
 #if UNITY_ANDROID && !UNITY_EDITOR
 			if (_deviceLocationProviderAndroid != null
@@ -166,13 +123,14 @@ namespace Mapbox.LocationModule
 				// GnssStatus is not available with versions lower than 24
 				&& AndroidApiVersion >= 24
 			)
+			{
+				DefaultLocationProvider = _deviceLocationProviderAndroid;
+			}
 			else
 			{
-				Debug.LogFormat("LocationProviderFactory: Injected DEVICE Location Provider - {0}", _deviceLocationProviderUnity.GetType());
 				DefaultLocationProvider = _deviceLocationProviderUnity;
 			}
 #else
-			Debug.LogFormat("LocationProviderFactory: Injected DEVICE Location Provider - {0}", _deviceLocationProviderUnity.GetType());
 			DefaultLocationProvider = _deviceLocationProviderUnity;
 #endif
 		}
