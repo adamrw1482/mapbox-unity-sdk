@@ -9,6 +9,10 @@ namespace Mapbox.LocationModule
     public class MapboxLocationAndroid : IMapboxDeviceLocation
     {
         public event Action<Location> LocationUpdated = delegate { };
+        public event Action<MapboxLocationServiceStatus> AuthorizationChanged;
+        public event Action<AccuracyAuthorization> AccuracyAuthorizationChanged;
+        public event Action<bool> AvailabilityChanged;
+        
         public MapboxLocationSettings _mapboxLocationSettings;
 
         private string _mapboxLocationServiceFactoryClassName = "com.mapbox.common.location.LocationServiceFactory";
@@ -21,7 +25,8 @@ namespace Mapbox.LocationModule
         private AndroidJavaClass _locationServiceFactory;
         private AndroidJavaObject _locationService;
         private AndroidJavaObject _locationProvider;
-        private MapboxLocationObserverProxy _observer;
+        private MapboxLocationObserverProxy _locationObserver;
+        private MapboxLocationServiceObserverProxy _serviceObserver;
         private AndroidJavaObject _accuracyLevelHigh;
 
         private string _intervalSettingsBuilderClassName = "com.mapbox.common.location.IntervalSettings$Builder";
@@ -37,10 +42,12 @@ namespace Mapbox.LocationModule
         private string _displacementFieldName = "displacement";
         private string _intervalSettingFieldName = "interval";
 
+        private string _addServiceObserverMethodName = "registerObserver";
         private string _addObserverMethodName = "addLocationObserver";
 
         private string javaLangLong = "java.lang.Long";
         private string javaLangFloat = "java.lang.Float";
+        
 
         public MapboxLocationAndroid(MapboxLocationSettings settings)
         {
@@ -78,9 +85,13 @@ namespace Mapbox.LocationModule
                 return;
             }
 
+            _serviceObserver = new MapboxLocationServiceObserverProxy(AuthorizationChanged, AccuracyAuthorizationChanged, AvailabilityChanged);
+            _locationService.Call(_addServiceObserverMethodName, _serviceObserver);
+                
             _locationProvider = expected.Call<AndroidJavaObject>("getValue");
-            _observer = new MapboxLocationObserverProxy(LocationUpdated);
-            _locationProvider.Call(_addObserverMethodName, _observer);
+            
+            _locationObserver = new MapboxLocationObserverProxy(LocationUpdated);
+            _locationProvider.Call(_addObserverMethodName, _locationObserver);
         }
 
         public void Update()
@@ -119,6 +130,40 @@ namespace Mapbox.LocationModule
         }
     }
 
+    public class MapboxLocationServiceObserverProxy : AndroidJavaProxy
+    {
+        private Location _location;
+        private readonly Action<MapboxLocationServiceStatus> _authorizationChanged;
+        private readonly Action<AccuracyAuthorization> _accuracyAuthorizationChanged;
+        private readonly Action<bool> _availabilityChanged;
+
+        public MapboxLocationServiceObserverProxy(
+            Action<MapboxLocationServiceStatus> authorizationChanged, 
+            Action<AccuracyAuthorization> accuracyAuthorizationChanged, 
+            Action<bool> availabilityChanged) : base("com.mapbox.common.location.LocationServiceObserver")
+        {
+            _authorizationChanged = authorizationChanged;
+            _accuracyAuthorizationChanged = accuracyAuthorizationChanged;
+            _availabilityChanged = availabilityChanged;
+        }
+
+
+        public void onAvailabilityChanged(bool isAvailable)
+        {
+            _availabilityChanged?.Invoke(isAvailable);
+        }
+
+        public void onPermissionStatusChanged(MapboxLocationServiceStatus permission)
+        {
+            _authorizationChanged?.Invoke(permission);
+        }
+        
+        public void onAccuracyAuthorizationChanged(AccuracyAuthorization authorization)
+        {
+            _accuracyAuthorizationChanged?.Invoke(authorization);
+        }
+    }
+    
     public class MapboxLocationObserverProxy : AndroidJavaProxy
     {
         private Action<Location> _sendLocation;

@@ -75,7 +75,7 @@ namespace Mapbox.LocationModule.UnityLocationWrappers
 		public bool isEnabledByUser { get { return true; } }
 
 
-		public LocationServiceStatus status { get { return _isRunning ? LocationServiceStatus.Running : LocationServiceStatus.Stopped; } }
+		public UnityEngine.LocationServiceStatus status { get { return _isRunning ? LocationServiceStatus.Running : LocationServiceStatus.Stopped; } }
 
 
 		public IMapboxLocationInfo lastData

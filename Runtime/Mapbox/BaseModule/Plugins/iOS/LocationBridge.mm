@@ -1,5 +1,10 @@
-#import "locationBridge.h"
 #import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+#import <MapboxCommon/MBXExpected.h>
+#import <MapboxCommon/MapboxLocation.h>
+#import <MapboxCommon/MBXLocationService_Internal.h>
+#import <MapboxCommon/MBXLocationServiceFactory_Internal.h>
+#import "locationBridge.h"
 
 // Objective-C++ observer class
 @interface LocationObserverBridge : NSObject<MBXLocationObserver>
@@ -39,16 +44,77 @@
 
 @end
 
+// Objective-C++ service observer class
+@interface LocationServiceObserverBridge : NSObject<MBXLocationServiceObserver>
+@property (nonatomic, assign) AuthorizationStatusCallback authCallback;
+@property (nonatomic, assign) AccuracyAuthorizationCallback accuracyCallback;
+@property (nonatomic, assign) AvailabilityCallback availabilityCallback;
+- (instancetype)initWithCallbacks:(AuthorizationStatusCallback)authCallback
+                  accuracyCallback:(AccuracyAuthorizationCallback)accuracyCallback
+               availabilityCallback:(AvailabilityCallback)availabilityCallback;
+@end
+
+@implementation LocationServiceObserverBridge
+
+- (instancetype)initWithCallbacks:(AuthorizationStatusCallback)authCallback
+                  accuracyCallback:(AccuracyAuthorizationCallback)accuracyCallback
+               availabilityCallback:(AvailabilityCallback)availabilityCallback {
+    self = [super init];
+    if (self) {
+        _authCallback = authCallback;
+        _accuracyCallback = accuracyCallback;
+        _availabilityCallback = availabilityCallback;
+    }
+    return self;
+}
+
+- (void)onPermissionStatusChangedForPermission:(MBXPermissionStatus)permission {
+    if (_authCallback) {
+        _authCallback((int)permission);
+    }
+}
+
+- (void)onAccuracyAuthorizationChangedForAccuracyAuthorization:(MBXAccuracyAuthorization)accuracyAuthorization {
+    if (_accuracyCallback) {
+        _accuracyCallback((int)accuracyAuthorization);
+    }
+}
+
+- (void)onAvailabilityChangedForIsAvailable:(BOOL)isAvailable {
+    if (_availabilityCallback) {
+        _availabilityCallback(isAvailable);
+    }
+}
+
+@end
+
 // Global storage for observers and providers (must persist)
 static NSMutableDictionary<NSValue*, LocationObserverBridge*>* observerMap = nil;
 static NSMutableDictionary<NSValue*, id<MBXDeviceLocationProvider>>* providerMap = nil;
+static CLLocationManager* authLocationManager = nil;
+static LocationServiceObserverBridge* serviceObserver = nil;
 
 // Implementation of extern "C" functions
+void requestLocationAuthorization()
+{
+    if (!authLocationManager) {
+        authLocationManager = [[CLLocationManager alloc] init];
+    }
+
+    CLAuthorizationStatus status = [CLLocationManager authorizationStatus];
+
+    if (status == kCLAuthorizationStatusNotDetermined) {
+        [authLocationManager requestWhenInUseAuthorization];
+    }
+}
 void* startLocationUpdatesWithSettings(
     long long minimumInterval, long long maximumInterval, long long interval,
     int accuracyLevel, float displacement,
     LocationUpdateCallback callback)
 {
+    // Check location authorization status
+    CLAuthorizationStatus status = [CLLocationManager authorizationStatus];
+
     if (!observerMap) {
         observerMap = [NSMutableDictionary dictionary];
     }
@@ -72,15 +138,14 @@ void* startLocationUpdatesWithSettings(
         interval:intervalSettings];
 
     // Get device location provider
-    MBXExpected<id<MBXDeviceLocationProvider>, MBXLocationError *> *result =
-        [service getDeviceLocationProviderForRequest:request];
+    auto result = [service getDeviceLocationProviderForRequest:request];
 
     if (![result isValue]) {
-        NSLog(@"Failed to get device location provider: %@", [result getError]);
+        NSLog(@"Failed to get device location provider: %@", result.error);
         return NULL;
     }
 
-    id<MBXDeviceLocationProvider> provider = [result getValue];
+    id<MBXDeviceLocationProvider> provider = result.value;
 
     // Create and register observer
     LocationObserverBridge* observer = [[LocationObserverBridge alloc] initWithCallback:callback];
@@ -89,6 +154,14 @@ void* startLocationUpdatesWithSettings(
     NSValue* providerKey = [NSValue valueWithPointer:(__bridge void*)provider];
     observerMap[providerKey] = observer;
     providerMap[providerKey] = provider;
+
+    // Request authorization if needed before starting location updates
+    if (status == kCLAuthorizationStatusNotDetermined) {
+        if (!authLocationManager) {
+            authLocationManager = [[CLLocationManager alloc] init];
+        }
+        [authLocationManager requestWhenInUseAuthorization];
+    }
 
     // Add observer to provider (this starts location updates)
     [provider addLocationObserverForObserver:observer];
@@ -110,5 +183,35 @@ void stopLocationUpdates(void* providerPtr) {
         [provider removeLocationObserverForObserver:observer];
         [observerMap removeObjectForKey:providerKey];
         [providerMap removeObjectForKey:providerKey];
+    }
+}
+
+void addLocationServiceObserver(
+    AuthorizationStatusCallback authCallback,
+    AccuracyAuthorizationCallback accuracyCallback,
+    AvailabilityCallback availabilityCallback)
+{
+    // Remove existing observer if any
+    if (serviceObserver) {
+        removeLocationServiceObserver();
+    }
+
+    // Create new service observer
+    serviceObserver = [[LocationServiceObserverBridge alloc]
+        initWithCallbacks:authCallback
+         accuracyCallback:accuracyCallback
+      availabilityCallback:availabilityCallback];
+
+    // Get location service and add observer
+    id<MBXLocationService> service = [MBXLocationServiceFactory getOrCreate];
+    [service registerObserverForObserver:serviceObserver];
+}
+
+void removeLocationServiceObserver()
+{
+    if (serviceObserver) {
+        id<MBXLocationService> service = [MBXLocationServiceFactory getOrCreate];
+        [service unregisterObserverForObserver:serviceObserver];
+        serviceObserver = nil;
     }
 }
