@@ -8,7 +8,7 @@ namespace Mapbox.LocationModule.UnityLocationWrappers
 
 		bool isEnabledByUser { get; }
 
-		LocationServiceStatus status { get; }
+		UnityEngine.LocationServiceStatus status { get; }
 
 		IMapboxLocationInfo lastData { get; }
 

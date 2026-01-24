@@ -8,9 +8,49 @@ using Mapbox.BaseModule.Utilities;
 #if UNITY_IOS
 namespace Mapbox.LocationModule
 {
+    /// <summary>
+    /// Location permissions granted by user to the app.
+    /// Maps to MBXPermissionStatus from MapboxCommon.
+    /// </summary>
+    public enum MapboxLocationServiceStatus
+    {
+        /// <summary>Access to location is not allowed.</summary>
+        Denied = 0,
+        /// <summary>
+        /// Access to location is allowed.
+        /// This type of permission is defined for platforms that
+        /// do not have foreground/background access granularity.
+        /// </summary>
+        Granted = 1,
+        /// <summary>Access to location is allowed only while an app is in use.</summary>
+        Foreground = 2,
+        /// <summary>Access to location is allowed all the time.</summary>
+        Background = 3
+    }
+
+    /// <summary>
+    /// Accuracy authorization granted by user to the app.
+    /// Maps to MBXAccuracyAuthorization from MapboxCommon.
+    /// </summary>
+    public enum AccuracyAuthorization
+    {
+        /// <summary>An app is not authorized to access location.</summary>
+        None = 0,
+        /// <summary>An app is authorized to received as precise as possible location.</summary>
+        Exact = 1,
+        /// <summary>
+        /// An app is authorized to receive rough location only.
+        /// Depends on a platform the accuracy is within a city block.
+        /// </summary>
+        Inexact = 2
+    }
+
     public interface IMapboxDeviceLocation
     {
         event Action<Location> LocationUpdated;
+        event Action<MapboxLocationServiceStatus> AuthorizationChanged;
+        event Action<AccuracyAuthorization> AccuracyAuthorizationChanged;
+        event Action<bool> AvailabilityChanged;
         void Update();
         void OnDestroy();
     }
@@ -18,6 +58,10 @@ namespace Mapbox.LocationModule
     public class MapboxLocationIos : IMapboxDeviceLocation
     {
         public event Action<Location> LocationUpdated = delegate { };
+        public event Action<MapboxLocationServiceStatus> AuthorizationChanged = delegate { };
+        public event Action<AccuracyAuthorization> AccuracyAuthorizationChanged = delegate { };
+        public event Action<bool> AvailabilityChanged = delegate { };
+
         public MapboxLocationSettings _mapboxLocationSettings;
 
         private Location _currentLocation;
@@ -35,6 +79,11 @@ namespace Mapbox.LocationModule
             float accuracy, double timestamp,
             double altitude, float speed, float bearing);
 
+        // Callback delegates for service observer
+        private delegate void AuthorizationStatusCallback(int status);
+        private delegate void AccuracyAuthorizationCallback(int accuracy);
+        private delegate void AvailabilityCallback(bool available);
+
         // DllImport declarations
         [DllImport("__Internal")]
         private static extern void requestLocationAuthorization();
@@ -48,10 +97,23 @@ namespace Mapbox.LocationModule
         [DllImport("__Internal")]
         private static extern void stopLocationUpdates(IntPtr provider);
 
+        [DllImport("__Internal")]
+        private static extern void addLocationServiceObserver(
+            AuthorizationStatusCallback authCallback,
+            AccuracyAuthorizationCallback accuracyCallback,
+            AvailabilityCallback availabilityCallback);
+
+        [DllImport("__Internal")]
+        private static extern void removeLocationServiceObserver();
+
         // Implementation details
         private IntPtr _locationProvider;
         private static LocationUpdateCallback _callback;
+        private static AuthorizationStatusCallback _authCallback;
+        private static AccuracyAuthorizationCallback _accuracyCallback;
+        private static AvailabilityCallback _availabilityCallback;
         private bool _isStarted = false;
+        private bool _observerAdded = false;
 
         public MapboxLocationIos(MapboxLocationSettings settings)
         {
@@ -63,8 +125,15 @@ namespace Mapbox.LocationModule
             _instance = this;
             _gcHandle = GCHandle.Alloc(this);
 
-            // Create static callback delegate
+            // Create static callback delegates
             _callback = OnLocationUpdateStatic;
+            _authCallback = OnAuthorizationChangedStatic;
+            _accuracyCallback = OnAccuracyAuthorizationChangedStatic;
+            _availabilityCallback = OnAvailabilityChangedStatic;
+
+            // Add service observer for permission changes
+            addLocationServiceObserver(_authCallback, _accuracyCallback, _availabilityCallback);
+            _observerAdded = true;
 
             // Map accuracy level enum to integer
             int accuracyLevel = (int)_mapboxLocationSettings.AccuracyLevel;
@@ -109,6 +178,36 @@ namespace Mapbox.LocationModule
             }
         }
 
+        // Static callback for authorization status changes
+        [AOT.MonoPInvokeCallback(typeof(AuthorizationStatusCallback))]
+        private static void OnAuthorizationChangedStatic(int status)
+        {
+            if (_instance != null)
+            {
+                _instance.OnAuthorizationChanged(status);
+            }
+        }
+
+        // Static callback for accuracy authorization changes
+        [AOT.MonoPInvokeCallback(typeof(AccuracyAuthorizationCallback))]
+        private static void OnAccuracyAuthorizationChangedStatic(int accuracy)
+        {
+            if (_instance != null)
+            {
+                _instance.OnAccuracyAuthorizationChanged(accuracy);
+            }
+        }
+
+        // Static callback for availability changes
+        [AOT.MonoPInvokeCallback(typeof(AvailabilityCallback))]
+        private static void OnAvailabilityChangedStatic(bool available)
+        {
+            if (_instance != null)
+            {
+                _instance.OnAvailabilityChanged(available);
+            }
+        }
+
         // Instance method to handle the actual update
         private void OnLocationUpdate(double latitude, double longitude, float accuracy, double timestamp, double altitude, float speed, float bearing)
         {
@@ -145,6 +244,63 @@ namespace Mapbox.LocationModule
             }
         }
 
+        // Instance method to handle authorization status changes
+        private void OnAuthorizationChanged(int status)
+        {
+            lock (_queueLock)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    try
+                    {
+                        AuthorizationChanged((MapboxLocationServiceStatus)status);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"Exception in authorization changed: {ex.Message}");
+                    }
+                });
+            }
+        }
+
+        // Instance method to handle accuracy authorization changes
+        private void OnAccuracyAuthorizationChanged(int accuracy)
+        {
+            lock (_queueLock)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    try
+                    {
+                        AccuracyAuthorizationChanged((AccuracyAuthorization)accuracy);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"Exception in accuracy authorization changed: {ex.Message}");
+                    }
+                });
+            }
+        }
+
+        // Instance method to handle availability changes
+        private void OnAvailabilityChanged(bool available)
+        {
+            lock (_queueLock)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    try
+                    {
+                        AvailabilityChanged(available);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"Exception in availability changed: {ex.Message}");
+                    }
+                });
+            }
+        }
+
         public void Update()
         {
             // Process queued location updates on the main thread
@@ -164,6 +320,12 @@ namespace Mapbox.LocationModule
             {
                 stopLocationUpdates(_locationProvider);
                 _isStarted = false;
+            }
+
+            if (_observerAdded)
+            {
+                removeLocationServiceObserver();
+                _observerAdded = false;
             }
 
             if (_gcHandle.IsAllocated)

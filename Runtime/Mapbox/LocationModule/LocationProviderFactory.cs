@@ -79,6 +79,9 @@ namespace Mapbox.LocationModule
 			if(_mapboxLocationProvider != null)
 			{
 				DefaultLocationProvider = _mapboxLocationProvider;
+				_mapboxLocationProvider.AvailabilityChanged += b => Debug.Log("MAPBOX_UNITY_SDK: LocationProviderFactory.AvailabilityChanged " + b);
+				_mapboxLocationProvider.AuthorizationChanged += b => Debug.Log("MAPBOX_UNITY_SDK: AuthorizationChanged " + b);
+				_mapboxLocationProvider.AccuracyAuthorizationChanged += b => Debug.Log("MAPBOX_UNITY_SDK: AuthorizationChanged " + b);
 			}
 			else
 			{
