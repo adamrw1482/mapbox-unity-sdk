@@ -82,6 +82,7 @@ namespace Mapbox.LocationModule
 				_mapboxLocationProvider.AvailabilityChanged += b => Debug.Log("MAPBOX_UNITY_SDK: LocationProviderFactory.AvailabilityChanged " + b);
 				_mapboxLocationProvider.AuthorizationChanged += b => Debug.Log("MAPBOX_UNITY_SDK: AuthorizationChanged " + b);
 				_mapboxLocationProvider.AccuracyAuthorizationChanged += b => Debug.Log("MAPBOX_UNITY_SDK: AuthorizationChanged " + b);
+				_mapboxLocationProvider.Initialize();
 			}
 			else
 			{

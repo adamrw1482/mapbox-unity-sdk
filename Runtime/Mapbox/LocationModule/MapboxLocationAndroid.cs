@@ -1,19 +1,28 @@
 //#if !UNITY_EDITOR && UNITY_ANDROID
 using System;
+using System.Collections.Generic;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace Mapbox.LocationModule
 {
+    [Preserve]
     public class MapboxLocationAndroid : IMapboxDeviceLocation
     {
-        public event Action<Location> LocationUpdated = delegate { };
-        public event Action<MapboxLocationServiceStatus> AuthorizationChanged;
-        public event Action<AccuracyAuthorization> AccuracyAuthorizationChanged;
-        public event Action<bool> AvailabilityChanged;
-        
+        [Preserve] public event Action<Location> LocationUpdated;
+        [Preserve] public event Action<MapboxLocationServiceStatus> AuthorizationChanged;
+        [Preserve] public event Action<AccuracyAuthorization> AccuracyAuthorizationChanged;
+        [Preserve] public event Action<bool> AvailabilityChanged;
+
         public MapboxLocationSettings _mapboxLocationSettings;
+
+        private readonly Queue<Action> _mainThreadQueue = new Queue<Action>();
+        private readonly object _queueLock = new object();
+
+        private AndroidJavaObject _permissionsManager;
+        private AndroidJavaObject _unityActivity;
 
         private string _mapboxLocationServiceFactoryClassName = "com.mapbox.common.location.LocationServiceFactory";
         private string _mapboxLocationServiceFactoryGetMethodName = "getOrCreate";
@@ -47,15 +56,67 @@ namespace Mapbox.LocationModule
 
         private string javaLangLong = "java.lang.Long";
         private string javaLangFloat = "java.lang.Float";
-        
 
         public MapboxLocationAndroid(MapboxLocationSettings settings)
         {
             _mapboxLocationSettings = settings;
-            _locationServiceFactory = new AndroidJavaClass(_mapboxLocationServiceFactoryClassName);
-            _locationService =
-                _locationServiceFactory.CallStatic<AndroidJavaObject>(_mapboxLocationServiceFactoryGetMethodName);
+            Debug.Log("[Android] MapboxLocationAndroid constructor called");
 
+            // Get Unity activity
+            using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+            {
+                _unityActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+            }
+
+            // Check if permissions are already granted
+            using (var permissionsManagerClass = new AndroidJavaClass("com.mapbox.android.core.permissions.PermissionsManager"))
+            {
+                bool hasPermission = permissionsManagerClass.CallStatic<bool>("areLocationPermissionsGranted", _unityActivity);
+                Debug.Log($"[Android] Location permissions granted: {hasPermission}");
+
+                if (hasPermission)
+                {
+                    InitializeMapboxLocation();
+                }
+                else
+                {
+                    RequestLocationPermissions();
+                }
+            }
+        }
+
+        private void RequestLocationPermissions()
+        {
+            Debug.Log("[Android] Requesting location permissions via PermissionsManager");
+
+            var permissionsListenerProxy = new PermissionsListenerProxy(
+                onExplanation: (permissions) =>
+                {
+                    Debug.Log($"[Android] Permission explanation needed for: {string.Join(", ", permissions)}");
+                },
+                onResult: (granted) =>
+                {
+                    Debug.Log($"[Android] Permission result: {granted}");
+                    if (granted)
+                    {
+                        InitializeMapboxLocation();
+                    }
+                    else
+                    {
+                        Debug.LogError("[Android] Location permissions denied");
+                    }
+                });
+
+            _permissionsManager = new AndroidJavaObject("com.mapbox.android.core.permissions.PermissionsManager", permissionsListenerProxy);
+            _permissionsManager.Call("requestLocationPermissions", _unityActivity);
+        }
+
+        private void InitializeMapboxLocation()
+        {
+            Debug.Log("[Android] InitializeMapboxLocation called");
+
+            _locationServiceFactory = new AndroidJavaClass(_mapboxLocationServiceFactoryClassName);
+            _locationService = _locationServiceFactory.CallStatic<AndroidJavaObject>(_mapboxLocationServiceFactoryGetMethodName);
 
             var intervalSettings = new AndroidJavaObject(_intervalSettingsBuilderClassName)
                 .Call<AndroidJavaObject>(_minimumIntervalFieldName,
@@ -85,18 +146,135 @@ namespace Mapbox.LocationModule
                 return;
             }
 
-            _serviceObserver = new MapboxLocationServiceObserverProxy(AuthorizationChanged, AccuracyAuthorizationChanged, AvailabilityChanged);
-            _locationService.Call(_addServiceObserverMethodName, _serviceObserver);
-                
+            _serviceObserver = new MapboxLocationServiceObserverProxy(AuthorizationChanged, AccuracyAuthorizationChanged, AvailabilityChanged, EnqueueOnMainThread);
+
+            try
+            {
+                _locationService.Call(_addServiceObserverMethodName, _serviceObserver);
+                Debug.Log("[Android] Service observer registered successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Android] Failed to register service observer: {ex.Message}");
+            }
+
             _locationProvider = expected.Call<AndroidJavaObject>("getValue");
-            
-            _locationObserver = new MapboxLocationObserverProxy(LocationUpdated);
-            _locationProvider.Call(_addObserverMethodName, _locationObserver);
+            Debug.Log($"[Android] Location provider obtained: {GetJavaClassName(_locationProvider)}");
+
+            _locationObserver = new MapboxLocationObserverProxy(EnqueueOnMainThread);
+            _locationObserver.SendLocation += location =>
+            {
+                Debug.Log($"[Android] Location observer sent location: {location}");
+                LocationUpdated?.Invoke(location);
+            };
+
+            try
+            {
+                Debug.Log($"[Android] About to call {_addObserverMethodName}");
+                Debug.Log($"[Android] Provider class: {GetJavaClassName(_locationProvider)}");
+                Debug.Log($"[Android] Observer implements: com.mapbox.common.location.LocationObserver");
+                Debug.Log($"[Android] Observer hash: {_locationObserver.GetHashCode()}");
+
+                // Keep a strong reference to prevent GC
+                System.GC.KeepAlive(_locationObserver);
+
+                _locationProvider.Call(_addObserverMethodName, _locationObserver);
+
+                Debug.Log("[Android] addLocationObserver call completed successfully");
+                Debug.Log($"[Android] Observer still valid: {_locationObserver != null}");
+
+                // Verify Android location permissions
+                try
+                {
+                    var permissionClass = new AndroidJavaClass("android.content.pm.PackageManager");
+                    int permissionGranted = permissionClass.GetStatic<int>("PERMISSION_GRANTED");
+
+                    string fineLocationPerm = "android.permission.ACCESS_FINE_LOCATION";
+                    string coarseLocationPerm = "android.permission.ACCESS_COARSE_LOCATION";
+
+                    int fineStatus = _unityActivity.Call<int>("checkSelfPermission", fineLocationPerm);
+                    int coarseStatus = _unityActivity.Call<int>("checkSelfPermission", coarseLocationPerm);
+
+                    Debug.Log($"[Android] FINE_LOCATION permission: {(fineStatus == permissionGranted ? "GRANTED" : "DENIED")}");
+                    Debug.Log($"[Android] COARSE_LOCATION permission: {(coarseStatus == permissionGranted ? "GRANTED" : "DENIED")}");
+
+                    if (fineStatus != permissionGranted && coarseStatus != permissionGranted)
+                    {
+                        Debug.LogError("[Android] No location permissions! This is why observer won't receive updates.");
+                    }
+                }
+                catch (Exception permEx)
+                {
+                    Debug.LogWarning($"[Android] Could not verify permissions: {permEx.Message}");
+                }
+
+                Debug.Log("[Android] Observer registration complete - waiting for location updates");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Android] Failed to add location observer: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        public void Initialize()
+        {
+            // Already initialized in constructor
         }
 
         public void Update()
         {
+            // Process main thread queue
+            lock (_queueLock)
+            {
+                while (_mainThreadQueue.Count > 0)
+                {
+                    var action = _mainThreadQueue.Dequeue();
+                    try
+                    {
+                        action?.Invoke();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"[Android] Error processing main thread action: {ex.Message}");
+                    }
+                }
+            }
+        }
 
+        private void EnqueueOnMainThread(Action action)
+        {
+            lock (_queueLock)
+            {
+                _mainThreadQueue.Enqueue(action);
+            }
+        }
+
+        public void GetLastLocation()
+        {
+            try
+            {
+                var callback = new GetLocationCallbackProxy((location, isValid) =>
+                {
+                    if (isValid)
+                    {
+                        EnqueueOnMainThread(() =>
+                        {
+                            LocationUpdated?.Invoke(location);
+                            Debug.Log($"[Android] getLastLocation: Lat={location.LatitudeLongitude.Latitude}, Lon={location.LatitudeLongitude.Longitude}");
+                        });
+                    }
+                    else
+                    {
+                        Debug.Log("[Android] getLastLocation: no location available");
+                    }
+                });
+
+                _locationProvider.Call<AndroidJavaObject>("getLastLocation", callback);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Android] getLastLocation failed: {ex.Message}");
+            }
         }
 
         public void OnDestroy()
@@ -132,83 +310,213 @@ namespace Mapbox.LocationModule
 
     public class MapboxLocationServiceObserverProxy : AndroidJavaProxy
     {
-        private Location _location;
         private readonly Action<MapboxLocationServiceStatus> _authorizationChanged;
         private readonly Action<AccuracyAuthorization> _accuracyAuthorizationChanged;
         private readonly Action<bool> _availabilityChanged;
+        private readonly Action<Action> _enqueueOnMainThread;
 
         public MapboxLocationServiceObserverProxy(
-            Action<MapboxLocationServiceStatus> authorizationChanged, 
-            Action<AccuracyAuthorization> accuracyAuthorizationChanged, 
-            Action<bool> availabilityChanged) : base("com.mapbox.common.location.LocationServiceObserver")
+            Action<MapboxLocationServiceStatus> authorizationChanged,
+            Action<AccuracyAuthorization> accuracyAuthorizationChanged,
+            Action<bool> availabilityChanged,
+            Action<Action> enqueueOnMainThread) : base("com.mapbox.common.location.LocationServiceObserver")
         {
             _authorizationChanged = authorizationChanged;
             _accuracyAuthorizationChanged = accuracyAuthorizationChanged;
             _availabilityChanged = availabilityChanged;
+            _enqueueOnMainThread = enqueueOnMainThread;
         }
 
 
+        [Preserve]
         public void onAvailabilityChanged(bool isAvailable)
         {
-            _availabilityChanged?.Invoke(isAvailable);
+            Debug.Log($"[Android] onAvailabilityChanged: {isAvailable}");
+            _enqueueOnMainThread?.Invoke(() => _availabilityChanged?.Invoke(isAvailable));
         }
 
-        public void onPermissionStatusChanged(MapboxLocationServiceStatus permission)
+        [Preserve]
+        public void onPermissionStatusChanged(AndroidJavaObject permission)
         {
-            _authorizationChanged?.Invoke(permission);
+            if (permission == null)
+            {
+                Debug.LogError("[Android] onPermissionStatusChanged received null");
+                return;
+            }
+
+            int ordinal = permission.Call<int>("ordinal");
+            var status = (MapboxLocationServiceStatus)ordinal;
+            Debug.Log($"[Android] onPermissionStatusChanged: ordinal={ordinal}, status={status}");
+            _enqueueOnMainThread?.Invoke(() => _authorizationChanged?.Invoke(status));
         }
-        
-        public void onAccuracyAuthorizationChanged(AccuracyAuthorization authorization)
+
+        [Preserve]
+        public void onAccuracyAuthorizationChanged(AndroidJavaObject authorization)
         {
-            _accuracyAuthorizationChanged?.Invoke(authorization);
+            if (authorization == null)
+            {
+                Debug.LogError("[Android] onAccuracyAuthorizationChanged received null");
+                return;
+            }
+
+            int ordinal = authorization.Call<int>("ordinal");
+            var accuracy = (AccuracyAuthorization)ordinal;
+            Debug.Log($"[Android] onAccuracyAuthorizationChanged: ordinal={ordinal}, accuracy={accuracy}");
+            _enqueueOnMainThread?.Invoke(() => _accuracyAuthorizationChanged?.Invoke(accuracy));
         }
     }
     
     public class MapboxLocationObserverProxy : AndroidJavaProxy
     {
-        private Action<Location> _sendLocation;
-        private Location _location;
+        public Action<Location> SendLocation;
+        private readonly Action<Action> _enqueueOnMainThread;
+        private static int _updateCount = 0;
+        private static bool _firstCallLogged = false;
 
-        public MapboxLocationObserverProxy(Action<Location> sendLocation) : base("com.mapbox.common.location.LocationObserver")
+        public MapboxLocationObserverProxy(Action<Action> enqueueOnMainThread) : base("com.mapbox.common.location.LocationObserver")
         {
-            _sendLocation = sendLocation;
+            _enqueueOnMainThread = enqueueOnMainThread;
+            Debug.Log("[Android] MapboxLocationObserverProxy created");
+            Debug.Log($"[Android] Proxy implements interface: com.mapbox.common.location.LocationObserver");
+            Debug.Log($"[Android] Proxy javaInterface: {javaInterface}");
         }
 
-        void onLocationUpdateReceived(AndroidJavaObject locations)
+        [Preserve]
+        public void onLocationUpdateReceived(AndroidJavaObject locations)
         {
-            if (locations == null)
-                return;
+            _updateCount++;
 
-            var size = locations.Call<int>("size");
-            for (var i = 0; i < size; i++)
+            if (!_firstCallLogged)
             {
-                var loc = locations.Call<AndroidJavaObject>("get", i);
+                _firstCallLogged = true;
+                Debug.Log("========================================");
+                Debug.Log("[Android] FIRST CALLBACK RECEIVED!");
+                Debug.Log("========================================");
+            }
 
-                if (loc == null)
-                    continue;
+            Debug.Log($"[Android] onLocationUpdateReceived called (update #{_updateCount})");
 
-                var bearing = ReadOptionalValue(loc, "bearing");
-                var speed = ReadOptionalValue(loc, "speed");
+            if (locations == null)
+            {
+                Debug.LogWarning("[Android] locations list is null");
+                return;
+            }
 
-                _location.LatitudeLongitude =
-                    new LatitudeLongitude(loc.Call<double>("getLatitude"), loc.Call<double>("getLongitude"));
-                _location.UserHeading = bearing.HasValue ? (float)bearing.Value : 0;
-                _location.SpeedMetersPerSecond = speed.HasValue ? (float)speed.Value : 0;
-                _location.TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow);
+            try
+            {
+                var size = locations.Call<int>("size");
+                Debug.Log($"[Android] Received {size} locations");
 
-                _sendLocation(_location);
+                for (var i = 0; i < size; i++)
+                {
+                    var loc = locations.Call<AndroidJavaObject>("get", i);
+
+                    if (loc == null)
+                    {
+                        Debug.LogWarning($"[Android] Location at index {i} is null");
+                        continue;
+                    }
+
+                    double lat = loc.Call<double>("getLatitude");
+                    double lon = loc.Call<double>("getLongitude");
+
+                    Location location = new Location
+                    {
+                        LatitudeLongitude = new LatitudeLongitude(lat, lon),
+                        TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow)
+                    };
+
+                    Debug.Log($"[Android] Location update #{_updateCount}: {lat}, {lon}");
+
+                    // Invoke on main thread
+                    _enqueueOnMainThread?.Invoke(() =>
+                    {
+                        SendLocation?.Invoke(location);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Android] Error in onLocationUpdateReceived: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
-        double? ReadOptionalValue(AndroidJavaObject location, string fieldName)
+    }
+
+    // Proxy for GetLocationCallback interface
+    public class GetLocationCallbackProxy : AndroidJavaProxy
+    {
+        private readonly Action<Location, bool> _callback;
+
+        public GetLocationCallbackProxy(Action<Location, bool> callback)
+            : base("com.mapbox.common.location.GetLocationCallback")
         {
-            using var bearingOpt =
-                location.Call<AndroidJavaObject>(fieldName);
+            _callback = callback;
+        }
 
-            if (!bearingOpt.Call<bool>("isPresent"))
-                return null;
+        [Preserve]
+        public void run(AndroidJavaObject locationObj)
+        {
+            if (locationObj == null)
+            {
+                Debug.Log("[Android] GetLocationCallback: null location");
+                _callback?.Invoke(default(Location), false);
+                return;
+            }
 
-            return bearingOpt.Call<double>("get");
+            try
+            {
+                double lat = locationObj.Call<double>("getLatitude");
+                double lon = locationObj.Call<double>("getLongitude");
+
+                Location location = new Location
+                {
+                    LatitudeLongitude = new LatitudeLongitude(lat, lon),
+                    TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow)
+                };
+
+                _callback?.Invoke(location, true);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[Android] GetLocationCallback error: {ex.Message}");
+                _callback?.Invoke(default(Location), false);
+            }
+        }
+    }
+
+    // Proxy for PermissionsListener interface
+    public class PermissionsListenerProxy : AndroidJavaProxy
+    {
+        private readonly Action<string[]> _onExplanation;
+        private readonly Action<bool> _onResult;
+
+        public PermissionsListenerProxy(Action<string[]> onExplanation, Action<bool> onResult)
+            : base("com.mapbox.android.core.permissions.PermissionsListener")
+        {
+            _onExplanation = onExplanation;
+            _onResult = onResult;
+        }
+
+        [Preserve]
+        public void onExplanationNeeded(AndroidJavaObject permissionsToExplain)
+        {
+            if (permissionsToExplain != null)
+            {
+                int size = permissionsToExplain.Call<int>("size");
+                string[] permissions = new string[size];
+                for (int i = 0; i < size; i++)
+                {
+                    permissions[i] = permissionsToExplain.Call<string>("get", i);
+                }
+                _onExplanation?.Invoke(permissions);
+            }
+        }
+
+        [Preserve]
+        public void onPermissionResult(bool granted)
+        {
+            _onResult?.Invoke(granted);
         }
     }
 }
