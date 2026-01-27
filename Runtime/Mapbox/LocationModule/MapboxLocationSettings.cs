@@ -44,4 +44,41 @@ namespace Mapbox.LocationModule
         //The highest possible accuracy requirement that uses additional sensors (if possible) to facilitate navigation use case. 
         Highest
     }
+    
+    /// <summary>
+    /// Location permissions granted by user to the app.
+    /// Maps to MBXPermissionStatus from MapboxCommon.
+    /// </summary>
+    public enum MapboxLocationServiceStatus
+    {
+        /// <summary>Access to location is not allowed.</summary>
+        Denied = 0,
+        /// <summary>
+        /// Access to location is allowed.
+        /// This type of permission is defined for platforms that
+        /// do not have foreground/background access granularity.
+        /// </summary>
+        Granted = 1,
+        /// <summary>Access to location is allowed only while an app is in use.</summary>
+        Foreground = 2,
+        /// <summary>Access to location is allowed all the time.</summary>
+        Background = 3
+    }
+
+    /// <summary>
+    /// Accuracy authorization granted by user to the app.
+    /// Maps to MBXAccuracyAuthorization from MapboxCommon.
+    /// </summary>
+    public enum AccuracyAuthorization
+    {
+        /// <summary>An app is not authorized to access location.</summary>
+        None = 0,
+        /// <summary>An app is authorized to received as precise as possible location.</summary>
+        Exact = 1,
+        /// <summary>
+        /// An app is authorized to receive rough location only.
+        /// Depends on a platform the accuracy is within a city block.
+        /// </summary>
+        Inexact = 2
+    }
 }

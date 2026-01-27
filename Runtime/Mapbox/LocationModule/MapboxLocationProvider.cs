@@ -12,18 +12,20 @@ namespace Mapbox.LocationModule
         public MapboxLocationSettings Settings;
         private IMapboxDeviceLocation _mapboxDeviceLocation;
 
-        public void Awake()
+        public void Initialize()
         {
 #if UNITY_IOS &&  !UNITY_EDITOR
             _mapboxDeviceLocation = new MapboxLocationIos(Settings);
 #elif UNITY_ANDROID && !UNITY_EDITOR
-            _mapboxDeviceLocation = new CommonAndroidDeviceLocationProvider(Settings);
+            _mapboxDeviceLocation = new MapboxLocationAndroid(Settings);
 #endif
 
-            _mapboxDeviceLocation.LocationUpdated += SendLocation;
+            _mapboxDeviceLocation.LocationUpdated += (s) => { SendLocation(s); };
             _mapboxDeviceLocation.AvailabilityChanged += AvailabilityChanged;
             _mapboxDeviceLocation.AuthorizationChanged += AuthorizationChanged;
             _mapboxDeviceLocation.AccuracyAuthorizationChanged += AccuracyAuthorizationChanged;
+
+            _mapboxDeviceLocation.Initialize();
         }
 
         public void Update()
