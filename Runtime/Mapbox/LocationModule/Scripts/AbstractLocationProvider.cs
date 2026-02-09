@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Mapbox.LocationModule
 {
-	public abstract class AbstractLocationProvider : MonoBehaviour, ILocationProvider
+	public abstract class AbstractLocationProvider : ILocationProvider
 	{
 		protected Location _currentLocation;
 
@@ -24,6 +24,15 @@ namespace Mapbox.LocationModule
 		protected virtual void SendLocation(Location location)
 		{
 			OnLocationUpdated(location);
+		}
+
+		public virtual void Update()
+		{
+			
+		}
+		
+		public virtual void OnDestroy()
+		{
 		}
 	}
 }

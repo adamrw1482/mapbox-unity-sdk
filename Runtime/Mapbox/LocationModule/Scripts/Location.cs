@@ -94,6 +94,17 @@ namespace Mapbox.LocationModule
 				return SpeedMetersPerSecond * 3.6f;
 			}
 		}
+
+		/// <summary>
+		/// Altitude in meters above sea level. 'Null' if not supported by the active location provider.
+		/// </summary>
+		public double? Altitude;
+
+		/// <summary>
+		/// Bearing in degrees (0-360). Bearing is the horizontal direction of travel of this device, and is not related to the device orientation. 'Null' if not supported by the active location provider.
+		/// </summary>
+		public float? Bearing;
+
 		/// <summary>
 		/// Name of the location provider. GPS or network or 'Null' if not supported by the active location provider.
 		/// </summary>

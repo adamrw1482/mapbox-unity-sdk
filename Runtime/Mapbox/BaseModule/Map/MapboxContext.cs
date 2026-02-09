@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using Mapbox.BaseModule;
 using Mapbox.BaseModule.Telemetry;
@@ -18,6 +19,11 @@ namespace Mapbox.BaseModule.Map
         public MapboxContext()
         {
             LoadConfiguration();
+        }
+
+        public IEnumerator Initialize()
+        {
+            yield return LoadConfigurationCoroutine();
         }
 
         public string GetAccessToken()
@@ -65,6 +71,41 @@ namespace Mapbox.BaseModule.Map
             });
 
             Configuration = config;
+        }
+        
+        private IEnumerator LoadConfigurationCoroutine()
+        {
+            TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
+            if (null == configurationTextAsset)
+            {
+                Debug.LogError("Need Mapbox Access Token");
+                throw new Exception();
+            }
+
+            var config = JsonUtility.FromJson<MapboxConfiguration>(configurationTextAsset.text);
+            config.Initialize();
+            var tokenValidator = new MapboxTokenApi();
+            var configLoaded = false;
+            tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
+            {
+                _mapboxToken = response;
+                if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
+                {
+                    config.AccessToken = string.Empty;
+                    Debug.LogError("Invalid Token");
+                }
+                else
+                {
+                    Configuration = config;
+                    ConfigureTelemetry();
+                }
+                configLoaded = true;
+            });
+
+            while (!configLoaded)
+            {
+                yield return null;
+            }
         }
 
         private void ConfigureTelemetry()

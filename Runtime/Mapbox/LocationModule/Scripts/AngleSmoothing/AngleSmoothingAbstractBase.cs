@@ -7,7 +7,7 @@ namespace Mapbox.LocationModule.AngleSmoothing
 	/// <summary>
 	/// Base class for implementing different smoothing strategies
 	/// </summary>
-	public abstract class AngleSmoothingAbstractBase : MonoBehaviour, IAngleSmoothing
+	public abstract class AngleSmoothingAbstractBase : IAngleSmoothing
 	{
 
 

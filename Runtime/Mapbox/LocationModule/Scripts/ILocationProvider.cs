@@ -9,5 +9,8 @@ namespace Mapbox.LocationModule
 	{
 		event Action<Location> OnLocationUpdated;
 		Location CurrentLocation { get; }
+
+		void Update();
+		void OnDestroy();
 	}
 }
