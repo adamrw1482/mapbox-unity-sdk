@@ -1,8 +1,9 @@
 using System;
+using UnityEngine;
 
 namespace Mapbox.LocationModule
 {
-    public class MapboxLocationProvider : AbstractLocationProvider, IMapboxDeviceLocation
+    public class MapboxLocationProvider : AbstractLocationProvider
     {
         public event Action<Location> LocationUpdated;
         public event Action<MapboxLocationServiceStatus> AuthorizationChanged;
@@ -12,15 +13,20 @@ namespace Mapbox.LocationModule
         public MapboxLocationSettings Settings;
         private IMapboxDeviceLocation _mapboxDeviceLocation;
 
-        public void Initialize()
+        public MapboxLocationProvider(MapboxLocationSettings settings)
         {
+            Settings = settings;
 #if UNITY_IOS &&  !UNITY_EDITOR
             _mapboxDeviceLocation = new MapboxLocationIos(Settings);
 #elif UNITY_ANDROID && !UNITY_EDITOR
             _mapboxDeviceLocation = new MapboxLocationAndroid(Settings);
 #endif
 
-            _mapboxDeviceLocation.LocationUpdated += (s) => { SendLocation(s); };
+            _mapboxDeviceLocation.LocationUpdated += (s) =>
+            {
+                _currentLocation = s;
+                SendLocation(s);
+            };
             _mapboxDeviceLocation.AvailabilityChanged += AvailabilityChanged;
             _mapboxDeviceLocation.AuthorizationChanged += AuthorizationChanged;
             _mapboxDeviceLocation.AccuracyAuthorizationChanged += AccuracyAuthorizationChanged;
@@ -28,14 +34,14 @@ namespace Mapbox.LocationModule
             _mapboxDeviceLocation.Initialize();
         }
 
-        public void Update()
+        public override void Update()
         {
-            _mapboxDeviceLocation.Update();
+            _mapboxDeviceLocation?.Update();
         }
 
-        public void OnDestroy()
+        public override void OnDestroy()
         {
-            _mapboxDeviceLocation.OnDestroy();
+            _mapboxDeviceLocation?.OnDestroy();
         }
     }
 }

@@ -11,29 +11,31 @@ namespace Mapbox.LocationModule
 	/// The EditorLocationProvider is responsible for providing mock location and heading data
 	/// for testing purposes in the Unity editor.
 	/// </summary>
-	public class EditorLocationProvider : AbstractEditorLocationProvider
+	public class StaticLocationProvider : AbstractEditorLocationProvider
 	{
-		/// <summary>
-		/// The mock "latitude, longitude" location, respresented with a string.
-		/// You can search for a place using the embedded "Search" button in the inspector.
-		/// This value can be changed at runtime in the inspector.
-		/// </summary>
-		[SerializeField]
-		[Geocode]
-		private string _latitudeLongitude;
 		private LatitudeLongitude _latLng;
-		
-#if UNITY_EDITOR
-		protected virtual void Start()
+
+		public StaticLocationProvider(LatitudeLongitude latLng)
 		{
-			base.Awake();
-			_latLng = Conversions.StringToLatLon(_latitudeLongitude);
+			_latLng = latLng;
+			_currentLocation = new Location()
+			{
+				LatitudeLongitude = _latLng
+			};
 		}
-#endif
+		
+		public StaticLocationProvider(string latLng)
+		{
+			_latLng = Conversions.StringToLatLon(latLng);
+			_currentLocation = new Location()
+			{
+				LatitudeLongitude = _latLng
+			};
+		}
 
 		protected override void SetLocation()
 		{
-			_currentLocation.UserHeading = transform.eulerAngles.y;
+			//_currentLocation.UserHeading = transform.eulerAngles.y;
 			_currentLocation.LatitudeLongitude = _latLng;
 			_currentLocation.Accuracy = _accuracy;
 			_currentLocation.Timestamp = UnixTimestampUtils.To(DateTime.UtcNow);
