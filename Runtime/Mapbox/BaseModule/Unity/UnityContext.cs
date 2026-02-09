@@ -10,34 +10,39 @@ namespace Mapbox.BaseModule.Unity
     public class UnityContext
     {
         public Action LocationPermissionStateChanged;
-        
+
         public TaskManager TaskManager;
         public LocationPermissionState LocationPermissionState = LocationPermissionState.Waiting;
         [NonSerialized] public MonoBehaviour CoroutineStarter;
+
         [Tooltip("Root object to hold all map related game objects")]
         public Transform MapRoot;
+
         [Tooltip("Root object for all tile objects which created the base map")]
         public Transform BaseTileRoot;
+
         [Tooltip("Root object for all runtime generated visuals. Mainly the vector feature visuals.")]
         public Transform RuntimeGenerationRoot;
 
-        
+
         private LocationPermissionHandler _locationPermissionHandler = new();
-        
+
         public IEnumerator Initialize(TaskManager providedTaskManager = null)
         {
             if (TaskManager == null)
             {
                 TaskManager = providedTaskManager ?? new TaskManager();
             }
-        
+
             TaskManager.Initialize();
 
             BaseTileRoot = BaseTileRoot == null ? new GameObject("BaseTiles").transform : BaseTileRoot;
             BaseTileRoot.SetParent(MapRoot);
             BaseTileRoot.transform.localPosition = Vector3.zero;
 
-            RuntimeGenerationRoot = RuntimeGenerationRoot == null ? new GameObject("RuntimeObjectsRoot").transform : RuntimeGenerationRoot;
+            RuntimeGenerationRoot = RuntimeGenerationRoot == null
+                ? new GameObject("RuntimeObjectsRoot").transform
+                : RuntimeGenerationRoot;
             RuntimeGenerationRoot.SetParent(MapRoot);
             RuntimeGenerationRoot.transform.localPosition = Vector3.zero;
             yield return null;
@@ -55,17 +60,18 @@ namespace Mapbox.BaseModule.Unity
             LocationPermissionStateChanged?.Invoke();
         }
     }
-    
+
     public enum LocationPermissionState
     {
         Waiting,
         Granted,
         Denied
     }
-    
+
     public class LocationPermissionHandler
     {
         public LocationPermissionState State = LocationPermissionState.Waiting;
+
         public IEnumerator HandlePermission()
         {
             if (Permission.HasUserAuthorizedPermission(Permission.FineLocation))
@@ -73,7 +79,7 @@ namespace Mapbox.BaseModule.Unity
                 State = LocationPermissionState.Granted;
                 yield break;
             }
-			
+
 #if UNITY_ANDROID && !UNITY_EDITOR
 			yield return RequestLocationPermissionIfNeeded();
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -86,7 +92,7 @@ namespace Mapbox.BaseModule.Unity
             OnPermissionGranted();
 #endif
         }
-        
+
 #if UNITY_IOS && !UNITY_EDITOR
 		public IEnumerator iOSAskPermission()
 		{
@@ -114,7 +120,7 @@ namespace Mapbox.BaseModule.Unity
 			OnPermissionGranted();
 		}
 #endif
-		
+
 #if UNITY_ANDROID
         private IEnumerator RequestLocationPermissionIfNeeded()
         {
@@ -154,7 +160,8 @@ namespace Mapbox.BaseModule.Unity
                 yield return null;
             }
         }
-        
+#endif
+
         private void OnPermissionGranted()
         {
             State = LocationPermissionState.Granted;
@@ -172,6 +179,5 @@ namespace Mapbox.BaseModule.Unity
             State = LocationPermissionState.Denied;
             Debug.Log("Location permission denied");
         }
-#endif
     }
 }
