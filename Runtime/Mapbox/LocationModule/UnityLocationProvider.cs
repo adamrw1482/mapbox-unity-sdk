@@ -142,26 +142,16 @@ namespace Mapbox.LocationModule
                 UnityLocationProviderSettings.DeviceOrientationSmoothing.Add(Input.compass.trueHeading);
                 _currentLocation.DeviceOrientation =
                     (float)UnityLocationProviderSettings.DeviceOrientationSmoothing.Calculate();
-
-
-                //_currentLocation.LatitudeLongitude = new Vector2d(lastData.latitude, lastData.longitude);
-                // HACK to get back to double precision, does this even work?
-                // https://forum.unity.com/threads/precision-of-location-longitude-is-worse-when-longitude-is-beyond-100-degrees.133192/#post-1835164
-                double latitude =
-                    double.Parse(lastData.latitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
-                        System.Globalization.CultureInfo.InvariantCulture);
-                double longitude =
-                    double.Parse(lastData.longitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture),
-                        System.Globalization.CultureInfo.InvariantCulture);
-                Vector2d previousLocation = new Vector2d(_currentLocation.LatitudeLongitude.Latitude,
-                    _currentLocation.LatitudeLongitude.Longitude);
+                
+                double latitude = lastData.latitude;
+                double longitude = lastData.longitude;
+                Vector2d previousLocation = new Vector2d(_currentLocation.LatitudeLongitude.Latitude, _currentLocation.LatitudeLongitude.Longitude);
                 _currentLocation.LatitudeLongitude = new LatitudeLongitude(latitude, longitude);
 
                 _currentLocation.Accuracy = (float)Math.Floor(lastData.horizontalAccuracy);
                 // sometimes Unity's timestamp doesn't seem to get updated, or even jump back in time
                 // do an additional check if location has changed
-                _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp ||
-                                                     !_currentLocation.LatitudeLongitude.Equals(previousLocation);
+                _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
                 _currentLocation.Timestamp = timestamp;
                 _lastLocationTimestamp = timestamp;
 
@@ -170,8 +160,7 @@ namespace Mapbox.LocationModule
                     if (_lastPositions.Count > 0)
                     {
                         // only add position if user has moved +1m since we added the previous position to the list
-                        CheapRuler cheapRuler = new CheapRuler(_currentLocation.LatitudeLongitude.Latitude,
-                            CheapRulerUnits.Meters);
+                        CheapRuler cheapRuler = new CheapRuler(_currentLocation.LatitudeLongitude.Latitude, CheapRulerUnits.Meters);
                         var p = _currentLocation.LatitudeLongitude;
                         double distance = cheapRuler.Distance(
                             new double[] { p.Longitude, p.Latitude },

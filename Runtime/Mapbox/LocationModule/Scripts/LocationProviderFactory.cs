@@ -86,7 +86,8 @@ namespace Mapbox.LocationModule
 			{
 				DefaultLocationProvider = new UnityLocationProvider(_unityLocationProviderSettings);
 			}
-			Debug.LogFormat("MAPBOX_UNITY_SDK:  LocationProviderFactory: Injected Location Provider - {0}", DefaultLocationProvider.GetType());
+
+			Debug.Log($"MAPBOX_UNITY_SDK:  LocationProviderFactory: Injected Location Provider - {DefaultLocationProvider.GetType()}");
 
 			if (LocationProviderType != LocationProviderType.StaticLocationProvider)
 			{
@@ -96,7 +97,6 @@ namespace Mapbox.LocationModule
 					
 					while (Input.location.status < LocationServiceStatus.Running)
 						yield return null;
-					Debug.Log("location status " + Input.location.status);
 				}
 				
 				while (DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Latitude == 0 &&
@@ -104,12 +104,10 @@ namespace Mapbox.LocationModule
 				{
 					yield return null;
 				}
-				Debug.Log("latlng");
 			}
 
 			IsLocationProviderReady = true;
 			OnLocationProviderReady(this);
-			Debug.Log("ready");
 		}
 
 		private void Update()
