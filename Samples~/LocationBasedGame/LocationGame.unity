@@ -142,7 +142,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6544153
 RectTransform:
   m_ObjectHideFlags: 0
@@ -161,7 +161,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
   m_AnchoredPosition: {x: 16, y: -62}
-  m_SizeDelta: {x: 577.9446, y: 0}
+  m_SizeDelta: {x: 577.9446, y: 563}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &6544154
 MonoBehaviour:
@@ -490,6 +490,8 @@ GameObject:
   m_Component:
   - component: {fileID: 525849129}
   - component: {fileID: 525849128}
+  - component: {fileID: 525849131}
+  - component: {fileID: 525849130}
   m_Layer: 0
   m_Name: LocationModule
   m_TagString: Untagged
@@ -537,6 +539,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2054936215}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &525849130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 525849124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5534c9989da84262bc64ffe27afbbb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Map: {fileID: 1316629399}
+  LocationProviderFactory: {fileID: 525849128}
+  ShiftMapDistance: 500
+--- !u!114 &525849131
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 525849124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 137870786121148788eada666e6cd719, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _transform: {fileID: 220147485}
+  _locationProvider: {fileID: 525849128}
+  _mapCore: {fileID: 1316629399}
 --- !u!1 &545031483
 GameObject:
   m_ObjectHideFlags: 0
@@ -1060,7 +1092,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 288.9723, y: -281.5}
-  m_SizeDelta: {x: 545.9446, y: 0}
+  m_SizeDelta: {x: 545.9446, y: 531}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &923185053
 MonoBehaviour:
@@ -1578,9 +1610,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1316629400}
   - component: {fileID: 1316629399}
+  - component: {fileID: 1377339556045437849}
   - component: {fileID: 1316629404}
   - component: {fileID: 1316629402}
-  - component: {fileID: 1377339556045437848}
   m_Layer: 0
   m_Name: Map
   m_TagString: Untagged
@@ -3546,7 +3578,7 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.0038077123, y: 0.003856523, z: 0.0011322275}
     m_Extent: {x: 0.049188334, y: 0.023567023, z: 0.03146985}
   m_DirtyAABB: 0
---- !u!114 &1377339556045437848
+--- !u!114 &1377339556045437849
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3555,12 +3587,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1316629397}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 137870786121148788eada666e6cd719, type: 3}
+  m_Script: {fileID: 11500000, guid: 2fa13573d971f40649081b02ffc8366c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _transform: {fileID: 220147485}
-  _locationProvider: {fileID: 525849128}
-  _mapCore: {fileID: 1316629399}
+  TileMaterials:
+  - {fileID: -876546973899608171, guid: e44ed2d518a7c4a20bd9799360a9e7ed, type: 3}
+  CacheSize: 25
 --- !u!1 &6450514213955001649
 GameObject:
   m_ObjectHideFlags: 0
