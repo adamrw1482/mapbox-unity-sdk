@@ -1,10 +1,10 @@
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.Example.Scripts.Map;
-using Mapbox.LocationModule;
+using Mapbox.LocationModule.Scripts;
 using UnityEngine;
+//using Mapbox.LocationModule.Scripts;
 
-namespace Mapbox.Example.Scripts.LocationBehaviours
+namespace Mapbox.LocationModule.Helpers
 {
     public class SnapTransformToLocationProvider : MonoBehaviour
     {
@@ -19,20 +19,20 @@ namespace Mapbox.Example.Scripts.LocationBehaviours
         {
             if(_transform == null)
                 _transform = transform;
-        
-            if(_locationProvider == null)
+
+            if (_locationProvider == null)
+            {
                 Debug.Log("_locationProvider null");
-        
-            if(_locationProvider.DefaultLocationProvider == null)
-                Debug.Log("DefaultLocationProvider null");
-        
-            if(!enabled || _locationProvider == null || _locationProvider.DefaultLocationProvider == null)
                 return;
-            
+            }
+        
             _mapCore.Initialized += (map) =>
             {
                 _map = map;
-                _locationProvider.DefaultLocationProvider.OnLocationUpdated += OnDefaultLocationProviderOnOnLocationUpdated;
+                if (_locationProvider.DefaultLocationProvider != null)
+                {
+                    _locationProvider.DefaultLocationProvider.OnLocationUpdated += OnDefaultLocationProviderOnOnLocationUpdated;
+                }
             };
         }
 
