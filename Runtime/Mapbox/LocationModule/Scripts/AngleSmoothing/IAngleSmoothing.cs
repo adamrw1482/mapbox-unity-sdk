@@ -1,4 +1,4 @@
-namespace Mapbox.LocationModule.AngleSmoothing
+namespace Mapbox.LocationModule.Scripts.AngleSmoothing
 {
 	public interface IAngleSmoothing
 	{

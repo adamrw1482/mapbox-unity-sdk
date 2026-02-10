@@ -1,8 +1,7 @@
 using System;
-using Mapbox.Utils;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.AngleSmoothing
+namespace Mapbox.LocationModule.Scripts.AngleSmoothing
 {
 	/// <summary>
 	/// Base class for implementing different smoothing strategies
@@ -24,7 +23,7 @@ namespace Mapbox.LocationModule.AngleSmoothing
 
 
 		/// <summary>
-		/// Internal storage for latest 'n' values. Latest value at [0], <see cref="Mapbox.Utils.CircularBuffer{T}"/>
+		/// Internal storage for latest 'n' values. Latest value at [0], <see cref="CircularBuffer{T}"/>
 		/// </summary>
 		protected CircularBuffer<double> _angles;
 

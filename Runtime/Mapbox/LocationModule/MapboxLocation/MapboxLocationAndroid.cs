@@ -1,11 +1,12 @@
 //#if !UNITY_EDITOR && UNITY_ANDROID
+
 using System;
 using System.Collections.Generic;
+using Mapbox.LocationModule.Scripts;
 using UnityEngine;
-using UnityEngine.Android;
 using UnityEngine.Scripting;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.MapboxLocation
 {
     [Preserve]
     public class MapboxLocationAndroid : IMapboxDeviceLocation

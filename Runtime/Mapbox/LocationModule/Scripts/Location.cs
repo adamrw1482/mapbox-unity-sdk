@@ -1,8 +1,7 @@
 ﻿using System.Diagnostics;
 using Mapbox.BaseModule.Data.Vector2d;
-using Mapbox.Utils;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
 	/// <summary>
     /// Location contains heading, latitude, longitude, accuracy and a timestamp.

@@ -1,10 +1,11 @@
 using System;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
+using Mapbox.LocationModule.Scripts;
 using UnityEngine;
 using UnityEngine.Scripting;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.MapboxLocation
 {
     public class MapboxLocationObserverProxy : AndroidJavaProxy
     {

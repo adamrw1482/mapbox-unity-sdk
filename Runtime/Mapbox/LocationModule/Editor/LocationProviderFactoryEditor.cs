@@ -1,4 +1,5 @@
 using Mapbox.LocationModule;
+using Mapbox.LocationModule.Scripts;
 using UnityEditor;
 using UnityEngine;
 

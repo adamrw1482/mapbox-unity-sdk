@@ -1,7 +1,6 @@
-﻿using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
 	public abstract class AbstractEditorLocationProvider : AbstractLocationProvider
 	{

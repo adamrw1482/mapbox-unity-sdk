@@ -1,16 +1,10 @@
 using System;
 using System.Collections;
-using System.Text.RegularExpressions;
-using Mapbox.BaseModule.Data.Vector2d;
-using Mapbox.BaseModule.Utilities;
+using Mapbox.LocationModule.MapboxLocation;
 using UnityEngine;
-using UnityEngine.Scripting;
-using UnityEngine.Serialization;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
-	
-	
 	/// <summary>
 	/// Singleton factory to allow easy access to various LocationProviders.
 	/// This is meant to be attached to a game object.
@@ -66,7 +60,7 @@ namespace Mapbox.LocationModule
 				DontDestroyOnLoad(gameObject);
 			}
 
-			if(LocationProviderType == LocationProviderType.StaticLocationProvider)
+			if(Application.isEditor || LocationProviderType == LocationProviderType.StaticLocationProvider)
 			{
 				DefaultLocationProvider = new StaticLocationProvider(EditorLatitudeLongitude);
 			}
@@ -89,7 +83,7 @@ namespace Mapbox.LocationModule
 
 			Debug.Log($"MAPBOX_UNITY_SDK:  LocationProviderFactory: Injected Location Provider - {DefaultLocationProvider.GetType()}");
 
-			if (LocationProviderType != LocationProviderType.StaticLocationProvider)
+			if (DefaultLocationProvider.GetType() != typeof(StaticLocationProvider))
 			{
 				if (Input.location.status != LocationServiceStatus.Running)
 				{

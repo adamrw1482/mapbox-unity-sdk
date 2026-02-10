@@ -13,6 +13,7 @@ using Mapbox.Example.Scripts.ModuleBehaviours;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
 using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using Mapbox.LocationModule;
+using Mapbox.LocationModule.Scripts;
 using Mapbox.UnityMapService;
 using Mapbox.UnityMapService.TileProviders;
 using UnityEngine;
@@ -50,24 +51,22 @@ namespace Mapbox.Example.Scripts.Map
             
             yield return UnityContext.Initialize();
             yield return UnityContext.HandlePermission();
-            if (!Application.isEditor)
+            
+            if (Application.isEditor || UnityContext.LocationPermissionState == LocationPermissionState.Granted)
             {
-                if (UnityContext.LocationPermissionState == LocationPermissionState.Granted)
+                var locationFactory = FindObjectOfType<LocationProviderFactory>();
+                if (locationFactory != null)
                 {
-                    var locationFactory = FindObjectOfType<LocationProviderFactory>();
-                    if (locationFactory != null)
-                    {
-                        yield return locationFactory.Initialize();
-                        var locationProvider = locationFactory.DefaultLocationProvider;
-                        MapInformation.SetLatitudeLongitude(locationProvider.CurrentLocation.LatitudeLongitude);
-                    }
-                }
-                else
-                {
-                    Debug.Log("Location permission is " + UnityContext.LocationPermissionState);
+                    yield return locationFactory.Initialize();
+                    var locationProvider = locationFactory.DefaultLocationProvider;
+                    MapInformation.SetLatitudeLongitude(locationProvider.CurrentLocation.LatitudeLongitude);
                 }
             }
-
+            else
+            {
+                Debug.Log("Location permission is " + UnityContext.LocationPermissionState);
+            }
+            
             var mapboxContext = new MapboxContext();
             yield return mapboxContext.Initialize();
             _mapService = GetMapService(mapboxContext, UnityContext);
