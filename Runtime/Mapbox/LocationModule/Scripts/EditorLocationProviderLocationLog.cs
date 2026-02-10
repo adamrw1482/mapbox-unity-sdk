@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
-using Mapbox.LocationModule.Logging;
+using Mapbox.LocationModule.Scripts.Logging;
 using UnityEngine;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
 	/// <summary>
 	/// <para>

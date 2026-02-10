@@ -1,6 +1,4 @@
-using UnityEngine;
-
-namespace Mapbox.LocationModule.UnityLocationWrappers
+namespace Mapbox.LocationModule.Scripts.UnityLocationWrappers
 {
 	public interface IMapboxLocationService
 	{

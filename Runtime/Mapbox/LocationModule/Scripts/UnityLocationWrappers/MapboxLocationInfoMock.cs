@@ -1,4 +1,4 @@
-namespace Mapbox.LocationModule.UnityLocationWrappers
+namespace Mapbox.LocationModule.Scripts.UnityLocationWrappers
 {
 
 

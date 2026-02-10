@@ -1,8 +1,7 @@
-﻿
-using System;
+﻿using System;
 using System.Linq;
 
-namespace Mapbox.LocationModule.AngleSmoothing
+namespace Mapbox.LocationModule.Scripts.AngleSmoothing
 {
 	/// <summary>
 	/// <para>Smooths angles via a exponential moving average (EMA).</para>

@@ -2,10 +2,9 @@
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.BaseModule.Utilities.Attributes;
-using Mapbox.Utils;
 using UnityEngine;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
 	/// <summary>
 	/// The EditorLocationProvider is responsible for providing mock location and heading data

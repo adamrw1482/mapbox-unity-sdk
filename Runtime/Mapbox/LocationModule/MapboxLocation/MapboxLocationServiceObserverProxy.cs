@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Scripting;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.MapboxLocation
 {
     public class MapboxLocationServiceObserverProxy : AndroidJavaProxy
     {

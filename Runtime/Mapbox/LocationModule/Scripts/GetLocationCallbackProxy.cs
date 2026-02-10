@@ -4,7 +4,7 @@ using Mapbox.BaseModule.Utilities;
 using UnityEngine;
 using UnityEngine.Scripting;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
     public class GetLocationCallbackProxy : AndroidJavaProxy
     {

@@ -4,10 +4,9 @@ using System.Globalization;
 using System.IO;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.Utils;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Logging
+namespace Mapbox.LocationModule.Scripts.Logging
 {
 	/// <summary>
 	/// Parses location data and returns Location objects.

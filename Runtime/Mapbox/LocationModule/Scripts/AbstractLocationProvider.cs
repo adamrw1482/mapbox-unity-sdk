@@ -1,7 +1,6 @@
 ﻿using System;
-using UnityEngine;
 
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.Scripts
 {
 	public abstract class AbstractLocationProvider : ILocationProvider
 	{
