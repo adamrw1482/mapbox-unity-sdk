@@ -1,9 +1,10 @@
 using Mapbox.BaseModule.Map;
-using Mapbox.Example.Scripts.Map;
-using Mapbox.LocationModule;
+using Mapbox.BaseModule.Utilities;
+using Mapbox.LocationModule.Scripts;
 using UnityEngine;
+//using Mapbox.LocationModule.Scripts;
 
-namespace Mapbox.Example.Scripts.LocationBehaviours
+namespace Mapbox.LocationModule.Helpers
 {
     public class SnapMapToLocationProvider : MonoBehaviour
     {
@@ -12,7 +13,7 @@ namespace Mapbox.Example.Scripts.LocationBehaviours
         [SerializeField]
         private LocationProviderFactory _locationProvider;
 
-        [SerializeField] private MapboxMapBehaviour _map;
+        [SerializeField] private MapBehaviourCore _map;
         private bool _initializeStarted = false;
         
         private void Start()
