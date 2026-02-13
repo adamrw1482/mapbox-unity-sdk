@@ -1,16 +1,12 @@
 using System;
-using System.Linq;
-using Mapbox.BaseModule;
 using Mapbox.BaseModule.Data.DataFetchers;
-using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Platform.Cache.SQLiteCache;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
+using Mapbox.BaseModule.Unity.ModuleBehaviours;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.Example.Scripts.ModuleBehaviours;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
-using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using Mapbox.UnityMapService;
 using Mapbox.UnityMapService.TileProviders;
 using UnityEngine;

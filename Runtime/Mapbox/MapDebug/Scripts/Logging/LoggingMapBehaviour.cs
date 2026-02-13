@@ -4,10 +4,9 @@ using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Platform.Cache.SQLiteCache;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
+using Mapbox.BaseModule.Unity.ModuleBehaviours;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.Example.Scripts.ModuleBehaviours;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
-using Mapbox.ImageModule.Terrain.TerrainStrategies;
 #if UNITY_RECORDER && UNITY_EDITOR
 using Mapbox.MapDebug.Sequence;
 #endif
