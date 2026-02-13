@@ -95,6 +95,11 @@ namespace Mapbox.UnityMapService
 		public MapboxCacheManager GetCacheManager() => CacheManager;
 		public DataFetchingManager GetFetchingManager() => FetchingManager;
 
+		public override void ClearCachedData()
+		{
+			CacheManager.ClearCachedData();
+		}
+
 		public override void OnDestroy()
 		{
 			base.OnDestroy();
