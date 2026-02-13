@@ -5,8 +5,10 @@ using System.Linq;
 using Mapbox.BaseModule.Data.DataFetchers;
 using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Tiles;
+using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
+using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using UnityEngine;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
@@ -91,7 +93,68 @@ namespace Mapbox.ImageModule.Terrain
             isReady = _rasterSource.RetainTiles(_retainedTerrainTiles);
             return isReady;
         }
+        
+        public void UpdatePositioning(IMapInformation mapInfo)
+        {
+            
+        }
+                
+        public void OnDestroy()
+        {
+            _rasterSource.OnDestroy();
+        }
+        
+        //COROUTINE METHODS only used in initialization so far
+        #region coroutine methods
+        public virtual IEnumerator LoadTileData(CanonicalTileId tileId, Action<TerrainData> callback = null)
+        {
+            return _rasterSource.LoadTileCoroutine(tileId, callback);
+        }
 
+        public virtual IEnumerator LoadTiles(IEnumerable<CanonicalTileId> tiles)
+        {
+            yield return _rasterSource.LoadTilesCoroutine(GetDataId(tiles));
+        }
+        
+        public IEnumerable<IEnumerator> GetTileCoverCoroutines(IEnumerable<CanonicalTileId> tiles)
+        {
+            var targetTiles = GetDataId(tiles).Distinct();
+            return targetTiles.Select(x => LoadTileData(x)).Where(x => x != null);
+        }
+        #endregion
+        
+        
+        //PRIVATE METHODS
+        private bool IsZinSupportedRange(int targetZ)
+        {
+            return _settings.RejectTilesOutsideZoom.x <= targetZ && _settings.RejectTilesOutsideZoom.y >= targetZ;
+        }
+        
+        private CanonicalTileId GetDataId(CanonicalTileId tileId)
+        {
+            var maxZoom = _settings.DataSettings.ClampDataLevelToMax;
+            var currentZ = tileId.Z;
+            var targetZ = (int)Mathf.Max(currentZ - 2, _settings.RejectTilesOutsideZoom.x);
+            if (targetZ >= maxZoom)
+            {
+                return tileId.ParentAt(maxZoom);
+            }
+            else
+            {
+                return tileId.ParentAt(targetZ);;
+            }
+        }
+        
+        
+        //API
+        
+        /// <summary>
+        /// This method will only search the memory cache for available data.
+        /// </summary>
+        /// <param name="tileId">TileId of the elevation data</param>
+        /// <param name="x">Point in texture coordinate space, origin is bottom left.</param>
+        /// <param name="y">Point in texture coordinate space, origin is bottom left.</param>
+        /// <returns></returns>
         public float QueryElevation(CanonicalTileId tileId, float x, float y)
         {
             var originalTileId = tileId;
@@ -108,63 +171,43 @@ namespace Mapbox.ImageModule.Terrain
             return 0;
         }
         
-        public void UpdatePositioning(IMapInformation mapInfo)
-        {
-            
-        }
-                
-        public void OnDestroy()
-        {
-            _rasterSource.OnDestroy();
-        }
-        
-        //COROUTINE METHODS only used in initialization so far
-        #region coroutine methods
-        public virtual IEnumerator LoadTileData(CanonicalTileId tileId, Action<MapboxTileData> callback = null)
-        {
-            return _rasterSource.LoadTileCoroutine(tileId, callback);
-        }
-
-        public virtual IEnumerator LoadTiles(IEnumerable<CanonicalTileId> tiles)
-        {
-            yield return _rasterSource.LoadTilesCoroutine(GetDataId(tiles));
-        }
-        
-        public IEnumerable<IEnumerator> GetTileCoverCoroutines(IEnumerable<CanonicalTileId> tiles)
-        {
-            var targetTiles = GetDataId(tiles).Distinct();
-            return targetTiles.Select(x => _rasterSource.LoadTileCoroutine(x)).Where(x => x != null);
-        }
-        #endregion
-        
-        
-        
-        
-        //PRIVATE METHODS
-        private bool IsZinSupportedRange(int targetZ)
-        {
-            return _settings.RejectTilesOutsideZoom.x <= targetZ && _settings.RejectTilesOutsideZoom.y >= targetZ;
-        }
-        
-        private CanonicalTileId GetDataId(CanonicalTileId tileId)
-        {
-            var maxZoom = _settings.DataSettings.ClampDataLevelToMax;
-            var currentZ = tileId.Z;
-            var targetZ = currentZ - 2;
-            if (targetZ >= maxZoom)
-            {
-                return tileId.ParentAt(maxZoom);
-            }
-            else
-            {
-                return tileId.ParentAt(targetZ);;
-            }
-        }
-        
         public IEnumerable<CanonicalTileId> GetDataId(IEnumerable<CanonicalTileId> tileIdList)
         {
             return tileIdList.Where(x => IsZinSupportedRange(x.Z)).Select(GetDataId).Distinct();
         }
 
+        /// <summary>
+        /// This method will cause tile requests if data isn't already available on memory cache. Use with caution.
+        /// </summary>
+        /// <param name="latLng">Latitude longitude of the location you want to query</param>
+        /// <param name="callback">Callback method returning the elevation in float</param>
+        /// <returns></returns>
+        public IEnumerator GetElevationData(LatitudeLongitude latLng, Action<float> callback = null)
+        {
+            var tileId = Conversions.LatitudeLongitudeToTileId(latLng, 14).Canonical;
+            var dataFound = false;
+            for (int i = 14; i >= 2; i--)
+            {
+                if (_rasterSource.GetInstantData(tileId, out var instantData))
+                {
+                    var tilePos = Conversions.LatitudeLongitudeToInTile01(latLng, instantData.TileId);
+                    var elevation = instantData.QueryHeightData(tilePos);
+                    callback?.Invoke(elevation);
+                    dataFound = true;
+                    break;
+                }
+            }
+
+            if (!dataFound)
+            {
+                tileId = Conversions.LatitudeLongitudeToTileId(latLng, 14).Canonical;
+                yield return LoadTileData(tileId, terrainData =>
+                {
+                    var tilePos = Conversions.LatitudeLongitudeToInTile01(latLng, terrainData.TileId);
+                    var elevation = terrainData.QueryHeightData(tilePos);
+                    callback?.Invoke(elevation);
+                });
+            }
+        }
     }
 }
