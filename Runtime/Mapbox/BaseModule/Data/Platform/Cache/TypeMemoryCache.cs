@@ -16,7 +16,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
         
         public Action<CanonicalTileId> CacheItemDisposed = (t) => { };
         
-        private readonly int _inactiveCapacity;
+        private int _inactiveCapacity;
         
         // Active list
         private readonly Dictionary<CanonicalTileId, T> _active;
@@ -87,12 +87,14 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
         {
             if (_active.TryGetValue(tileId, out var data))
             {
+                data.Dispose();
                 _active.Remove(tileId);
                 return;
             }
 
             if (_inactiveMap.TryGetValue(tileId, out var tuple))
             {
+                tuple.Value.value.Dispose();
                 _inactiveMap.Remove(tileId);
                 _inactiveList.Remove(tuple);
                 return;
@@ -100,6 +102,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 
             if (_fallbackDatas.TryGetValue(tileId, out var fallback))
             {
+                fallback.Dispose();
                 _fallbackDatas.Remove(tileId);
             }
         }
@@ -159,6 +162,16 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
                 _fallbackDatas.Add(dataTileId, tuple.Value.value);
             }
         }
+
+        public void ClearInactive()
+        {
+            foreach (var tileData in _inactiveList)
+            {
+                tileData.value.Dispose();
+            }
+            _inactiveMap.Clear();
+            _inactiveList.Clear();
+        }
         
         public IEnumerable<T> GetAllDatas()
         {
@@ -200,6 +213,23 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
         
         public int ActiveCount => _active.Count;
         public int InactiveCount => _inactiveMap.Count;
+
+        public Dictionary<CanonicalTileId, T> GetActiveData => _active;
+        public Dictionary<CanonicalTileId, T> GetFallbackData => _fallbackDatas;
+
+        //TODO needs tests
+        public void ChangeSize(int settingsCacheSize)
+        {
+            _inactiveCapacity = settingsCacheSize;
+            if (_inactiveList.Count > _inactiveCapacity)
+            {
+                var last = _inactiveList.Last;
+                _inactiveList.RemoveLast();
+                _inactiveMap.Remove(last.Value.key);
+                CacheItemDisposed(last.Value.key);
+                last.Value.value.Dispose();
+            }
+        }
     }
     
     public interface ITypeCache

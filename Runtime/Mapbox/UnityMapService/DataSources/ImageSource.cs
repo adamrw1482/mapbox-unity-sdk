@@ -32,7 +32,7 @@ namespace Mapbox.UnityMapService.DataSources
                 CacheItemDisposed(t);
             };
         }
-
+        
         public override void LoadTile(CanonicalTileId requestedDataTileId)
         {
             LoadTileCore(requestedDataTileId);
@@ -127,7 +127,33 @@ namespace Mapbox.UnityMapService.DataSources
         {
             _memoryCache.OnDestroy();
         }
+
+        public IEnumerator ReloadTiles()
+        {
+            var coroutines = _memoryCache.GetActiveData.Select(x => RefreshData(x.Key));
+            coroutines = coroutines.Concat(_memoryCache.GetFallbackData.Select(x => RefreshData(x.Key, data =>
+            {
+                _memoryCache.MarkFallback(x.Key);
+            })));
+            yield return coroutines.WaitForAll();
+            _memoryCache.ClearInactive();
+        }
+
+        public void ChangeSettings(ImageSourceSettings settings)
+        {
+            _settings = settings;
+            _tilesetId = _settings.TilesetId;
+            _memoryCache.ChangeSize(settings.CacheSize);
+        }
         
+        public override IEnumerator ChangeTilesetId(string tilesetId)
+        {
+            _settings.TilesetId = tilesetId;
+            _tilesetId = _settings.TilesetId;
+            yield return Initialize();
+            yield return ReloadTiles();
+        }
+
         public override void OnDestroy()
         {
             base.OnDestroy();
@@ -185,6 +211,70 @@ namespace Mapbox.UnityMapService.DataSources
                         if (dataTile.CurrentTileState == TileState.Loaded)
                         {
                             resultData = TextureFromWebForCoroutine(dataTile);
+                        }
+                        working = false;
+                    });
+                    while (working)
+                    {
+                        yield return null;
+                    }
+                }
+            }
+            
+            callback?.Invoke(resultData);
+        }
+        
+        private IEnumerator RefreshData(CanonicalTileId requestedDataTileId, Action<T> callback = null)
+        {
+            T resultData = null;
+            if (_waitingList.ContainsKey(requestedDataTileId))
+            {
+                while(_waitingList.ContainsKey(requestedDataTileId))
+                {
+                    yield return null;
+                }
+                GetInstantData(requestedDataTileId, out resultData);
+            }
+            else
+            {
+                _waitingList[requestedDataTileId] = null;
+                yield return GetImageCoroutine<T>(requestedDataTileId, _tilesetId, _settings.UseNonReadableTextures,
+                    (data) =>
+                    {
+                        resultData = data;
+                        _waitingList.Remove(requestedDataTileId);
+                        
+                        if (resultData != null)
+                        {
+                            data.CacheType = CacheType.FileCache;
+                            if(_memoryCache.Exists(requestedDataTileId))
+                                _memoryCache.Remove(requestedDataTileId);
+                            _memoryCache.Add(data);
+                            CheckExpiration(data);
+                        }
+                    });
+
+                if (resultData == null)
+                {
+                    var dataTile = CreateTile(requestedDataTileId, _tilesetId);
+                    _waitingList[requestedDataTileId] = dataTile;
+                    var working = true;
+                    WebRequestData(dataTile, (fetchingResult) =>
+                    {
+                        _waitingList.Remove(requestedDataTileId);
+                        if (dataTile.CurrentTileState == TileState.Loaded)
+                        {
+                            if (dataTile.Data != null)
+                            {
+                                dataTile.ExtractTextureFromRequest();
+
+                                resultData = CreateRasterDataWrapper(dataTile);
+
+                                if(_memoryCache.Exists(requestedDataTileId))
+                                    _memoryCache.Remove(requestedDataTileId);
+                                _memoryCache.Add(resultData);
+                                SaveImage(resultData, true);
+                            }
                         }
                         working = false;
                     });

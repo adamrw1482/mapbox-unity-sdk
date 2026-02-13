@@ -90,6 +90,11 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 			
 		}
 
+		public virtual IEnumerator ChangeTilesetId(string tilesetId)
+		{
+			yield return null;
+		}
+		
 		public virtual void OnDestroy()
 		{
 			
