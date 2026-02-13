@@ -100,6 +100,11 @@ namespace Mapbox.UnityMapService
 			_cacheManager.ClearCachedData();
 		}
 
+		public override void ClearCachedData()
+		{
+			CacheManager.ClearCachedData();
+		}
+
 		public override void OnDestroy()
 		{
 			base.OnDestroy();
