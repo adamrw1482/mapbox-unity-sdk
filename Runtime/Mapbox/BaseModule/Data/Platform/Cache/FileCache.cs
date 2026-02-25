@@ -87,7 +87,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 
 		private string TileToRelativeFilePath(CanonicalTileId tileId, string tilesetId)
 		{
-			return string.Format("{0}/{1}{2}{3}.{4}", MapIdToFolderName(tilesetId), tileId.X, tileId.Y, tileId.Z, FileExtension);
+			return string.Format("{0}/{1}_{2}_{3}.{4}", MapIdToFolderName(tilesetId), tileId.X, tileId.Y, tileId.Z, FileExtension);
 		}
 		
 		public virtual bool Exists(CanonicalTileId tileId, string mapId)

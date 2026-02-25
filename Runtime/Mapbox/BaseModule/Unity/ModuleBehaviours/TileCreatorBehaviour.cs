@@ -1,12 +1,8 @@
 using System;
-using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Map;
-using Mapbox.BaseModule.Unity;
-using Mapbox.ImageModule.Terrain.Settings;
-using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using UnityEngine;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.BaseModule.Unity.ModuleBehaviours
 {
     public class TileCreatorBehaviour : MonoBehaviour
     {
