@@ -130,11 +130,19 @@ namespace Mapbox.UnityMapService.DataSources
 
         public IEnumerator ReloadTiles()
         {
-            var coroutines = _memoryCache.GetActiveData.Select(x => RefreshData(x.Key));
-            coroutines = coroutines.Concat(_memoryCache.GetFallbackData.Select(x => RefreshData(x.Key, data =>
+            // IMPORTANT: Materialize keys BEFORE starting any coroutines to avoid
+            // InvalidOperationException: Collection was modified during enumeration.
+            // RefreshData modifies the cache (Remove/Add) while WaitForAll() would be
+            // lazily enumerating the live dictionaries if we didn't snapshot them first.
+            var activeKeys = _memoryCache.GetActiveData.Keys.ToList();
+            var fallbackKeys = _memoryCache.GetFallbackData.Keys.ToList();
+
+            var coroutines = activeKeys.Select(key => RefreshData(key));
+            coroutines = coroutines.Concat(fallbackKeys.Select(key => RefreshData(key, data =>
             {
-                _memoryCache.MarkFallback(x.Key);
+                _memoryCache.MarkFallback(key);
             })));
+
             yield return coroutines.WaitForAll();
             _memoryCache.ClearInactive();
         }
