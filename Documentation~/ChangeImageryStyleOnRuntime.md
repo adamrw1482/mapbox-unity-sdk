@@ -25,4 +25,4 @@ private IEnumerator ReloadImageModule(MapboxMap map, string tilesetId)
 }
 ```
 
-This ensures the imagery source is updated and all visible tiles are refreshed immediately without requiring user interaction.``
+This ensures the imagery source is updated and all visible tiles are refreshed immediately without requiring user interaction.

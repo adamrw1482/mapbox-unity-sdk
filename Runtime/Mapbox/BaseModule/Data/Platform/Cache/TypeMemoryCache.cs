@@ -16,7 +16,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
         
         public Action<CanonicalTileId> CacheItemDisposed = (t) => { };
         
-        private int _inactiveCapacity;
+        private readonly int _inactiveCapacity;
         
         // Active list
         private readonly Dictionary<CanonicalTileId, T> _active;
