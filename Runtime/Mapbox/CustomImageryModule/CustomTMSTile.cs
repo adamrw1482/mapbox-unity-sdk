@@ -4,7 +4,7 @@ using Mapbox.BaseModule.Data.Platform;
 using Mapbox.BaseModule.Data.Tiles;
 using UnityEngine;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.CustomImageryModule
 {
     /// <summary>
     /// TMS tile in the name means Y axis is inverted in the tile ids

@@ -1,4 +1,3 @@
-using Mapbox.Example.Scripts.ModuleBehaviours;
 using UnityEditor;
 
 namespace Mapbox.CustomImageryModule.Editor

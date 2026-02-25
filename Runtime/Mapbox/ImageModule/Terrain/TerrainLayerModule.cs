@@ -196,6 +196,10 @@ namespace Mapbox.ImageModule.Terrain
                     dataFound = true;
                     break;
                 }
+                else
+                {
+                    tileId = tileId.GetParentTileId;
+                }
             }
 
             if (!dataFound)

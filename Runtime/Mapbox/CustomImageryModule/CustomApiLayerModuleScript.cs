@@ -6,7 +6,7 @@ using Mapbox.ImageModule;
 using Mapbox.UnityMapService;
 using UnityEngine;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.CustomImageryModule
 {
     public class CustomApiLayerModuleScript : ModuleConstructorScript
     {

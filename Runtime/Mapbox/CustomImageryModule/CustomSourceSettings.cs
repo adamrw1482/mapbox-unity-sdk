@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.CustomImageryModule
 {
     [Serializable]
     public class CustomSourceSettings

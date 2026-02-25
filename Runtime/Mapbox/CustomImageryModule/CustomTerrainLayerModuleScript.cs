@@ -1,15 +1,11 @@
-using System;
 using Mapbox.BaseModule.Data.Interfaces;
-using Mapbox.BaseModule.Data.Platform;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
-using Mapbox.BaseModule.Utilities;
-using Mapbox.ImageModule;
 using Mapbox.ImageModule.Terrain;
 using Mapbox.UnityMapService;
 using UnityEngine;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.CustomImageryModule
 {
     public class CustomTerrainLayerModuleScript : ModuleConstructorScript
     {

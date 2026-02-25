@@ -4,7 +4,7 @@ using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.UnityMapService.DataSources;
 
-namespace Mapbox.Example.Scripts.ModuleBehaviours
+namespace Mapbox.CustomImageryModule
 {
     public class CustomTerrainSource : TerrainSource
     {
