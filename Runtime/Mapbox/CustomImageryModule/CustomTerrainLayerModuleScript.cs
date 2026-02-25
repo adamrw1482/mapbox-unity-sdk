@@ -28,12 +28,12 @@ namespace Mapbox.CustomImageryModule
         public override ILayerModule ConstructModule(MapService service, IMapInformation mapInformation,
             UnityContext unityContext)
         {
-            Settings.DataSettings.TilesetId = "mars_elevation";
+            Settings.DataSettings.TilesetId = "CustomTerrain";
             
             var unityService = service as MapUnityService;
             var source = new CustomTerrainSource(CustomSourceSettings, unityService.FetchingManager, unityService.CacheManager, new ImageSourceSettings()
             {
-                TilesetId = "mars_elevation"
+                TilesetId = "CustomTerrain"
             });
             ModuleImplementation = new TerrainLayerModule(source, Settings);
             return ModuleImplementation;

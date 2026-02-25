@@ -62,7 +62,10 @@ namespace Mapbox.BaseModule.Map
                 }
             }
 
-            if (tile != null)
+            // Check tile and nested properties for null to prevent NullReferenceException
+            if (tile != null &&
+                tile.TerrainContainer != null &&
+                tile.TerrainContainer.TerrainData != null)
             {
                 var tilePos = Conversions.LatitudeLongitudeToInTile01(location, tile.TerrainContainer.TerrainData.TileId);
                 elevation = tile.TerrainContainer.QueryHeightData(tilePos.x, tilePos.y);

@@ -45,7 +45,6 @@ namespace Mapbox.CustomImageryModule
                 ETag = tile.ETag,
                 ExpirationDate = tile.ExpirationDate
             };
-            //_dataTileMatch.Add(rasterData, tile);
 
             return rasterData;
         }

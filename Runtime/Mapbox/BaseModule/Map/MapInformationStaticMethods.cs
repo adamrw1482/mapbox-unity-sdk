@@ -44,7 +44,6 @@ namespace Mapbox.BaseModule.Map
                 elevation = mapInfo.QueryElevation(tileId, pointPosition.x, pointPosition.y);
             }
             
-            //var scaledDeltaMercatorVector3 = scaledDeltaMercator.ToVector3xz();
             var scaledDeltaMercatorVector3 = new Vector3((float)scaledDeltaMercator.x, elevation, (float)scaledDeltaMercator.y);
             
             return scaledDeltaMercatorVector3;
