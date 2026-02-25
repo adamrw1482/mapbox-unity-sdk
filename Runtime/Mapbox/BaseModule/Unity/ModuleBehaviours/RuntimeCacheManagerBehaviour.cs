@@ -40,11 +40,11 @@ namespace Mapbox.BaseModule.Unity.ModuleBehaviours
                 {
                     if (UseCustomName)
                     {
-                        fileCache = CreateFileCache ? new FileCache(unityContext.TaskManager, CustomName) : null;
+                        fileCache = new FileCache(unityContext.TaskManager, CustomName);
                     }
                     else
                     {
-                        fileCache = CreateFileCache ? new FileCache(unityContext.TaskManager) : null;
+                        fileCache = new FileCache(unityContext.TaskManager);
                     }
                 }
                 
