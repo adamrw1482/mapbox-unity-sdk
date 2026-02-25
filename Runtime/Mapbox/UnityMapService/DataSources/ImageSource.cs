@@ -138,13 +138,6 @@ namespace Mapbox.UnityMapService.DataSources
             yield return coroutines.WaitForAll();
             _memoryCache.ClearInactive();
         }
-
-        public void ChangeSettings(ImageSourceSettings settings)
-        {
-            _settings = settings;
-            _tilesetId = _settings.TilesetId;
-            _memoryCache.ChangeSize(settings.CacheSize);
-        }
         
         public override IEnumerator ChangeTilesetId(string tilesetId)
         {

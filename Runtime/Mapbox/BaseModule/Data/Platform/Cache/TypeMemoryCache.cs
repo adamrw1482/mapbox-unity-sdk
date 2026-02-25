@@ -216,20 +216,6 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 
         public Dictionary<CanonicalTileId, T> GetActiveData => _active;
         public Dictionary<CanonicalTileId, T> GetFallbackData => _fallbackDatas;
-
-        //TODO needs tests
-        public void ChangeSize(int settingsCacheSize)
-        {
-            _inactiveCapacity = settingsCacheSize;
-            if (_inactiveList.Count > _inactiveCapacity)
-            {
-                var last = _inactiveList.Last;
-                _inactiveList.RemoveLast();
-                _inactiveMap.Remove(last.Value.key);
-                CacheItemDisposed(last.Value.key);
-                last.Value.value.Dispose();
-            }
-        }
     }
     
     public interface ITypeCache
