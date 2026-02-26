@@ -3,6 +3,7 @@ using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Platform.Cache.SQLiteCache;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
+using Mapbox.UnityMapService;
 using UnityEditor;
 using UnityEngine;
 
@@ -324,7 +325,20 @@ namespace MapboxUnitySDK.Editor
 		[MenuItem("Mapbox/Clear Caches")]
 		public static void DeleteAllCache()
 		{
-			MapboxCacheManager.DeleteAllCache();
+			if (Application.isPlaying)
+			{
+				var core = GameObject.FindObjectOfType<MapBehaviourCore>();
+				if (core == null)
+				{
+					Debug.LogError("No Map Core found");
+					return;
+				}
+				core.MapboxMap.ClearCachedData();
+			}
+			else
+			{
+				MapboxCacheManager.DeleteAllCache();	
+			}
 		}
 	}
 }

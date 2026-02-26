@@ -75,5 +75,10 @@ namespace Mapbox.BaseModule.Map
             elevation = float.MinValue;
             return false;
         }
+        
+        public static void ClearCachedData(this MapboxMap map)
+        {
+            map.MapService.ClearCachedData();
+        }
     }
 }
