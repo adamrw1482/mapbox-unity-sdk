@@ -112,7 +112,7 @@ namespace Mapbox.UnityMapService.DataSources
             {
                 terrainData = data;
             }));
-            if (terrainData != null)
+            if (terrainData != null && terrainData.Texture != null)
             {
                 yield return Runnable.Instance.StartCoroutine(ExtractElevationValues(terrainData));
             }

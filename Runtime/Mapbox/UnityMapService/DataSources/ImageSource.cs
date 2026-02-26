@@ -443,7 +443,7 @@ namespace Mapbox.UnityMapService.DataSources
             });
         }
 
-        private void CheckExpiration(T cacheItem)
+        protected virtual void CheckExpiration(T cacheItem)
         {
             var dataTask = ReadEtagExpiration(cacheItem, 4);
             if (dataTask != null) //can be null if sqlite cache isn't available

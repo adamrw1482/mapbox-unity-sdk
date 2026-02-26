@@ -194,6 +194,14 @@ namespace Mapbox.BaseModule.Map
         public bool TryGetLayerModule<T>(out T module) where T : ILayerModule
         {
             module = (T)LayerModules.FirstOrDefault(x => x is T);
+            if (module == null)
+            {
+                var composite = LayerModules.FirstOrDefault(x => x is CompositeLayerModule) as CompositeLayerModule;
+                if (composite != null)
+                {
+                    module = (T)composite.LayerModules.FirstOrDefault(x => x is T);
+                }
+            }
             return module != null;
         }
         
