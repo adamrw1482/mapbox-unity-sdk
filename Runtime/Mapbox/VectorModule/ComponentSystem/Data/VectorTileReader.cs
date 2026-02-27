@@ -17,11 +17,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
         {
             _data = data;
             _layerViews = new Dictionary<string, Vector2Int>();
-            if (null == data)
-            {
-                throw new System.Exception("Tile data cannot be null");
-            }
-            if (data.Length < 2)
+            if (data.IsEmpty)
             {
                 throw new System.Exception("Tile data cannot be empty");
             }
