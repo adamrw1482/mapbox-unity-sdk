@@ -35,7 +35,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             {
                 var key = layer.Keys[i];
                 if (key == "height") heightTagIndex = i;
-                if (key == "min_Height") minHeightTagIndex = i;
+                if (key == "min_height") minHeightTagIndex = i;
                 if (key == "extrude") extrudeTagIndex = i;
             }
 
