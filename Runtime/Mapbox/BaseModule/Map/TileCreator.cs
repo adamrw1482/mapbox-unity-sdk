@@ -28,15 +28,17 @@ namespace Mapbox.BaseModule.Map
         private int _cacheSize;
         //private FlatTerrainStrategy _flatTerrainStrategy;
         private TerrainStrategy _terrainStrategy;
-
+        private bool _instanceMaterial;
+        
         public UnityMapTile GetTile() => _tilePool.GetObject();
         public void PutTile(UnityMapTile tile) => _tilePool.Put(tile);
 
-        public TileCreator(UnityContext unityContext, Material[] tileMaterials = null, int cacheSize = 25)
+        public TileCreator(UnityContext unityContext, Material[] tileMaterials = null, int cacheSize = 25, bool instanceMaterials = true)
         {
             TileMaterials = tileMaterials;
             _unityContext = unityContext;
             _cacheSize = cacheSize;
+            _instanceMaterial = instanceMaterials;
         }
 
         public IEnumerator Initialize(TerrainStrategy terrainStrategy = null)
@@ -55,12 +57,25 @@ namespace Mapbox.BaseModule.Map
                 tile.transform.SetParent(_unityContext.BaseTileRoot, false);
             }
 
-            if (TileMaterials?.Length > 0)
+            if (TileMaterials?.Length == 1)
+            {
+                if (_instanceMaterial)
+                {
+                    tile.MeshRenderer.material = TileMaterials[0];
+                    tile.Material = tile.MeshRenderer.material;
+                }
+                else
+                {
+                    tile.MeshRenderer.sharedMaterial = TileMaterials[0];
+                    tile.Material = tile.MeshRenderer.sharedMaterial;
+                }
+            }
+            else if (TileMaterials?.Length > 1)
             {
                 tile.MeshRenderer.materials = TileMaterials;
+                tile.Material = tile.MeshRenderer.material;
             }
-
-            tile.Material = tile.MeshRenderer.material;
+            
             tile.gameObject.SetActive(false);
             _terrainStrategy?.RegisterTile(tile, false);
             tile.OnDataDisposed += OnTileBroken;

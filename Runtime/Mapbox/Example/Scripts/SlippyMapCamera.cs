@@ -32,6 +32,7 @@ namespace Mapbox.Example.Scripts.MapInput
             public bool ZoomAtCursor = true;
         }
 
+        public LatitudeLongitude CenterLatitudeLongitude;
         [Range(15, 90)]
         public float Pitch;
         [Range(-180, 180)]
@@ -114,6 +115,7 @@ namespace Mapbox.Example.Scripts.MapInput
                     Pitch = Mathf.Min(90, Mathf.Max(15, Pitch));
                     var currentBearing = deltaAngleH * Time.deltaTime * _rotationSettings.Speed;
                     Bearing += currentBearing;
+                    hasChanged = true;
                 }
             }
             else if (Input.mouseScrollDelta.magnitude > 0 && _zoomSettings.Enabled)
@@ -137,18 +139,33 @@ namespace Mapbox.Example.Scripts.MapInput
                     hasChanged = true;
                 }
             }
-			
-            mapInformation.SetInformation(Conversions.WebMercatorToLatLon(newMercatorCenter), null, Pitch, Bearing);
+
+            CenterLatitudeLongitude = Conversions.WebMercatorToLatLon(newMercatorCenter);
             _dragOrigin = cursorHit;
             _previousScreenPosition = Input.mousePosition;
 
+            if(hasChanged) SetCamPositionByMapInfo();
+            
             return hasChanged;
         }
 
         private void SetCamPositionByMapInfo()
         {
             _camera.transform.position = _targetPosition;
-            _camera.transform.rotation = Quaternion.Euler(Pitch, Bearing, 0);
+            
+            if (_rotationSettings.rotationMode == RotationMode.RotateTheCamera)
+            {
+                _camera.transform.rotation = Quaternion.Euler(Pitch, Bearing, 0);
+            }
+            else if (_rotationSettings.rotationMode == RotationMode.RotateTheMap)
+            {
+                var projectedForward = Vector3.ProjectOnPlane(_camera.transform.forward, _controlPlane.normal);
+                var verticalRotation = Quaternion.AngleAxis(Pitch-_initialPitch, projectedForward.Perpendicular());
+                var vector = Quaternion.Euler(Pitch, Bearing, 0);
+                var worldVector = _camera.transform.rotation * vector;
+                _rotationSettings.MapRoot.rotation = verticalRotation * Quaternion.Euler(0, Bearing, 0);
+            }
+            
             _camera.transform.position += _camera.transform.forward * (-1f * CameraDistance);
         }
 

@@ -33,6 +33,11 @@
             "displayName": "GeocodingApiDemo",
             "description": "Geocoding Api Demo",
             "path": "Runtime/Mapbox/GeocodingApi/Samples~/GeocodingApiDemo"
+        },
+        {
+            "displayName": "MapboxComponents",
+            "description": "Mapbox Components Demo",
+            "path": "Samples~/MapboxComponents"
         }
     ]
 }
