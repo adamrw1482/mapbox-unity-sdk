@@ -67,19 +67,12 @@ namespace Mapbox.VectorModule.ComponentSystem
 
         public override void SetActive(CanonicalTileId canonicalTileId, bool isActive, IMapInformation mapInformation)
         {
-            if (isActive)
+            if (_results.TryGetValue(canonicalTileId, out var visuals))
             {
-                if (_results.TryGetValue(canonicalTileId, out var visuals))
+                foreach (var entity in visuals)
                 {
-                    foreach (var entity in visuals)
-                    {
-                        entity.GameObject.SetActive(true);
-                    }
+                    entity.GameObject.SetActive(isActive);
                 }
-            }
-            else
-            {
-                UnregisterTile(canonicalTileId);
             }
         }
         
