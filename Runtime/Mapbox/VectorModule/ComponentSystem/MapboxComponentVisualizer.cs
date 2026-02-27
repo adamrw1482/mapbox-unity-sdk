@@ -11,10 +11,15 @@ namespace Mapbox.VectorModule.ComponentSystem
 {
     public abstract class MapboxComponentVisualizer : VectorLayerVisualizer
     {
+        public int VisualizerId => _id;
+        private static int _nextId = 0;
+        private readonly int _id;
+
         protected ObjectPool<VectorEntity> _buildingObjectPool;
         
         public MapboxComponentVisualizer(string name, IMapInformation mapInformation, UnityContext unityContext = null) : base(name, mapInformation, unityContext, null)
         {
+            _id = System.Threading.Interlocked.Increment(ref _nextId);
             _buildingObjectPool = new ObjectPool<VectorEntity>(VectorEntityGenerator, 20);
         }
         

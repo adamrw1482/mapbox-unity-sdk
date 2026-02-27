@@ -49,7 +49,7 @@ namespace Mapbox.VectorModule.ComponentSystem
                                     result.MeshData.Add(new BuildingLayerDataResult()
                                     {
                                         LayerName = visualizer.VectorLayerName,
-                                        LayerId = visualizer.GetHashCode(),
+                                        LayerId = visualizer.VisualizerId,
                                         MeshData = layerData
                                     });
                                 }
@@ -101,7 +101,7 @@ namespace Mapbox.VectorModule.ComponentSystem
                         // foreach (var vectorLayerVisualizers in _layerVisualizers
                         //              .Where(x => x.Value is MapboxComponentVisualizer && x.Key == layerData.LayerName)
                         //              .Select(x => x.Value))
-                        var visualizer = _layerVisualizers[layerData.LayerName].FirstOrDefault(x => x.GetHashCode() == layerData.LayerId);
+                        var visualizer = _layerVisualizers[layerData.LayerName].FirstOrDefault(x => ((MapboxComponentVisualizer)x).VisualizerId == layerData.LayerId);
                         if (visualizer == null)
                             continue;
                         
