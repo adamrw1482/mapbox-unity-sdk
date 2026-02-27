@@ -56,7 +56,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             GenerateRoofMesh(vertices, height);
 
             // Build walls
-            triIndex = GenerateWallMesh(vertices, normals, vertexData, triList, triIndex, startIndex, wallHeight);
+            triIndex = GenerateWallMesh(vertices, normals, vertexData, triList, triIndex, startIndex, wallHeight, height);
 
             return triIndex;
         }
@@ -78,7 +78,8 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             int[] trilist,
             int triIndex,
             int startIndex,
-            float wallHeight)
+            float wallHeight,
+            float roofHeight)
         {
             // Aliases for quicker access
             var verts     = vertexData.Vertices;
@@ -116,9 +117,9 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
                     int vertBase = (j << 2); // j * 4
 
                     // Fetch top y from roofed vertex (already raised)
-                    // Read the "roof top ring" directly from vertices[start + j]
-                    ref readonly Vector3 roofV = ref vertices[start + j];
-                    float yTop = roofV.y;
+                    // All roof vertices were raised to the same height in GenerateRoofMesh
+                    // Use the passed roofHeight directly to avoid indexing issues with multiple submeshes
+                    float yTop = roofHeight;
                     float yMin = yTop - wallHeight;
 
                     // Write quads (curr -> next, top and bottom)
