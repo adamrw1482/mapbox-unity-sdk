@@ -22,13 +22,28 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         
         public bool TryGetStyle(RoadFeatureUnity feature, out RoadStyle style)
         {
-            style = Styles.FirstOrDefault(x => x.Filters.Try(feature));
-            return style != null;
+            for (int i = 0; i < Styles.Count; i++)
+            {
+                if (Styles[i].Filters.Try(feature))
+                {
+                    style = Styles[i];
+                    return true;
+                }
+            }
+            style = null;
+            return false;
         }
 
         public bool Contains(RoadFeatureUnity feature)
         {
-            return Styles.Any(x => x.Filters.Try(feature));
+            for (int i = 0; i < Styles.Count; i++)
+            {
+                if (Styles[i].Filters.Try(feature))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
