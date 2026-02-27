@@ -239,6 +239,9 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                 }
             }
 
+            // Discard features with missing/malformed geometry
+            if (feature.GeometryCommands == null) return null;
+
             feature.SetProperties(ref layer, ref heightTagIndex, ref minHeightTagIndex, ref extrudeTagIndex);
             feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
             return feature;
