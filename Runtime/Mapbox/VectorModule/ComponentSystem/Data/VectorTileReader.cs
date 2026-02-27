@@ -21,7 +21,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
             {
                 throw new System.Exception("Tile data cannot be null");
             }
-            if (data.Length < 1)
+            if (data.Length < 2)
             {
                 throw new System.Exception("Tile data cannot be empty");
             }
