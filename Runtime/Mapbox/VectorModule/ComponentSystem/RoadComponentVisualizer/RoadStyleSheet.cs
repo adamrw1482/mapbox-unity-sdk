@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using Codice.CM.Common.Matcher;
-using Mapbox.BaseModule.Utilities;
-using Mapbox.VectorModule.Filters;
-using Mapbox.VectorModule.MeshGeneration.Unity;
 using UnityEngine;
 
 namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
