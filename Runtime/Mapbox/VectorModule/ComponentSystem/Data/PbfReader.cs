@@ -107,6 +107,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
             {
                 values[i++] = ((uint)Varint());
             }
+            Array.Resize(ref values, i);
             return values;
         }
 		
@@ -120,6 +121,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
             {
                 values[i++] = ((int)Varint());
             }
+            Array.Resize(ref values, i);
             return values;
         }
 
