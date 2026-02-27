@@ -18,6 +18,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
         public void SetProperties(ref VectorTileLayer layer, ref int classTagIndex, ref int typeTagIndex, ref int structureTagIndex)
             {
+                if (Tags == null) return; // Some features have no tags
+
                 var tagCount = Tags.Length;
                 //some features have odd number of tags
                 //not sure if it's a bug or data issue

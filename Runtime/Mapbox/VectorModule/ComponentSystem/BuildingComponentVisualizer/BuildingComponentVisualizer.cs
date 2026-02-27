@@ -257,6 +257,8 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
             public void SetProperties(ref VectorTileLayer layer, ref int heightTagIndex, ref int minHeightTagIndex, ref int extrudeTagIndex)
             {
+                if (Tags == null) return; // Some features have no tags
+
                 var tagCount = Tags.Length;
                 
                 for (int i = 0; i < tagCount; i += 2)
