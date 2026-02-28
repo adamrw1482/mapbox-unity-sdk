@@ -5,7 +5,6 @@ namespace Mapbox.LocationModule.MapboxLocation
 {
     public class MapboxLocationProvider : AbstractLocationProvider
     {
-        public event Action<Location> LocationUpdated;
         public event Action<MapboxLocationServiceStatus> AuthorizationChanged;
         public event Action<AccuracyAuthorization> AccuracyAuthorizationChanged;
         public event Action<bool> AvailabilityChanged;
