@@ -101,7 +101,16 @@ namespace Mapbox.VectorModule.ComponentSystem
                         // foreach (var vectorLayerVisualizers in _layerVisualizers
                         //              .Where(x => x.Value is MapboxComponentVisualizer && x.Key == layerData.LayerName)
                         //              .Select(x => x.Value))
-                        var visualizer = _layerVisualizers[layerData.LayerName].FirstOrDefault(x => ((MapboxComponentVisualizer)x).VisualizerId == layerData.LayerId);
+                        IVectorLayerVisualizer visualizer = null;
+                        var visualizers = _layerVisualizers[layerData.LayerName];
+                        for (int i = 0; i < visualizers.Count; i++)
+                        {
+                            if (((MapboxComponentVisualizer)visualizers[i]).VisualizerId == layerData.LayerId)
+                            {
+                                visualizer = visualizers[i];
+                                break;
+                            }
+                        }
                         if (visualizer == null)
                             continue;
                         
