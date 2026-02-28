@@ -22,16 +22,19 @@ namespace Mapbox.LocationModule.MapboxLocation
             _mapboxDeviceLocation = new MapboxLocationAndroid(Settings);
 #endif
 
-            _mapboxDeviceLocation.LocationUpdated += (s) =>
+            if (_mapboxDeviceLocation != null)
             {
-                _currentLocation = s;
-                SendLocation(s);
-            };
-            _mapboxDeviceLocation.AvailabilityChanged += AvailabilityChanged;
-            _mapboxDeviceLocation.AuthorizationChanged += AuthorizationChanged;
-            _mapboxDeviceLocation.AccuracyAuthorizationChanged += AccuracyAuthorizationChanged;
+                _mapboxDeviceLocation.LocationUpdated += (s) =>
+                {
+                    _currentLocation = s;
+                    SendLocation(s);
+                };
+                _mapboxDeviceLocation.AvailabilityChanged += AvailabilityChanged;
+                _mapboxDeviceLocation.AuthorizationChanged += AuthorizationChanged;
+                _mapboxDeviceLocation.AccuracyAuthorizationChanged += AccuracyAuthorizationChanged;
 
-            _mapboxDeviceLocation.Initialize();
+                _mapboxDeviceLocation.Initialize();
+            }
         }
 
         public override void Update()
