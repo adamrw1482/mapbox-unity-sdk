@@ -91,7 +91,6 @@ namespace Mapbox.LocationModule.Scripts.Logging
 					location.IsLocationUpdated.ToString(),
 					location.IsUserHeadingUpdated.ToString(),
 					location.Provider,
-					LocationProviderFactory.Instance.DefaultLocationProvider.GetType().Name,
 					DateTime.UtcNow.ToString("yyyyMMdd-HHmmss.fff"),
 					UnixTimestampUtils.From(location.Timestamp).ToString("yyyyMMdd-HHmmss.fff"),
 					string.Format(_invariantCulture, "{0:0.00000000}", location.LatitudeLongitude.Latitude),
