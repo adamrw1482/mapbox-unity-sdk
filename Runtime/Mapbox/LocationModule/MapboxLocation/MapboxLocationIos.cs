@@ -6,7 +6,7 @@ using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
 
 #if UNITY_IOS
-namespace Mapbox.LocationModule
+namespace Mapbox.LocationModule.MapboxLocation
 {
     public class MapboxLocationIos : IMapboxDeviceLocation
     {
