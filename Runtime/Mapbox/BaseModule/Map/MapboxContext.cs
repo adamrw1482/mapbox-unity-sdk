@@ -18,11 +18,16 @@ namespace Mapbox.BaseModule.Map
 
         public MapboxContext()
         {
+            // Fast-path configuration loading for editor/offline use.
+            // WARNING: Token validation is fire-and-forget here - Configuration is set immediately
+            // without waiting for validation. For proper token validation, call Initialize() instead.
             LoadConfiguration();
         }
 
         public IEnumerator Initialize()
         {
+            // Proper initialization path: waits for token validation before setting Configuration.
+            // Use this in production to ensure token is valid before proceeding.
             yield return LoadConfigurationCoroutine();
         }
 
@@ -44,6 +49,11 @@ namespace Mapbox.BaseModule.Map
             return _mapboxToken.Status;
         }
         
+        /// <summary>
+        /// Synchronous configuration loading (editor/offline fast-path).
+        /// Sets Configuration immediately without waiting for token validation.
+        /// Token validation happens asynchronously in background.
+        /// </summary>
         private void LoadConfiguration()
         {
             TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
@@ -70,9 +80,15 @@ namespace Mapbox.BaseModule.Map
                 }
             });
 
+            // WARNING: Configuration set before token validation completes
             Configuration = config;
         }
         
+        /// <summary>
+        /// Coroutine-based configuration loading (production path).
+        /// Waits for token validation to complete before setting Configuration.
+        /// Only sets Configuration if token is valid.
+        /// </summary>
         private IEnumerator LoadConfigurationCoroutine()
         {
             TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
@@ -96,12 +112,14 @@ namespace Mapbox.BaseModule.Map
                 }
                 else
                 {
+                    // Only set Configuration if token is valid
                     Configuration = config;
                     ConfigureTelemetry();
                 }
                 configLoaded = true;
             });
 
+            // Wait for token validation to complete
             while (!configLoaded)
             {
                 yield return null;

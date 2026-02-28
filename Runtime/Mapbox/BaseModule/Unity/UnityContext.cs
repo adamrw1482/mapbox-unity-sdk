@@ -65,7 +65,8 @@ namespace Mapbox.BaseModule.Unity
     {
         Waiting,
         Granted,
-        Denied
+        Denied,
+        DeniedPermanently
     }
 
     public class LocationPermissionHandler
@@ -176,8 +177,8 @@ namespace Mapbox.BaseModule.Unity
 
         private void OnPermissionDeniedPermanently()
         {
-            State = LocationPermissionState.Denied;
-            Debug.Log("Location permission denied");
+            State = LocationPermissionState.DeniedPermanently;
+            Debug.LogWarning("Location permission denied permanently. User must enable location in system settings.");
         }
     }
 }
