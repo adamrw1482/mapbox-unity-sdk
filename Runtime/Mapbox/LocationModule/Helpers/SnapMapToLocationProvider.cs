@@ -18,14 +18,19 @@ namespace Mapbox.LocationModule.Helpers
         
         private void Start()
         {
-        
             if(_locationProvider == null)
-                Debug.Log("_locationProvider null");
-        
+            {
+                Debug.LogError("SnapMapToLocationProvider: _locationProvider is null. Component will not function.", this);
+                return;
+            }
+
             if(_locationProvider.DefaultLocationProvider == null)
-                Debug.Log("DefaultLocationProvider null");
-        
-            if(!enabled || _locationProvider == null || _locationProvider.DefaultLocationProvider == null)
+            {
+                Debug.LogError("SnapMapToLocationProvider: DefaultLocationProvider is null. Component will not function.", this);
+                return;
+            }
+
+            if(!enabled)
                 return;
         
             UnityEngine.Input.location.Start();
