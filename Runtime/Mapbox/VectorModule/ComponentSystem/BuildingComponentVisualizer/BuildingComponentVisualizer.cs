@@ -158,6 +158,10 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                 //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
             }
 
+            if (triIndex < triList.Length)
+            {
+                Array.Resize(ref triList, triIndex);
+            }
             meshData.Triangles.Add(triList);
             return meshData;
         }
