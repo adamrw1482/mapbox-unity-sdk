@@ -67,18 +67,28 @@ namespace Mapbox.LocationModule
         /// <summary>minimum needed distance between oldest and newest position before UserHeading is calculated</summary>
         private double _minDistanceOldestNewestPosition = 1.5;
 
-        private readonly UnityLocationProviderSettings _unityLocationProviderSettings =
-            new UnityLocationProviderSettings();
+        private readonly UnityLocationProviderSettings _unityLocationProviderSettings = new UnityLocationProviderSettings();
 
         private const string FineLocation = Permission.FineLocation;
 
         public UnityLocationProviderSettings UnityLocationProviderSettings => _unityLocationProviderSettings;
 
+        /// <summary>
+        /// Constructor for production use - uses Unity's real location service.
+        /// </summary>
         [Preserve]
-        public UnityLocationProvider(UnityLocationProviderSettings settings)
+        public UnityLocationProvider(UnityLocationProviderSettings settings) : this(settings, new MapboxLocationServiceUnityWrapper())
+        {
+        }
+
+        /// <summary>
+        /// Constructor for testing - accepts mock location service.
+        /// Use MapboxLocationServiceMock to replay location logs for testing.
+        /// </summary>
+        public UnityLocationProvider(UnityLocationProviderSettings settings, IMapboxLocationService locationService)
         {
             _unityLocationProviderSettings = settings;
-            _locationService = new MapboxLocationServiceUnityWrapper();
+            _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
             //HandlePermission();
 
             _currentLocation.Provider = "unity";
