@@ -106,6 +106,8 @@ namespace Mapbox.VectorModule.ComponentSystem
                             continue;
                         
                         var layerVisualizer = (MapboxComponentVisualizer)visualizer;
+                        if (layerData.MeshData == null)
+                            continue;
                         var layerGameObjects = layerVisualizer.CreateGo(data.TileId, layerData.MeshData);
                         foreach (var gameObject in layerGameObjects)
                         {
