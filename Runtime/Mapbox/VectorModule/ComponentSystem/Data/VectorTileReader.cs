@@ -130,7 +130,8 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
                                     break;
                                 case ValueType.SInt:
                                     long s64 = valReader.Varint();
-                                    layer.Values.Add(s64);
+                                    long decoded = (long)((ulong)s64 >> 1) ^ -(s64 & 1);
+                                    layer.Values.Add(decoded);
                                     break;
                                 case ValueType.Bool:
                                     long b = valReader.Varint();
