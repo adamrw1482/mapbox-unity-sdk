@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Mapbox.LocationModule.Scripts
 {
 	/// <summary>
-	/// Singleton factory to allow easy access to various LocationProviders.
+	/// Factory to provide access to various LocationProviders.
 	/// This is meant to be attached to a game object.
 	/// </summary>
 	public sealed class LocationProviderFactory : MonoBehaviour
@@ -30,12 +30,6 @@ namespace Mapbox.LocationModule.Scripts
 		[SerializeField]
 		bool _dontDestroyOnLoad;
 
-
-		/// <summary>
-		/// The singleton instance of this factory.
-		/// </summary>
-		public static LocationProviderFactory Instance { get; private set; }
-
 		/// <summary>
 		/// The default location provider. 
 		/// Outside of the editor, this will be a <see cref="T:LocationModule.UnityLocationProvider"/>.
@@ -44,17 +38,10 @@ namespace Mapbox.LocationModule.Scripts
 		public ILocationProvider DefaultLocationProvider { get; set; }
 		
 		/// <summary>
-		/// Create singleton instance and inject the DefaultLocationProvider upon initialization of this component. 
+		/// Initialize and inject the DefaultLocationProvider.
 		/// </summary>
 		public IEnumerator Initialize()
 		{
-			if (Instance != null)
-			{
-				DestroyImmediate(gameObject);
-				yield break;
-			}
-			Instance = this;
-
 			if (_dontDestroyOnLoad)
 			{
 				DontDestroyOnLoad(gameObject);
