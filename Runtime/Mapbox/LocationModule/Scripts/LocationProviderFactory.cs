@@ -88,14 +88,19 @@ namespace Mapbox.LocationModule.Scripts
 				if (Input.location.status != LocationServiceStatus.Running)
 				{
 					Input.location.Start();
-					
+
 					while (Input.location.status < LocationServiceStatus.Running)
 						yield return null;
 				}
-				
+
+				// Wait for first location update with timeout (10 seconds)
+				float timeout = 10f;
+				float elapsed = 0f;
 				while (DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Latitude == 0 &&
-				       DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Longitude == 0)
+				       DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Longitude == 0 &&
+				       elapsed < timeout)
 				{
+					elapsed += UnityEngine.Time.deltaTime;
 					yield return null;
 				}
 			}
