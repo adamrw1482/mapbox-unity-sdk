@@ -54,22 +54,10 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             var scaledOffset = (_settings.OffsetInMeters / tileSizeX) / scale;
             
             height = (height / scale) / tileSizeX;
-            minHeight   = (minHeight > 0) 
+            minHeight   = (minHeight > 0)
                 ? (minHeight / scale) / tileSizeX
                 : 0;
-            
-            var max = 0f;
-            var min = 0f;
-            // for (int i = 0; i < vertices.Length; i++)
-            // {
-            //     if (vertices[i].y > max)
-            //         max = vertices[i].y;
-            //     else if (vertices[i].y < min)
-            //         min = vertices[i].y;
-            // }
-            // will need something like this for flat rooftops, which is disabled at the moment
-            height = max + height;
-            
+
             triIndex = Chamfer(vertices, normals, vertexData, triList, triIndex, minHeight, height, scaledOffset);
             return triIndex;
         }

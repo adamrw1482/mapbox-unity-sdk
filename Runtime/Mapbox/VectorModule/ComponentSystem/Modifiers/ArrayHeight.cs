@@ -36,21 +36,11 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
 
             // Convert heights to local (tile) units once
             height = (height / scale) / tileSizeX;
-            float minH   = (minHeight > 0) 
+            float minH   = (minHeight > 0)
                 ? (minHeight / scale) / tileSizeX
                 : 0;
-            
-            // Determine current max Y among provided vertices (top ring)
-            float maxY = 0f;
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                if (vertices[i].y > maxY)
-                {
-                    maxY = vertices[i].y;
-                }
-            }
-            height = maxY + height;
-            float wallHeight = height - (maxY + minH);
+
+            float wallHeight = height - minH;
             
             // Raise the roof (top ring/verts in-span)
             GenerateRoofMesh(vertices, height);
