@@ -99,30 +99,26 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
         /// <returns>List of decoded `uint`s</returns>
         public uint[] GetPackedUnit32()
         {
+            List<uint> values = new List<uint>(32);
             var sizeInByte = Varint();
-            var values = new uint[((int)sizeInByte)];
             var end = _pos + sizeInByte;
-            var i = 0;
             while (_pos < end)
             {
-                values[i++] = ((uint)Varint());
+                values.Add((uint)Varint());
             }
-            Array.Resize(ref values, i);
-            return values;
+            return values.ToArray();
         }
 		
         public int[] GetPackedInt()
         {
+            List<int> values = new List<int>(32);
             var sizeInByte = Varint();
-            var values = new int[((int)sizeInByte)];
             var end = _pos + sizeInByte;
-            var i = 0;
             while (_pos < end)
             {
-                values[i++] = ((int)Varint());
+                values.Add((int)Varint());
             }
-            Array.Resize(ref values, i);
-            return values;
+            return values.ToArray();
         }
 
 
