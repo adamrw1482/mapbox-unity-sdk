@@ -16,12 +16,15 @@ namespace Mapbox.BaseModule.Map
         private MapboxToken _mapboxToken;
         private string _tokenNotSetErrorMessage = "No configuration file found! Configure your access token from the Mapbox > Setup menu.";
 
-        public MapboxContext()
+        public MapboxContext(bool loadConfig = true)
         {
             // Fast-path configuration loading for editor/offline use.
             // WARNING: Token validation is fire-and-forget here - Configuration is set immediately
             // without waiting for validation. For proper token validation, call Initialize() instead.
-            LoadConfiguration();
+            if (loadConfig)
+            {
+                LoadConfiguration();
+            }
         }
 
         public IEnumerator Initialize()

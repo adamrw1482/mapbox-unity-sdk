@@ -66,7 +66,7 @@ namespace Mapbox.Example.Scripts.Map
                 Debug.Log("Location permission is " + UnityContext.LocationPermissionState);
             }
             
-            var mapboxContext = new MapboxContext();
+            var mapboxContext = new MapboxContext(false);
             yield return mapboxContext.Initialize();
             _mapService = GetMapService(mapboxContext, UnityContext);
             MapServiceReady(_mapService);
