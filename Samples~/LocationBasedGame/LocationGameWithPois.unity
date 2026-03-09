@@ -1610,6 +1610,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1316629400}
   - component: {fileID: 1316629399}
+  - component: {fileID: 1316629405}
   - component: {fileID: 1316629404}
   - component: {fileID: 1316629402}
   m_Layer: 0
@@ -1642,10 +1643,11 @@ MonoBehaviour:
     MapRoot: {fileID: 1316629400}
     BaseTileRoot: {fileID: 0}
     RuntimeGenerationRoot: {fileID: 0}
-  _tileCreatorBehaviour: {fileID: 0}
+  _tileCreatorBehaviour: {fileID: 1316629405}
   TileProvider: {fileID: 8067237297740704311}
   DataFetcher: {fileID: 0}
   CacheManager: {fileID: 0}
+  LocationFactory: {fileID: 525849128}
   InitializeOnStart: 1
 --- !u!4 &1316629400
 Transform:
@@ -1707,6 +1709,21 @@ MonoBehaviour:
       CacheSize: 100
       ClampDataLevelToMax: 25
     RejectTilesOutsideZoom: {x: 2, y: 25}
+--- !u!114 &1316629405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316629397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fa13573d971f40649081b02ffc8366c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  TileMaterials:
+  - {fileID: 2100000, guid: a6a681001a245ce4089aea4634eee2b8, type: 2}
+  CacheSize: 25
 --- !u!1 &1326738087
 GameObject:
   m_ObjectHideFlags: 0

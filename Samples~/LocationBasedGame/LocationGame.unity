@@ -1643,10 +1643,11 @@ MonoBehaviour:
     MapRoot: {fileID: 1316629400}
     BaseTileRoot: {fileID: 0}
     RuntimeGenerationRoot: {fileID: 0}
-  _tileCreatorBehaviour: {fileID: 0}
+  _tileCreatorBehaviour: {fileID: 1377339556045437849}
   TileProvider: {fileID: 8067237297740704311}
   DataFetcher: {fileID: 0}
   CacheManager: {fileID: 0}
+  LocationFactory: {fileID: 525849128}
   InitializeOnStart: 1
 --- !u!4 &1316629400
 Transform:
