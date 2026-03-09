@@ -83,6 +83,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
             var triList = new int[poolSize];
             var triIndex = 0;
             var baseTriIndex = 0;
+            var retryCount = 0;
             for (int i = 0; i < featureCount; i++)
             {
                 var featureResult = featureArray[i];
@@ -110,10 +111,16 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                     baseTriIndex += triList.Length;
                     triList = new int[poolSize];
                     triIndex = 0;
-                    i--;
-                    //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
+                    if (retryCount++ < 1)
+                    {
+                        i--;
+                        continue;
+                    }
+                    // Degenerate feature — skip it
+                    retryCount = 0;
                     continue;
                 }
+                retryCount = 0;
 
                 if (_buildingSettings.EnableTerrainSnapping)
                 {
@@ -132,8 +139,13 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
                     baseTriIndex += triList.Length;
                     triList = new int[triSpaceRequired + triIndex + 3];
                     triIndex = 0;
-                    i--;
-                    //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
+                    if (retryCount++ < 1)
+                    {
+                        i--;
+                        continue;
+                    }
+                    // Feature requires more space than expected — skip it
+                    retryCount = 0;
                     continue;
                 }
                 else

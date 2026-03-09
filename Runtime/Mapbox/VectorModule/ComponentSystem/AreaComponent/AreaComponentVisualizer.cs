@@ -70,6 +70,7 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             }
 
             AreaStyle style = null;
+            var retryCount = 0;
             for (int i = 0; i < featureCount; i++)
             {
                 var featureResult = featureArray[i];
@@ -108,9 +109,16 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                     triangles[si] = new int[poolSize];
                     baseTriIndices[si] += triList.Length;
                     triIndices[si] = 0;
-                    i--;
+                    if (retryCount++ < 1)
+                    {
+                        i--;
+                        continue;
+                    }
+                    // Degenerate feature — skip it
+                    retryCount = 0;
                     continue;
                 }
+                retryCount = 0;
 
                 info.triRanges[i] = baseTriIndices[si] + triIndices[si];
             }
