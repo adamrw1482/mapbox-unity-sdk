@@ -109,12 +109,14 @@ namespace Mapbox.BaseModule.Unity
 			if (waitTime <= 0)
 			{
 				Debug.LogWarning("Location service init timeout");
+				OnPermissionDenied();
 				yield break;
 			}
 
 			if (Input.location.status == LocationServiceStatus.Failed)
 			{
 				Debug.LogWarning("Location service failed (likely denied)");
+				OnPermissionDenied();
 				yield break;
 			}
 
