@@ -268,7 +268,7 @@ namespace Mapbox.VectorModule.ComponentSystem.BuildingComponentVisualizer
 
                 var tagCount = Tags.Length;
                 
-                for (int i = 0; i < tagCount; i += 2)
+                for (int i = 0; i < tagCount - 1; i += 2)
                 {
                     if (heightTagIndex != -1 && Tags[i] == heightTagIndex)
                     {
