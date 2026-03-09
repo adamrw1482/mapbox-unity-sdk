@@ -60,13 +60,14 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             var meshData = new MeshData(info, info.TotalPointCount);
 
             var poolSize = 10002;
+            var styleCount = _settings.StyleDictionary.Count;
             var triangles = new List<int[]>();
-            for (var i = 0; i < _settings.StyleDictionary.Count; i++)
+            var triIndices = new int[styleCount];
+            var baseTriIndices = new int[styleCount];
+            for (var i = 0; i < styleCount; i++)
             {
                 triangles.Add(new int[poolSize]);
             }
-            var triIndex = 0;
-            var baseTriIndex = 0;
 
             AreaStyle style = null;
             for (int i = 0; i < featureCount; i++)
@@ -74,10 +75,9 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                 var featureResult = featureArray[i];
                 if (featureResult == null)
                 {
-                    //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
                     continue;
                 }
-                
+
                 if (_settings.LayerName == "water")
                 {
                     style = _settings.Styles[0];
@@ -87,33 +87,32 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
                     continue;
                 }
 
-                var featurePreTriIndex = triIndex;
+                var si = style.Index;
+                var featurePreTriIndex = triIndices[si];
 
                 var vertices = meshData.Vertices.AsSpan(meshData.MeshInfo.vertexRanges[i], meshData.MeshInfo.vertexSize[i]);
                 var normals = meshData.Normals.AsSpan(meshData.MeshInfo.vertexRanges[i], meshData.MeshInfo.vertexSize[i]);
                 var vertexAnchorIndex = meshData.MeshInfo.vertexRanges[i];
 
-                var triList = triangles[style.Index];
-                triIndex = arrayPolygon.Polygonize(vertices, normals, vertexAnchorIndex, triList, triIndex, featureResult.VertexData, style.PushUp);
-                if (triIndex == -1)
+                var triList = triangles[si];
+                triIndices[si] = arrayPolygon.Polygonize(vertices, normals, vertexAnchorIndex, triList, triIndices[si], featureResult.VertexData, style.PushUp);
+                if (triIndices[si] == -1)
                 {
                     for (int j = featurePreTriIndex; j < triList.Length; j++)
                     {
                         triList[j] = 0;
                     }
-                    
+
                     meshData.Triangles.Add(triList);
                     meshData.Materials.Add(style.Material);
-                    triangles[style.Index] = new int[poolSize];
-                    baseTriIndex += triList.Length;
-                    triIndex = 0;
+                    triangles[si] = new int[poolSize];
+                    baseTriIndices[si] += triList.Length;
+                    triIndices[si] = 0;
                     i--;
-                    //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
                     continue;
                 }
-                
-                info.triRanges[i] = baseTriIndex + triIndex;
-                //ArrayPool<Vector3>.Shared.Return(featureResult.VertexData.Vertices);
+
+                info.triRanges[i] = baseTriIndices[si] + triIndices[si];
             }
 
             for (var i = 0; i < triangles.Count; i++)
