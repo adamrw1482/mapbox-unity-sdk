@@ -83,8 +83,7 @@ namespace Mapbox.LocationModule.Scripts
 				// Wait for first location update with timeout (10 seconds)
 				float timeout = 10f;
 				float elapsed = 0f;
-				while (DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Latitude == 0 &&
-				       DefaultLocationProvider.CurrentLocation.LatitudeLongitude.Longitude == 0 &&
+				while (!DefaultLocationProvider.HasReceivedFirstFix &&
 				       elapsed < timeout)
 				{
 					elapsed += UnityEngine.Time.deltaTime;

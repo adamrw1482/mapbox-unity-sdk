@@ -9,6 +9,7 @@ namespace Mapbox.LocationModule.Scripts
 	{
 		event Action<Location> OnLocationUpdated;
 		Location CurrentLocation { get; }
+		bool HasReceivedFirstFix { get; }
 
 		void Update();
 		void OnDestroy();

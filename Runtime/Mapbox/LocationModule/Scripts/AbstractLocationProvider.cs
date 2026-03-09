@@ -18,10 +18,17 @@ namespace Mapbox.LocationModule.Scripts
 			}
 		}
 
+		/// <summary>
+		/// Has at least one location update been received from the provider?
+		/// Set once and never reset.
+		/// </summary>
+		public bool HasReceivedFirstFix { get; protected set; }
+
 		public event Action<Location> OnLocationUpdated = delegate { };
 
 		protected virtual void SendLocation(Location location)
 		{
+			HasReceivedFirstFix = true;
 			OnLocationUpdated(location);
 		}
 

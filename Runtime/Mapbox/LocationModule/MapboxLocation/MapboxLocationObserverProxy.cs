@@ -82,6 +82,8 @@ namespace Mapbox.LocationModule.MapboxLocation
                     {
                         LatitudeLongitude = new LatitudeLongitude(lat, lon),
                         TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow),
+                        IsLocationUpdated = true,
+                        IsLocationServiceEnabled = true,
                         //Altitude = altitude,
                         //SpeedMetersPerSecond = speed,
                         //Bearing = bearing

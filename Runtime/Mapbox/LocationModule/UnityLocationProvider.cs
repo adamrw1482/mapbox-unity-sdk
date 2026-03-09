@@ -140,7 +140,6 @@ namespace Mapbox.LocationModule
                     || timestamp > _lastLocationTimestamp;
 
                 _currentLocation.IsUserHeadingUpdated = false;
-                _currentLocation.IsLocationUpdated = false;
 
                 if (!_currentLocation.IsLocationServiceEnabled)
                 {
@@ -152,7 +151,7 @@ namespace Mapbox.LocationModule
                 UnityLocationProviderSettings.DeviceOrientationSmoothing.Add(Input.compass.trueHeading);
                 _currentLocation.DeviceOrientation =
                     (float)UnityLocationProviderSettings.DeviceOrientationSmoothing.Calculate();
-                
+
                 double latitude = lastData.latitude;
                 double longitude = lastData.longitude;
                 Vector2d previousLocation = new Vector2d(_currentLocation.LatitudeLongitude.Latitude, _currentLocation.LatitudeLongitude.Longitude);
@@ -161,11 +160,15 @@ namespace Mapbox.LocationModule
                 _currentLocation.Accuracy = (float)Math.Floor(lastData.horizontalAccuracy);
                 // sometimes Unity's timestamp doesn't seem to get updated, or even jump back in time
                 // do an additional check if location has changed
-                _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
+                bool locationChanged = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
+                if (locationChanged)
+                {
+                    _currentLocation.IsLocationUpdated = true;
+                }
                 _currentLocation.Timestamp = timestamp;
                 _lastLocationTimestamp = timestamp;
 
-                if (_currentLocation.IsLocationUpdated)
+                if (locationChanged)
                 {
                     if (_lastPositions.Count > 0)
                     {
