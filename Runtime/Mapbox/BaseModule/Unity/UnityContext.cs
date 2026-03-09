@@ -157,7 +157,7 @@ namespace Mapbox.BaseModule.Unity
             Permission.RequestUserPermission(Permission.FineLocation, callbacks);
 
             float elapsed = 0f;
-            const float timeout = 15f;
+            const float timeout = 60f;
             while (!permissionDone)
             {
                 elapsed += Time.unscaledDeltaTime;
