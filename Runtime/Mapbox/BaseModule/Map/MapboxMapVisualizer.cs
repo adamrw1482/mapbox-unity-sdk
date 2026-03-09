@@ -24,6 +24,7 @@ namespace Mapbox.BaseModule.Map
         protected ITileCreator _tileCreator;
 
         private HashSet<UnwrappedTileId> _toRemove;
+        private HashSet<CanonicalTileId> _retainedTiles;
 
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
@@ -47,6 +48,7 @@ namespace Mapbox.BaseModule.Map
             _mapInformation.LatitudeLongitudeChanged += RepositionAllTiles;
 
             _toRemove = new HashSet<UnwrappedTileId>();
+            _retainedTiles = new HashSet<CanonicalTileId>();
 
             Runnable.Instance.StartCoroutine(InternalUpdate());
         }
@@ -148,9 +150,14 @@ namespace Mapbox.BaseModule.Map
                 }
             }
 
+            _retainedTiles.Clear();
+            foreach (var tile in tileCover.Tiles)
+            {
+                _retainedTiles.Add(tile.Canonical);
+            }
             foreach (var visualization in LayerModules)
             {
-                visualization.RetainTiles(new HashSet<CanonicalTileId>(tileCover.Tiles.Select(x => x.Canonical)));
+                visualization.RetainTiles(_retainedTiles);
             }
         }
 
