@@ -155,9 +155,18 @@ namespace Mapbox.BaseModule.Unity
                 }
             };
             Permission.RequestUserPermission(Permission.FineLocation, callbacks);
-			
+
+            float elapsed = 0f;
+            const float timeout = 15f;
             while (!permissionDone)
             {
+                elapsed += Time.unscaledDeltaTime;
+                if (elapsed >= timeout)
+                {
+                    Debug.LogWarning("Location permission request timed out — no callback received.");
+                    OnPermissionDenied();
+                    yield break;
+                }
                 yield return null;
             }
         }
