@@ -37,9 +37,9 @@ namespace Mapbox.VectorModule.ComponentSystem
         {
             if (_results.TryGetValue(canonicalTileId, out var visuals))
             {
+                _mapInformation.PositionObjectFor(canonicalTileId, out var position, out var scale);
                 foreach (var entity in visuals)
                 {
-                    _mapInformation.PositionObjectFor(canonicalTileId, out var position, out var scale);
                     entity.GameObject.transform.localPosition = position;
                     entity.GameObject.transform.localScale = scale;
                 }
