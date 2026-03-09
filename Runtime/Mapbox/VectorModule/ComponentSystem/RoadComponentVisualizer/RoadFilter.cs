@@ -24,7 +24,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
         public string FilterString;
         public bool Invert;
-        private HashSet<string> _types;
+        private HashSet<string> _types = new HashSet<string>();
         
         public override void Initialize()
         {
@@ -62,7 +62,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
         public string FilterString;
         public bool Invert;
-        private HashSet<string> _types;
+        private HashSet<string> _types = new HashSet<string>();
         
         public override void Initialize()
         {
@@ -100,7 +100,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public StringCheckOperation CheckOperation = StringCheckOperation.Equals;
         public string FilterString;
         public bool Invert;
-        private HashSet<string> _types;
+        private HashSet<string> _types = new HashSet<string>();
         
         public override void Initialize()
         {
