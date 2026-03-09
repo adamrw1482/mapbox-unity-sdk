@@ -51,6 +51,11 @@ namespace Mapbox.VectorModule.ComponentSystem.Data
                             layerView.Skip();
                         }
                     }
+                    if (name == null)
+                    {
+                        Debug.LogWarning("Skipping PBF layer with no name tag");
+                        continue;
+                    }
                     _layerViews.Add(name, view);
                 }
                 else
