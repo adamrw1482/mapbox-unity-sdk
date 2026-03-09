@@ -73,7 +73,7 @@ namespace Mapbox.VectorModule.ComponentSystem
 
                     _activeTasks.Remove(data.TileId);
 
-                    if (taskResult.ResultType == TaskResultType.Cancelled || task.IsCanceled)
+                    if (taskResult.ResultType == TaskResultType.Cancelled || (task != null && task.IsCanceled))
                     {
                         var failResult = new MeshGenerationTaskResult(TaskResultType.Cancelled);
                         callback(failResult);
