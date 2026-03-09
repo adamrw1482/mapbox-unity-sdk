@@ -12,7 +12,6 @@ using Mapbox.BaseModule.Utilities;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
 using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using Mapbox.LocationModule;
-using Mapbox.LocationModule.Scripts;
 using Mapbox.UnityMapService;
 using Mapbox.UnityMapService.TileProviders;
 using UnityEngine;

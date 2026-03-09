@@ -1,6 +1,6 @@
 using System;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 	/// <summary>
 	/// Implement ILocationProvider to send Heading and Location updates.

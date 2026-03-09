@@ -4,7 +4,7 @@ using System.Text;
 using Mapbox.BaseModule.Utilities;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts.Logging
+namespace Mapbox.LocationModule.Logging
 {
 	/// <summary>
 	/// Writes location data into Application.persistentDataPath

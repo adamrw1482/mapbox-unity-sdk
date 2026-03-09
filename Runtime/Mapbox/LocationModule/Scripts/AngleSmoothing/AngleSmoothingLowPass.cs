@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts.AngleSmoothing
+namespace Mapbox.LocationModule.AngleSmoothing
 {
 	/// <summary>
 	/// Smoothing via low pass filter

@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 	public abstract class AbstractEditorLocationProvider : AbstractLocationProvider
 	{

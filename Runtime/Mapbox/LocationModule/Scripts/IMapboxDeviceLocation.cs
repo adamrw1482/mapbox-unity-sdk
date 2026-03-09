@@ -1,7 +1,7 @@
 using System;
 using Mapbox.LocationModule.MapboxLocation;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
     public interface IMapboxDeviceLocation
     {

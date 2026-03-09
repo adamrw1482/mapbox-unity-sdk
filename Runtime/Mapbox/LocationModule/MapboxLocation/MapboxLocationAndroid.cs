@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 using UnityEngine;
 using UnityEngine.Scripting;
 

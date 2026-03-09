@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts.UnityLocationWrappers
+namespace Mapbox.LocationModule.UnityLocationWrappers
 {
 	/// <summary>
 	/// Wrapper to use Unity's LocationInfo as MapboxLocationInfo

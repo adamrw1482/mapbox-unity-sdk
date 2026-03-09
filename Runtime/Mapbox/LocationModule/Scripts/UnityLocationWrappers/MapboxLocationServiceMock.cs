@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Mapbox.LocationModule.Scripts.Logging;
+using Mapbox.LocationModule.Logging;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts.UnityLocationWrappers
+namespace Mapbox.LocationModule.UnityLocationWrappers
 {
 	/// <summary>
 	/// Class to mock Unity's location service Input.location

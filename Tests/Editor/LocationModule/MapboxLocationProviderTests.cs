@@ -1,5 +1,5 @@
 using Mapbox.LocationModule.MapboxLocation;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 using NUnit.Framework;
 using System;
 

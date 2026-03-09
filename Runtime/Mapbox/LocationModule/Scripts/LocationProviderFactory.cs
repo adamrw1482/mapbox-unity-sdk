@@ -3,7 +3,7 @@ using System.Collections;
 using Mapbox.LocationModule.MapboxLocation;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 	/// <summary>
 	/// Factory to provide access to various LocationProviders.

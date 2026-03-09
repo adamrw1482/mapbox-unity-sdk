@@ -23,7 +23,7 @@ larger number should obviously be used.
 
 using System;
 
-namespace Mapbox.LocationModule.Scripts.LocationSmoothing
+namespace Mapbox.LocationModule.LocationSmoothing
 {
 	/// <summary>
 	/// <para>From SackOverflow: Smooth GPS data</para>

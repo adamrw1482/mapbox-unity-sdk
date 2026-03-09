@@ -1,5 +1,5 @@
 using System;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 
 namespace Mapbox.LocationModule.MapboxLocation
 {

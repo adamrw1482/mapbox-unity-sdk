@@ -1,5 +1,5 @@
 using Mapbox.BaseModule.Data.Vector2d;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 using NUnit.Framework;
 
 namespace Mapbox.LocationModule.Tests

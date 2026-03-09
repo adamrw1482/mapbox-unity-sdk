@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using Mapbox.VectorTile.ExtensionMethods;
 
-namespace Mapbox.LocationModule.Scripts.Logging
+namespace Mapbox.LocationModule.Logging
 {
 	/// <summary>
 	/// Base class for reading/writing location logs

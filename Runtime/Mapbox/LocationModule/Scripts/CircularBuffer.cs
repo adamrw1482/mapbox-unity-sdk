@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 
 

@@ -1,8 +1,8 @@
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 using UnityEngine;
-//using Mapbox.LocationModule.Scripts;
+//using Mapbox.LocationModule;
 
 namespace Mapbox.LocationModule.Helpers
 {

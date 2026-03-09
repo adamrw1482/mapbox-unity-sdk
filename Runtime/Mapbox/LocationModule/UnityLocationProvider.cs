@@ -1,9 +1,8 @@
 using System;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.LocationModule.Scripts;
-using Mapbox.LocationModule.Scripts.AngleSmoothing;
-using Mapbox.LocationModule.Scripts.UnityLocationWrappers;
+using Mapbox.LocationModule.AngleSmoothing;
+using Mapbox.LocationModule.UnityLocationWrappers;
 using UnityEngine;
 using UnityEngine.Android;
 using UnityEngine.Scripting;

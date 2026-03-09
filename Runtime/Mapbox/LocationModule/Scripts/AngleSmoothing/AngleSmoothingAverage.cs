@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Mapbox.LocationModule.Scripts.AngleSmoothing
+namespace Mapbox.LocationModule.AngleSmoothing
 {
 	/// <summary>
 	/// Simple averaging latest 'n' values.

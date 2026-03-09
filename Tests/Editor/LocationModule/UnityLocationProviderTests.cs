@@ -1,5 +1,5 @@
 using Mapbox.LocationModule;
-using Mapbox.LocationModule.Scripts.AngleSmoothing;
+using Mapbox.LocationModule.AngleSmoothing;
 using NUnit.Framework;
 
 namespace Mapbox.LocationModule.Tests

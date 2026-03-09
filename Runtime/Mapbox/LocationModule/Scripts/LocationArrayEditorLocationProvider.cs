@@ -4,7 +4,7 @@ using Mapbox.BaseModule.Utilities;
 using Mapbox.BaseModule.Utilities.Attributes;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 	/// <summary>
 	/// The EditorLocationProvider is responsible for providing mock location and heading data

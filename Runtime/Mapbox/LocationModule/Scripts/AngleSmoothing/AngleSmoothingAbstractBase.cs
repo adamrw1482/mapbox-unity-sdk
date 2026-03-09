@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Mapbox.LocationModule.Scripts.AngleSmoothing
+namespace Mapbox.LocationModule.AngleSmoothing
 {
 	/// <summary>
 	/// Base class for implementing different smoothing strategies

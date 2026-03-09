@@ -1,7 +1,7 @@
 using System;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
-using Mapbox.LocationModule.Scripts;
+using Mapbox.LocationModule;
 using UnityEngine;
 using UnityEngine.Scripting;
 

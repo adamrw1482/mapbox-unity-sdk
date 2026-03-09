@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Mapbox.LocationModule.Scripts.UnityLocationWrappers;
+using Mapbox.LocationModule.UnityLocationWrappers;
 using UnityEngine;
 
 namespace Mapbox.LocationModule.Tests

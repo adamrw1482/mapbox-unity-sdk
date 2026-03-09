@@ -1,4 +1,4 @@
-﻿namespace Mapbox.LocationModule.Scripts.AngleSmoothing
+﻿namespace Mapbox.LocationModule.AngleSmoothing
 {
 	/// <summary>
 	/// Doesn't do any calculations. Just passes latest value through.

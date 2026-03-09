@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Mapbox.LocationModule.Scripts
+namespace Mapbox.LocationModule
 {
 	public abstract class AbstractLocationProvider : ILocationProvider
 	{
