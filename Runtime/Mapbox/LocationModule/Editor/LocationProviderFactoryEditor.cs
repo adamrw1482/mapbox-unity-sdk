@@ -45,12 +45,12 @@ public class LocationProviderFactoryEditor : Editor
 				DrawMapboxProvider();
 				break;
 
-			case LocationProviderType.CustomLocationProvider:
-				EditorGUILayout.HelpBox(
-					"Custom location provider not implemented yet.",
-					MessageType.Info
-				);
-				break;
+			// case LocationProviderType.CustomLocationProvider:
+			// 	EditorGUILayout.HelpBox(
+			// 		"Custom location provider not implemented yet.",
+			// 		MessageType.Info
+			// 	);
+			// 	break;
 		}
 
 		serializedObject.ApplyModifiedProperties();

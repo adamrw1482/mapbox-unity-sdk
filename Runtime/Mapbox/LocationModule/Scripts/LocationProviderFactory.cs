@@ -63,10 +63,10 @@ namespace Mapbox.LocationModule.Scripts
 			{
 				DefaultLocationProvider = new UnityLocationProvider(_unityLocationProviderSettings);
 			}
-			else if(LocationProviderType == LocationProviderType.CustomLocationProvider)
-			{
-				DefaultLocationProvider = new UnityLocationProvider(_unityLocationProviderSettings);
-			}
+			// else if(LocationProviderType == LocationProviderType.CustomLocationProvider)
+			// {
+			// 	DefaultLocationProvider = new UnityLocationProvider(_unityLocationProviderSettings);
+			// }
 
 			Debug.Log($"MAPBOX_UNITY_SDK:  LocationProviderFactory: Injected Location Provider - {DefaultLocationProvider.GetType()}");
 
@@ -118,8 +118,8 @@ namespace Mapbox.LocationModule.Scripts
 		[InspectorName("Mapbox Location Provider (Experimental)")]
 		MapboxLocationProvider,
 
-		[InspectorName("Custom Location Provider")]
-		CustomLocationProvider
+		// [InspectorName("Custom Location Provider")]
+		// CustomLocationProvider
 	}
 }
 
