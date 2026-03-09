@@ -41,6 +41,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         
         public override bool Try(RoadFeatureUnity feature)
         {
+            if (feature.Class == null) return false;
+
             var result = false;
             if (CheckOperation == StringCheckOperation.Equals)
             {
@@ -51,10 +53,10 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 result = _types.Contains(feature.Class);
             }
 
-            return !Invert ? result : !result; 
+            return !Invert ? result : !result;
         }
     }
-    
+
     [Serializable]
     [DisplayName("Structure Filter")]
     public class RoadStructureFilter : RoadFilter
@@ -63,7 +65,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public string FilterString;
         public bool Invert;
         private HashSet<string> _types = new HashSet<string>();
-        
+
         public override void Initialize()
         {
             FilterString = FilterString.ToLowerInvariant();
@@ -79,6 +81,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
         public override bool Try(RoadFeatureUnity feature)
         {
+            if (feature.Structure == null) return false;
+
             var result = false;
             if (CheckOperation == StringCheckOperation.Equals)
             {
@@ -89,10 +93,10 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 result = _types.Contains(feature.Structure);
             }
 
-            return !Invert ? result : !result; 
+            return !Invert ? result : !result;
         }
     }
-    
+
     [Serializable]
     [DisplayName("Type Filter")]
     public class RoadTypeFilter : RoadFilter
@@ -101,7 +105,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
         public string FilterString;
         public bool Invert;
         private HashSet<string> _types = new HashSet<string>();
-        
+
         public override void Initialize()
         {
             FilterString = FilterString.ToLowerInvariant();
@@ -117,6 +121,8 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
         public override bool Try(RoadFeatureUnity feature)
         {
+            if (feature.Type == null) return false;
+
             var result = false;
             if (CheckOperation == StringCheckOperation.Equals)
             {
@@ -127,7 +133,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 result = _types.Contains(feature.Type);
             }
 
-            return !Invert ? result : !result; 
+            return !Invert ? result : !result;
         }
     }
 }
