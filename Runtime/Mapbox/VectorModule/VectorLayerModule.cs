@@ -472,15 +472,15 @@ namespace Mapbox.VectorModule
                         {
                             if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizers))
                             {
-	                            foreach (var layerVisualizer in layerVisualizers)
+	                            for (var vi = 0; vi < layerVisualizers.Count; vi++)
 	                            {
+		                            var layerVisualizer = layerVisualizers[vi];
 		                            if (layerVisualizer.ContainsVisualFor(data.TileId))
 			                            continue;
 		                            if (layerVisualizer.Active)
 		                            {
-			                            result.Data.Add(layerName,
-				                            layerVisualizer.CreateMesh(data.TileId,
-					                            data.VectorTileData.GetLayer(layerName)));
+			                            var key = layerVisualizers.Count > 1 ? $"{layerName}_{vi}" : layerName;
+			                            result.Data.Add(key, layerVisualizer.CreateMesh(data.TileId, data.VectorTileData.GetLayer(layerName)));
 		                            }
 	                            }
                             }
@@ -527,14 +527,14 @@ namespace Mapbox.VectorModule
                     var resultGameObjects = new List<GameObject>();
                     foreach (var layerName in data.VectorTileData.LayerNames())
                     {
-                        if (!taskResult.Data.ContainsKey(layerName))
-                            continue;
-
                         if (_layerVisualizers.TryGetValue(layerName, out var layerVisualizers))
                         {
-	                        foreach (var layerVisualizer in layerVisualizers)
+	                        for (var vi = 0; vi < layerVisualizers.Count; vi++)
 	                        {
-		                        var tileMeshData = taskResult.Data[layerName];
+		                        var key = layerVisualizers.Count > 1 ? $"{layerName}_{vi}" : layerName;
+		                        if (!taskResult.Data.TryGetValue(key, out var tileMeshData))
+			                        continue;
+		                        var layerVisualizer = layerVisualizers[vi];
 		                        var layerGameObjects = layerVisualizer.CreateGo(data.TileId, tileMeshData);
 		                        foreach (var gameObject in layerGameObjects)
 		                        {
