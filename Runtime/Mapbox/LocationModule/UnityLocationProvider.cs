@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using Mapbox.BaseModule.Data.Vector2d;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.LocationModule.Scripts;
@@ -53,10 +52,9 @@ namespace Mapbox.LocationModule
     public class UnityLocationProvider : AbstractLocationProvider
     {
         private IMapboxLocationService _locationService;
-        private Coroutine _pollRoutine;
         private double _lastLocationTimestamp;
-        private WaitForSeconds _wait1sec;
-        private WaitForSeconds _waitUpdateTime;
+        private float _lastPollTime;
+        private float _updateInterval;
 
         /// <summary>list of positions to keep for calculations</summary>
         private CircularBuffer<LatitudeLongitude> _lastPositions;
@@ -92,10 +90,9 @@ namespace Mapbox.LocationModule
             //HandlePermission();
 
             _currentLocation.Provider = "unity";
-            _wait1sec = new WaitForSeconds(1f);
-            _waitUpdateTime = UnityLocationProviderSettings.UpdateTimeInMilliSeconds < 500
-                ? new WaitForSeconds(0.5f)
-                : new WaitForSeconds((float)UnityLocationProviderSettings.UpdateTimeInMilliSeconds / 1000.0f);
+            _updateInterval = UnityLocationProviderSettings.UpdateTimeInMilliSeconds < 500
+                ? 0.5f
+                : (float)UnityLocationProviderSettings.UpdateTimeInMilliSeconds / 1000.0f;
 
             if (null == UnityLocationProviderSettings.UserHeadingSmoothing)
             {
@@ -108,148 +105,124 @@ namespace Mapbox.LocationModule
             }
 
             _lastPositions = new CircularBuffer<LatitudeLongitude>(_maxLastPositions);
-
-            if (_pollRoutine == null)
-            {
-                _pollRoutine = Runnable.Instance.StartCoroutine(PollLocationRoutine());
-            }
         }
 
-        /// <summary>
-        /// Enable location and compass services.
-        /// Sends continuous location and heading updates based on 
-        /// _desiredAccuracyInMeters and _updateDistanceInMeters.
-        /// </summary>
-        /// <returns>The location routine.</returns>
-        IEnumerator PollLocationRoutine()
+        public override void Update()
         {
-            while (true)
+            if (Time.realtimeSinceStartup - _lastPollTime < _updateInterval)
+                return;
+            _lastPollTime = Time.realtimeSinceStartup;
+
+            var lastData = _locationService.lastData;
+            var timestamp = lastData.timestamp;
+
+            _currentLocation.IsLocationServiceEnabled =
+                _locationService.status == LocationServiceStatus.Running
+                || timestamp > _lastLocationTimestamp;
+
+            _currentLocation.IsUserHeadingUpdated = false;
+            _currentLocation.IsLocationUpdated = false;
+
+            if (!_currentLocation.IsLocationServiceEnabled)
+                return;
+
+            // device orientation, user heading get calculated below
+            UnityLocationProviderSettings.DeviceOrientationSmoothing.Add(Input.compass.trueHeading);
+            _currentLocation.DeviceOrientation =
+                (float)UnityLocationProviderSettings.DeviceOrientationSmoothing.Calculate();
+
+            double latitude = lastData.latitude;
+            double longitude = lastData.longitude;
+            Vector2d previousLocation = new Vector2d(_currentLocation.LatitudeLongitude.Latitude, _currentLocation.LatitudeLongitude.Longitude);
+            _currentLocation.LatitudeLongitude = new LatitudeLongitude(latitude, longitude);
+
+            _currentLocation.Accuracy = (float)Math.Floor(lastData.horizontalAccuracy);
+            // sometimes Unity's timestamp doesn't seem to get updated, or even jump back in time
+            // do an additional check if location has changed
+            _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
+            _currentLocation.Timestamp = timestamp;
+            _lastLocationTimestamp = timestamp;
+
+            if (_currentLocation.IsLocationUpdated)
             {
-                var lastData = _locationService.lastData;
-                var timestamp = lastData.timestamp;
-
-                ///////////////////////////////
-                // oh boy, Unity what are you doing???
-                // on some devices it seems that
-                // Input.location.status != LocationServiceStatus.Running
-                // nevertheless new location is available
-                //////////////////////////////
-                //Debug.LogFormat("Input.location.status: {0}", Input.location.status);
-                _currentLocation.IsLocationServiceEnabled =
-                    _locationService.status == LocationServiceStatus.Running
-                    || timestamp > _lastLocationTimestamp;
-
-                _currentLocation.IsUserHeadingUpdated = false;
-                _currentLocation.IsLocationUpdated = false;
-
-                if (!_currentLocation.IsLocationServiceEnabled)
+                if (_lastPositions.Count > 0)
                 {
-                    yield return _waitUpdateTime;
-                    continue;
-                }
-
-                // device orientation, user heading get calculated below
-                UnityLocationProviderSettings.DeviceOrientationSmoothing.Add(Input.compass.trueHeading);
-                _currentLocation.DeviceOrientation =
-                    (float)UnityLocationProviderSettings.DeviceOrientationSmoothing.Calculate();
-
-                double latitude = lastData.latitude;
-                double longitude = lastData.longitude;
-                Vector2d previousLocation = new Vector2d(_currentLocation.LatitudeLongitude.Latitude, _currentLocation.LatitudeLongitude.Longitude);
-                _currentLocation.LatitudeLongitude = new LatitudeLongitude(latitude, longitude);
-
-                _currentLocation.Accuracy = (float)Math.Floor(lastData.horizontalAccuracy);
-                // sometimes Unity's timestamp doesn't seem to get updated, or even jump back in time
-                // do an additional check if location has changed
-                _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
-                _currentLocation.Timestamp = timestamp;
-                _lastLocationTimestamp = timestamp;
-
-                if (_currentLocation.IsLocationUpdated)
-                {
-                    if (_lastPositions.Count > 0)
-                    {
-                        // only add position if user has moved +1m since we added the previous position to the list
-                        CheapRuler cheapRuler = new CheapRuler(_currentLocation.LatitudeLongitude.Latitude, CheapRulerUnits.Meters);
-                        var p = _currentLocation.LatitudeLongitude;
-                        double distance = cheapRuler.Distance(
-                            new double[] { p.Longitude, p.Latitude },
-                            new double[] { _lastPositions[0].Longitude, _lastPositions[0].Latitude }
-                        );
-                        if (distance > 1.0)
-                        {
-                            _lastPositions.Add(_currentLocation.LatitudeLongitude);
-                        }
-                    }
-                    else
+                    // only add position if user has moved +1m since we added the previous position to the list
+                    CheapRuler cheapRuler = new CheapRuler(_currentLocation.LatitudeLongitude.Latitude, CheapRulerUnits.Meters);
+                    var p = _currentLocation.LatitudeLongitude;
+                    double distance = cheapRuler.Distance(
+                        new double[] { p.Longitude, p.Latitude },
+                        new double[] { _lastPositions[0].Longitude, _lastPositions[0].Latitude }
+                    );
+                    if (distance > 1.0)
                     {
                         _lastPositions.Add(_currentLocation.LatitudeLongitude);
                     }
                 }
-
-                // if we have enough positions calculate user heading ourselves.
-                // Unity does not provide bearing based on GPS locations, just
-                // device orientation based on Compass.Heading.
-                // nevertheless, use compass for intial UserHeading till we have
-                // enough values to calculate ourselves.
-                if (_lastPositions.Count < _maxLastPositions)
-                {
-                    _currentLocation.UserHeading = _currentLocation.DeviceOrientation;
-                    _currentLocation.IsUserHeadingUpdated = true;
-                }
                 else
                 {
-                    var newestPos = _lastPositions[0];
-                    var oldestPos = _lastPositions[_maxLastPositions - 1];
-                    CheapRuler cheapRuler = new CheapRuler(newestPos.Latitude, CheapRulerUnits.Meters);
-                    // distance between last and first position in our buffer
-                    double distance = cheapRuler.Distance(
-                        new double[] { newestPos.Longitude, newestPos.Latitude },
-                        new double[] { oldestPos.Longitude, oldestPos.Latitude }
-                    );
-                    // positions are minimum required distance apart (user is moving), calculate user heading
-                    if (distance >= _minDistanceOldestNewestPosition)
+                    _lastPositions.Add(_currentLocation.LatitudeLongitude);
+                }
+            }
+
+            // if we have enough positions calculate user heading ourselves.
+            // Unity does not provide bearing based on GPS locations, just
+            // device orientation based on Compass.Heading.
+            // nevertheless, use compass for initial UserHeading till we have
+            // enough values to calculate ourselves.
+            if (_lastPositions.Count < _maxLastPositions)
+            {
+                _currentLocation.UserHeading = _currentLocation.DeviceOrientation;
+                _currentLocation.IsUserHeadingUpdated = true;
+            }
+            else
+            {
+                var newestPos = _lastPositions[0];
+                var oldestPos = _lastPositions[_maxLastPositions - 1];
+                CheapRuler cheapRuler = new CheapRuler(newestPos.Latitude, CheapRulerUnits.Meters);
+                double distance = cheapRuler.Distance(
+                    new double[] { newestPos.Longitude, newestPos.Latitude },
+                    new double[] { oldestPos.Longitude, oldestPos.Latitude }
+                );
+                // positions are minimum required distance apart (user is moving), calculate user heading
+                if (distance >= _minDistanceOldestNewestPosition)
+                {
+                    float[] lastHeadings = new float[_maxLastPositions - 1];
+
+                    for (int i = 1; i < _maxLastPositions; i++)
                     {
-                        float[] lastHeadings = new float[_maxLastPositions - 1];
-
-                        for (int i = 1; i < _maxLastPositions; i++)
+                        // atan2 increases angle CCW, flip sign of latDiff to get CW
+                        double latDiff = -(_lastPositions[i].Latitude - _lastPositions[i - 1].Latitude);
+                        double lngDiff = _lastPositions[i].Longitude - _lastPositions[i - 1].Longitude;
+                        // +90.0 to make top (north) 0 degrees
+                        double heading = (Math.Atan2(latDiff, lngDiff) * 180.0 / Math.PI) + 90.0f;
+                        // stay within [0..360] range
+                        if (heading < 0)
                         {
-                            // atan2 increases angle CCW, flip sign of latDiff to get CW
-                            double latDiff = -(_lastPositions[i].Latitude - _lastPositions[i - 1].Latitude);
-                            double lngDiff = _lastPositions[i].Longitude - _lastPositions[i - 1].Longitude;
-                            // +90.0 to make top (north) 0�
-                            double heading = (Math.Atan2(latDiff, lngDiff) * 180.0 / Math.PI) + 90.0f;
-                            // stay within [0..360]� range
-                            if (heading < 0)
-                            {
-                                heading += 360;
-                            }
-
-                            if (heading >= 360)
-                            {
-                                heading -= 360;
-                            }
-
-                            lastHeadings[i - 1] = (float)heading;
+                            heading += 360;
                         }
 
-                        UnityLocationProviderSettings.UserHeadingSmoothing.Add(lastHeadings[0]);
-                        float finalHeading = (float)UnityLocationProviderSettings.UserHeadingSmoothing.Calculate();
+                        if (heading >= 360)
+                        {
+                            heading -= 360;
+                        }
 
-                        //fix heading to have 0� for north, 90� for east, 180� for south and 270� for west
-                        finalHeading = finalHeading >= 180.0f ? finalHeading - 180.0f : finalHeading + 180.0f;
-
-
-                        _currentLocation.UserHeading = finalHeading;
-                        _currentLocation.IsUserHeadingUpdated = true;
+                        lastHeadings[i - 1] = (float)heading;
                     }
+
+                    UnityLocationProviderSettings.UserHeadingSmoothing.Add(lastHeadings[0]);
+                    float finalHeading = (float)UnityLocationProviderSettings.UserHeadingSmoothing.Calculate();
+
+                    //fix heading to have 0 for north, 90 for east, 180 for south and 270 for west
+                    finalHeading = finalHeading >= 180.0f ? finalHeading - 180.0f : finalHeading + 180.0f;
+
+                    _currentLocation.UserHeading = finalHeading;
+                    _currentLocation.IsUserHeadingUpdated = true;
                 }
-
-                _currentLocation.TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow);
-                SendLocation(_currentLocation);
-
-                yield return _waitUpdateTime;
             }
+
+            _currentLocation.TimestampDevice = UnixTimestampUtils.To(DateTime.UtcNow);
+            SendLocation(_currentLocation);
         }
     }
 }
