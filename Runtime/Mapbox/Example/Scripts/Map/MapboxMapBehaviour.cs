@@ -28,6 +28,7 @@ namespace Mapbox.Example.Scripts.Map
         [SerializeField] protected TileProviderBehaviour TileProvider;
         [SerializeField] protected DataFetchingManagerBehaviour DataFetcher;
         [SerializeField] protected MapboxCacheManagerBehaviour CacheManager;
+        [SerializeField] protected LocationProviderFactory LocationFactory;
         private MapService _mapService;
         
         public bool InitializeOnStart = true;
@@ -49,15 +50,15 @@ namespace Mapbox.Example.Scripts.Map
             MapInformation.Initialize();
             
             yield return UnityContext.Initialize();
+            //we handle permission via unity, instead of using location providers themselves
             yield return UnityContext.HandlePermission();
             
             if (Application.isEditor || UnityContext.LocationPermissionState == LocationPermissionState.Granted)
             {
-                var locationFactory = FindObjectOfType<LocationProviderFactory>();
-                if (locationFactory != null)
+                if (LocationFactory != null)
                 {
-                    yield return locationFactory.Initialize();
-                    var locationProvider = locationFactory.DefaultLocationProvider;
+                    yield return LocationFactory.Initialize();
+                    var locationProvider = LocationFactory.DefaultLocationProvider;
                     MapInformation.SetLatitudeLongitude(locationProvider.CurrentLocation.LatitudeLongitude);
                 }
             }

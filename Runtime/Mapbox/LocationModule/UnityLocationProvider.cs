@@ -140,6 +140,7 @@ namespace Mapbox.LocationModule
                     || timestamp > _lastLocationTimestamp;
 
                 _currentLocation.IsUserHeadingUpdated = false;
+                _currentLocation.IsLocationUpdated = false;
 
                 if (!_currentLocation.IsLocationServiceEnabled)
                 {
@@ -160,15 +161,11 @@ namespace Mapbox.LocationModule
                 _currentLocation.Accuracy = (float)Math.Floor(lastData.horizontalAccuracy);
                 // sometimes Unity's timestamp doesn't seem to get updated, or even jump back in time
                 // do an additional check if location has changed
-                bool locationChanged = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
-                if (locationChanged)
-                {
-                    _currentLocation.IsLocationUpdated = true;
-                }
+                _currentLocation.IsLocationUpdated = timestamp > _lastLocationTimestamp || !_currentLocation.LatitudeLongitude.Equals(previousLocation);
                 _currentLocation.Timestamp = timestamp;
                 _lastLocationTimestamp = timestamp;
 
-                if (locationChanged)
+                if (_currentLocation.IsLocationUpdated)
                 {
                     if (_lastPositions.Count > 0)
                     {
