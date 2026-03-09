@@ -74,17 +74,17 @@ namespace Mapbox.LocationModule.MapboxLocation
             // Request location authorization first
             requestLocationAuthorization();
 
-            // Clean up any existing instance before replacing — only one instance
-            // can receive native IL2CPP callbacks via the static _instance reference.
-            if (_instance != null)
-            {
-                Debug.LogWarning("MapboxLocationIos: Replacing existing instance. Cleaning up previous native resources.");
-                _instance.OnDestroy();
-            }
-
-            // Keep reference for static callback (IL2CPP requirement)
+            // Replace the static instance first so native callbacks always have a
+            // valid target, then tear down the old instance's native resources.
+            var previous = _instance;
             _instance = this;
             _gcHandle = GCHandle.Alloc(this);
+
+            if (previous != null)
+            {
+                Debug.LogWarning("MapboxLocationIos: Replacing existing instance. Cleaning up previous native resources.");
+                previous.StopNativeUpdates();
+            }
 
             // Create static callback delegates
             _callback = OnLocationUpdateStatic;
@@ -280,7 +280,11 @@ namespace Mapbox.LocationModule.MapboxLocation
             }
         }
 
-        public void OnDestroy()
+        /// <summary>
+        /// Stop native location updates and free the GCHandle.
+        /// Does not touch the static _instance — safe to call on a replaced instance.
+        /// </summary>
+        private void StopNativeUpdates()
         {
             if (_isStarted && _locationProvider != IntPtr.Zero)
             {
@@ -298,8 +302,13 @@ namespace Mapbox.LocationModule.MapboxLocation
             {
                 _gcHandle.Free();
             }
+        }
 
-            // Always clear the static reference if it still points to this instance.
+        public void OnDestroy()
+        {
+            StopNativeUpdates();
+
+            // Clear the static reference only if it still points to this instance.
             // If another instance replaced us, leave it alone — it owns the callbacks now.
             if (_instance == this)
             {
