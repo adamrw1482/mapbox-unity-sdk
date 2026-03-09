@@ -85,9 +85,11 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             {
                 var feature = GetFeature(layer, i, ref classTagIndex, ref typeTagIndex, ref structureTagIndex);
                 if (feature == null) continue;
-                if (feature.VertexData.VertexCount <= 1) continue;
                 if (feature.GeometryType != GeomType.LINESTRING) continue;
                 if (!_settings.RoadStyleSheet.TryGetStyle(feature, out var style)) continue;
+
+                feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
+                if (feature.VertexData.VertexCount <= 1) continue;
                 
                 featureArray[i] = feature;
                 styleArray[i] = style;
@@ -543,7 +545,6 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             if (feature.GeometryCommands == null) return null;
 
             feature.SetProperties(ref layer, ref classTagIndex, ref typeTagIndex, ref structureTagIndex);
-            feature.VertexData = feature.Geometry(new Vector3(layer.Extent, 0, -layer.Extent));
             return feature;
         }
     }
