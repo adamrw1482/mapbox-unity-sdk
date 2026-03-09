@@ -16,22 +16,22 @@ namespace Mapbox.BaseModule.Map
         private MapboxToken _mapboxToken;
         private string _tokenNotSetErrorMessage = "No configuration file found! Configure your access token from the Mapbox > Setup menu.";
 
-        public MapboxContext(bool loadConfig = true)
+        public MapboxContext()
         {
-            // Fast-path configuration loading for editor/offline use.
-            // WARNING: Token validation is fire-and-forget here - Configuration is set immediately
-            // without waiting for validation. For proper token validation, call Initialize() instead.
-            if (loadConfig)
-            {
-                LoadConfiguration();
-            }
         }
 
         public IEnumerator Initialize()
         {
-            // Proper initialization path: waits for token validation before setting Configuration.
-            // Use this in production to ensure token is valid before proceeding.
             yield return LoadConfigurationCoroutine();
+        }
+
+        /// <summary>
+        /// Load configuration without token validation.
+        /// For editor tooling only — not for runtime use.
+        /// </summary>
+        public void LoadConfigurationWithoutValidation()
+        {
+            Configuration = LoadAndParseConfig();
         }
 
         public string GetAccessToken()
@@ -66,7 +66,7 @@ namespace Mapbox.BaseModule.Map
             return config;
         }
 
-        private void HandleTokenResponse(MapboxConfiguration config, MapboxToken response, bool setConfigOnValid)
+        private void HandleTokenResponse(MapboxConfiguration config, MapboxToken response)
         {
             _mapboxToken = response;
             if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
@@ -76,35 +76,11 @@ namespace Mapbox.BaseModule.Map
             }
             else
             {
-                if (setConfigOnValid)
-                {
-                    Configuration = config;
-                }
+                Configuration = config;
                 ConfigureTelemetry();
             }
         }
 
-        /// <summary>
-        /// Synchronous configuration loading (editor/offline fast-path).
-        /// Sets Configuration immediately without waiting for token validation.
-        /// Token validation happens asynchronously in background.
-        /// </summary>
-        private void LoadConfiguration()
-        {
-            var config = LoadAndParseConfig();
-            var tokenValidator = new MapboxTokenApi();
-            tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken,
-                (response) => HandleTokenResponse(config, response, setConfigOnValid: false));
-
-            // WARNING: Configuration set before token validation completes
-            Configuration = config;
-        }
-
-        /// <summary>
-        /// Coroutine-based configuration loading (production path).
-        /// Waits for token validation to complete before setting Configuration.
-        /// Only sets Configuration if token is valid.
-        /// </summary>
         private IEnumerator LoadConfigurationCoroutine()
         {
             var config = LoadAndParseConfig();
@@ -112,7 +88,7 @@ namespace Mapbox.BaseModule.Map
             var configLoaded = false;
             tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
             {
-                HandleTokenResponse(config, response, setConfigOnValid: true);
+                HandleTokenResponse(config, response);
                 configLoaded = true;
             });
 

@@ -17,6 +17,7 @@ namespace Mapbox.BaseModuleTests
         public void SetUp()
         {
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             _tokenApi = new MapboxTokenApi();
             _configAccessToken = mapboxContext.GetAccessToken();
             _configSkuToken = mapboxContext.GetSkuToken;

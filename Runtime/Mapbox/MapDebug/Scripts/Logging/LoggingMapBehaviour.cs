@@ -59,6 +59,7 @@ namespace Mapbox.MapDebug.Scripts.Logging
             
             
             var mapboxContext = new MapboxContext();
+            yield return mapboxContext.Initialize();
             _mapService = GetMapService(mapboxContext, UnityContext);
             MapServiceReady(_mapService);
 

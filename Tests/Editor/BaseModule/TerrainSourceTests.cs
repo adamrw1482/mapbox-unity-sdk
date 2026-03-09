@@ -44,6 +44,7 @@ namespace Mapbox.BaseModuleTests
             };
 
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             var unityContext = new UnityContext();
             var taskManager = new MockTaskManager();
             taskManager.Initialize();

@@ -17,6 +17,7 @@ namespace Mapbox.BaseModuleTests
         public void SetUp()
         {
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             _fs = new ResilientWebRequestFileSource(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
         }
     

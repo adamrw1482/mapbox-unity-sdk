@@ -15,6 +15,7 @@ namespace Mapbox.BaseModuleTests
         public void SetUp()
         {
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             _dataFetcher = new DataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
         }
 		

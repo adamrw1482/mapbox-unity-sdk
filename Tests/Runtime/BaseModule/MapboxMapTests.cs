@@ -39,6 +39,7 @@ namespace Mapbox.BaseModuleTests.DataTests
             mapInfo.SetInformation(null, 16, 45, null, 1000);
             mapInfo.Initialize();
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             var unityContext = new UnityContext();
             unityContext.Initialize();
 
@@ -209,6 +210,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         public void OneTimeSetup()
         {
             var mapboxContext = new MapboxContext();
+            mapboxContext.LoadConfigurationWithoutValidation();
             _datafetcher = new LoggingDataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             _tilesetId = vectorTileset.Id;
