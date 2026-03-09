@@ -465,8 +465,6 @@ namespace Mapbox.VectorModule
 
                     try
                     {
-	                    var json = data.VectorTileData.ToGeoJson((ulong)data.TileId.Z, (ulong)data.TileId.Y,
-		                    (ulong)data.TileId.X);
                         var layers = data.VectorTileData.LayerNames();
                         foreach (var layerName in layers)
                         {
