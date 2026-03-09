@@ -74,6 +74,14 @@ namespace Mapbox.LocationModule.MapboxLocation
             // Request location authorization first
             requestLocationAuthorization();
 
+            // Clean up any existing instance before replacing — only one instance
+            // can receive native IL2CPP callbacks via the static _instance reference.
+            if (_instance != null)
+            {
+                Debug.LogWarning("MapboxLocationIos: Replacing existing instance. Cleaning up previous native resources.");
+                _instance.OnDestroy();
+            }
+
             // Keep reference for static callback (IL2CPP requirement)
             _instance = this;
             _gcHandle = GCHandle.Alloc(this);
@@ -291,9 +299,15 @@ namespace Mapbox.LocationModule.MapboxLocation
                 _gcHandle.Free();
             }
 
+            // Always clear the static reference if it still points to this instance.
+            // If another instance replaced us, leave it alone — it owns the callbacks now.
             if (_instance == this)
             {
                 _instance = null;
+                _callback = null;
+                _authCallback = null;
+                _accuracyCallback = null;
+                _availabilityCallback = null;
             }
         }
     }
