@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Mapbox.VectorModule.Filters;
 using UnityEngine;
 
@@ -15,7 +14,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
         public ComponentFilterStack()
         {
-            
+
         }
 
         public void Initialize()
@@ -34,11 +33,23 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             switch (Type)
             {
                 case LayerFilterCombinerOperationType.Any:
-                    return Filters.Any(m => m.Try(feature));
+                    for (int i = 0; i < Filters.Count; i++)
+                    {
+                        if (Filters[i].Try(feature)) return true;
+                    }
+                    return false;
                 case LayerFilterCombinerOperationType.All:
-                    return Filters.All(m => m.Try(feature));
+                    for (int i = 0; i < Filters.Count; i++)
+                    {
+                        if (!Filters[i].Try(feature)) return false;
+                    }
+                    return true;
                 case LayerFilterCombinerOperationType.None:
-                    return !Filters.Any(m => m.Try(feature));
+                    for (int i = 0; i < Filters.Count; i++)
+                    {
+                        if (Filters[i].Try(feature)) return false;
+                    }
+                    return true;
                 default:
                     return false;
             }
