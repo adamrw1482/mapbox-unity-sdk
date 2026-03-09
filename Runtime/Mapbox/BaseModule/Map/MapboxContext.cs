@@ -52,6 +52,38 @@ namespace Mapbox.BaseModule.Map
             return _mapboxToken.Status;
         }
         
+        private MapboxConfiguration LoadAndParseConfig()
+        {
+            TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
+            if (null == configurationTextAsset)
+            {
+                Debug.LogError("Need Mapbox Access Token");
+                throw new Exception();
+            }
+
+            var config = JsonUtility.FromJson<MapboxConfiguration>(configurationTextAsset.text);
+            config.Initialize();
+            return config;
+        }
+
+        private void HandleTokenResponse(MapboxConfiguration config, MapboxToken response, bool setConfigOnValid)
+        {
+            _mapboxToken = response;
+            if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
+            {
+                config.AccessToken = string.Empty;
+                Debug.LogError("Invalid Token");
+            }
+            else
+            {
+                if (setConfigOnValid)
+                {
+                    Configuration = config;
+                }
+                ConfigureTelemetry();
+            }
+        }
+
         /// <summary>
         /// Synchronous configuration loading (editor/offline fast-path).
         /// Sets Configuration immediately without waiting for token validation.
@@ -59,34 +91,15 @@ namespace Mapbox.BaseModule.Map
         /// </summary>
         private void LoadConfiguration()
         {
-            TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
-            if (null == configurationTextAsset)
-            {
-                Debug.LogError("Need Mapbox Access Token");
-                throw new Exception();
-            }
-
-            var config = JsonUtility.FromJson<MapboxConfiguration>(configurationTextAsset.text);
-            config.Initialize();
+            var config = LoadAndParseConfig();
             var tokenValidator = new MapboxTokenApi();
-            tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
-            {
-                _mapboxToken = response;
-                if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
-                {
-                    config.AccessToken = string.Empty;
-                    Debug.LogError("Invalid Token");
-                }
-                else
-                {
-                    ConfigureTelemetry();
-                }
-            });
+            tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken,
+                (response) => HandleTokenResponse(config, response, setConfigOnValid: false));
 
             // WARNING: Configuration set before token validation completes
             Configuration = config;
         }
-        
+
         /// <summary>
         /// Coroutine-based configuration loading (production path).
         /// Waits for token validation to complete before setting Configuration.
@@ -94,35 +107,15 @@ namespace Mapbox.BaseModule.Map
         /// </summary>
         private IEnumerator LoadConfigurationCoroutine()
         {
-            TextAsset configurationTextAsset = Resources.Load<TextAsset>(Constants.Path.MAPBOX_RESOURCES_RELATIVE);
-            if (null == configurationTextAsset)
-            {
-                Debug.LogError("Need Mapbox Access Token");
-                throw new Exception();
-            }
-
-            var config = JsonUtility.FromJson<MapboxConfiguration>(configurationTextAsset.text);
-            config.Initialize();
+            var config = LoadAndParseConfig();
             var tokenValidator = new MapboxTokenApi();
             var configLoaded = false;
             tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
             {
-                _mapboxToken = response;
-                if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
-                {
-                    config.AccessToken = string.Empty;
-                    Debug.LogError("Invalid Token");
-                }
-                else
-                {
-                    // Only set Configuration if token is valid
-                    Configuration = config;
-                    ConfigureTelemetry();
-                }
+                HandleTokenResponse(config, response, setConfigOnValid: true);
                 configLoaded = true;
             });
 
-            // Wait for token validation to complete
             while (!configLoaded)
             {
                 yield return null;
