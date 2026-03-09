@@ -133,13 +133,12 @@ namespace Mapbox.BaseModule.Map
                     {
                         foreach (var child in tile.Children)
                         {
-                            if (tile.LoadingState == LoadingState.Temporary)
+                            if (child.LoadingState == LoadingState.Temporary)
                             {
                                 TempTiles.Remove(child);
                             }
 
                             TileUnloading(child);
-                            PoolTile(child);
                         }
                     }
                 }
