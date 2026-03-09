@@ -103,20 +103,7 @@ namespace Mapbox.LocationModule.MapboxLocation
                 _unityActivity = unityPlayer.GetStatic<AndroidJavaObject>(_currentActivityFieldName);
             }
 
-            // Check if permissions are already granted
-            using (var permissionsManagerClass = new AndroidJavaClass(_permissionsManagerClassName))
-            {
-                bool hasPermission = permissionsManagerClass.CallStatic<bool>(_areLocationPermissionsGrantedMethodName, _unityActivity);
-
-                if (hasPermission)
-                {
-                    InitializeMapboxLocation();
-                }
-                else
-                {
-                    RequestLocationPermissions();
-                }
-            }
+            InitializeMapboxLocation();
         }
         
         public void Update()
