@@ -27,6 +27,9 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             if (submeshCount < 2)
                 return triIndex;
 
+            // Save initial state for rollback on overflow
+            int initialTriIndex = triIndex;
+
             var holes = new List<int>(8);
             int vertWriteIndex = 0;
             bool nextIsHole = false;
@@ -50,7 +53,12 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
                     var result = EarcutLibrary.Earcut(flatData.Vertices, holes, 2);
 
                     if (result.Count + triIndex >= arrayMaxLength)
+                    {
+                        // Roll back partial triangles written by this feature
+                        for (int j = initialTriIndex; j < triIndex; j++)
+                            triList[j] = 0;
                         return -1;
+                    }
 
                     for (int j = 0; j < result.Count; j++)
                         triList[triIndex++] = vertexAnchorIndex + result[j];
@@ -82,7 +90,12 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             var finalResult = EarcutLibrary.Earcut(finalFlat.Vertices, holes, 2);
 
             if (finalResult.Count + triIndex >= arrayMaxLength)
+            {
+                // Roll back partial triangles written by this feature
+                for (int j = initialTriIndex; j < triIndex; j++)
+                    triList[j] = 0;
                 return -1;
+            }
 
             for (int i = 0; i < finalResult.Count; i++)
                 triList[triIndex++] = vertexAnchorIndex + finalResult[i];
