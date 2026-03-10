@@ -28,9 +28,9 @@ namespace Mapbox.LocationModule.MapboxLocation
                     _currentLocation = s;
                     SendLocation(s);
                 };
-                _mapboxDeviceLocation.AvailabilityChanged += AvailabilityChanged;
-                _mapboxDeviceLocation.AuthorizationChanged += AuthorizationChanged;
-                _mapboxDeviceLocation.AccuracyAuthorizationChanged += AccuracyAuthorizationChanged;
+                _mapboxDeviceLocation.AvailabilityChanged += (v) => AvailabilityChanged?.Invoke(v);
+                _mapboxDeviceLocation.AuthorizationChanged += (v) => AuthorizationChanged?.Invoke(v);
+                _mapboxDeviceLocation.AccuracyAuthorizationChanged += (v) => AccuracyAuthorizationChanged?.Invoke(v);
 
                 _mapboxDeviceLocation.Initialize();
             }

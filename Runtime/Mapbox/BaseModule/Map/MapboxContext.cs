@@ -69,6 +69,7 @@ namespace Mapbox.BaseModule.Map
         private void HandleTokenResponse(MapboxConfiguration config, MapboxToken response)
         {
             _mapboxToken = response;
+            Configuration = config;
             if (_mapboxToken.Status != MapboxTokenStatus.TokenValid)
             {
                 config.AccessToken = string.Empty;
@@ -76,10 +77,11 @@ namespace Mapbox.BaseModule.Map
             }
             else
             {
-                Configuration = config;
                 ConfigureTelemetry();
             }
         }
+
+        private const float TokenValidationTimeoutSeconds = 10f;
 
         private IEnumerator LoadConfigurationCoroutine()
         {
@@ -92,8 +94,16 @@ namespace Mapbox.BaseModule.Map
                 configLoaded = true;
             });
 
+            var elapsed = 0f;
             while (!configLoaded)
             {
+                elapsed += Time.deltaTime;
+                if (elapsed >= TokenValidationTimeoutSeconds)
+                {
+                    Debug.LogError("Token validation timed out. Proceeding with unvalidated configuration.");
+                    Configuration = config;
+                    break;
+                }
                 yield return null;
             }
         }
