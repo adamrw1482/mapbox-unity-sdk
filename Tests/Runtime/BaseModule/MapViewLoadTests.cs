@@ -50,7 +50,7 @@ namespace Mapbox.BaseModuleTests.DataTests
             var mapboxContext = new MapboxContext();
             mapboxContext.LoadConfigurationWithoutValidation();
             var unityContext = new UnityContext();
-            unityContext.Initialize();
+            yield return unityContext.Initialize();
 
             var taskManager = new TaskManager();
             taskManager.Initialize();
