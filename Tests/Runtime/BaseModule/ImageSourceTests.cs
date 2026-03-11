@@ -30,10 +30,14 @@ namespace Mapbox.BaseModuleTests
         private CanonicalTileId _testTileId = new CanonicalTileId(16, 5, 7);
         private Texture2D _testTexture;
         private RasterData _testRasterData;
-        
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
+        private bool _initialized;
+
+        [UnitySetUp]
+        public IEnumerator OneTimeSetUp()
         {
+            if (_initialized) yield break;
+            _initialized = true;
+
             _testTexture = Texture2D.whiteTexture;
             _testRasterData = new RasterData()
             {
@@ -44,9 +48,9 @@ namespace Mapbox.BaseModuleTests
                 ExpirationDate = DateTime.Now.AddHours(1),
                 ETag = "testETAG"
             };
-            
+
             var mapboxContext = new MapboxContext();
-            mapboxContext.LoadConfigurationWithoutValidation();
+            yield return mapboxContext.Initialize();
             var unityContext = new UnityContext();
             var taskManager = new MockTaskManager();
             taskManager.Initialize();

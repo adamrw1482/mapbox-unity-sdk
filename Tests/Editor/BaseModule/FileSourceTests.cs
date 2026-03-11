@@ -11,11 +11,11 @@ namespace Mapbox.BaseModuleTests.DataTests
     {
         private ResilientWebRequestFileSource _fs;
 
-        [SetUp]
-        public void SetUp()
+        [UnitySetUp]
+        public IEnumerator SetUp()
         {
             var mapboxContext = new MapboxContext();
-            mapboxContext.LoadConfigurationWithoutValidation();
+            yield return mapboxContext.Initialize();
             _fs = new ResilientWebRequestFileSource(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
         }
         

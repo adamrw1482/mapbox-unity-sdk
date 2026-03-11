@@ -28,57 +28,59 @@ namespace Mapbox.BaseModuleTests.DataTests
         private LatitudeLongitude _helsinkiLatLng;
         private LatitudeLongitude _sfLatLng;
         private MapboxMap _map;
-        
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            _helsinkiLatLng = Conversions.StringToLatLon(_helsinkiLatitudeLongitudeString);
-            _sfLatLng = Conversions.StringToLatLon(_sanFranciscoLatitudeLongitudeString);
-
-            var mapInfo = new MapInformation(_helsinkiLatitudeLongitudeString);
-            mapInfo.SetInformation(null, 16, 45, null, 1000);
-            mapInfo.Initialize();
-            var mapboxContext = new MapboxContext();
-            mapboxContext.LoadConfigurationWithoutValidation();
-            var unityContext = new UnityContext();
-            unityContext.Initialize();
-
-            var taskManager = new TaskManager();
-            taskManager.Initialize();
-            unityContext.TaskManager = taskManager;
-            var dataManager = new DataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
-
-            var sqliteCache = new MockSqliteCache(taskManager);
-            sqliteCache.ReadySqliteDatabase();
-            
-            var mapService = new MapUnityService(
-                unityContext,
-                mapboxContext,
-                new UnityFixedAreaTileProvider(),
-                new MapboxCacheManager(
-                    unityContext, 
-                    new MemoryCache(),
-                    new MockFileCache(taskManager),
-                    sqliteCache),
-                dataManager);
-            
-            _map = new MapboxMap(mapInfo, unityContext, mapService);
-            var mapVisualizer = new MapboxMapVisualizer(mapInfo, unityContext, new TileCreator(unityContext));
-            mapVisualizer.LayerModules.Add(
-                new TerrainLayerModule(mapService.GetTerrainRasterSource(
-                    new ImageSourceSettings()
-                    {
-                        TilesetId = MapboxDefaultElevation.GetParameters(ElevationSourceType.MapboxTerrain).Id
-                    }), new TerrainLayerModuleSettings()));
-            _map.MapVisualizer = mapVisualizer;
-        }
+        private bool _initialized;
 
         [UnitySetUp]
         public IEnumerator Setup()
         {
+            if (!_initialized)
+            {
+                _initialized = true;
+
+                _helsinkiLatLng = Conversions.StringToLatLon(_helsinkiLatitudeLongitudeString);
+                _sfLatLng = Conversions.StringToLatLon(_sanFranciscoLatitudeLongitudeString);
+
+                var mapInfo = new MapInformation(_helsinkiLatitudeLongitudeString);
+                mapInfo.SetInformation(null, 16, 45, null, 1000);
+                mapInfo.Initialize();
+                var mapboxContext = new MapboxContext();
+                yield return mapboxContext.Initialize();
+                var unityContext = new UnityContext();
+                unityContext.Initialize();
+
+                var taskManager = new TaskManager();
+                taskManager.Initialize();
+                unityContext.TaskManager = taskManager;
+                var dataManager = new DataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
+
+                var sqliteCache = new MockSqliteCache(taskManager);
+                sqliteCache.ReadySqliteDatabase();
+
+                var mapService = new MapUnityService(
+                    unityContext,
+                    mapboxContext,
+                    new UnityFixedAreaTileProvider(),
+                    new MapboxCacheManager(
+                        unityContext,
+                        new MemoryCache(),
+                        new MockFileCache(taskManager),
+                        sqliteCache),
+                    dataManager);
+
+                _map = new MapboxMap(mapInfo, unityContext, mapService);
+                var mapVisualizer = new MapboxMapVisualizer(mapInfo, unityContext, new TileCreator(unityContext));
+                mapVisualizer.LayerModules.Add(
+                    new TerrainLayerModule(mapService.GetTerrainRasterSource(
+                        new ImageSourceSettings()
+                        {
+                            TilesetId = MapboxDefaultElevation.GetParameters(ElevationSourceType.MapboxTerrain).Id
+                        }), new TerrainLayerModuleSettings()));
+                _map.MapVisualizer = mapVisualizer;
+            }
+
             var initialization = Runnable.Instance.StartCoroutine(_map.Initialize());
             yield return initialization;
-            
+
             Assert.IsNotNull(_map);
             Assert.IsNotNull(_map.MapVisualizer);
             Assert.IsTrue(_map.Status >= InitializationStatus.Initialized);
@@ -204,13 +206,16 @@ namespace Mapbox.BaseModuleTests.DataTests
         private LoggingDataFetchingManager _datafetcher;
         private CanonicalTileId _tileId;
         private string _tilesetId;
-        
-        
-        [OneTimeSetUp]
-        public void OneTimeSetup()
+        private bool _initialized;
+
+        [UnitySetUp]
+        public IEnumerator OneTimeSetup()
         {
+            if (_initialized) yield break;
+            _initialized = true;
+
             var mapboxContext = new MapboxContext();
-            mapboxContext.LoadConfigurationWithoutValidation();
+            yield return mapboxContext.Initialize();
             _datafetcher = new LoggingDataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             _tilesetId = vectorTileset.Id;

@@ -31,13 +31,17 @@ namespace Mapbox.BaseModuleTests.DataTests
         private Style _imageryTileset;
         private UnwrappedTileId _tileId;
         private HashSet<CanonicalTileId> _testTileHashset;
+        private bool _initialized;
 
-        [OneTimeSetUp]
-        public void OneTimeSetup()
+        [UnitySetUp]
+        public IEnumerator OneTimeSetup()
         {
+            if (_initialized) yield break;
+            _initialized = true;
+
             _taskManager = new MockTaskManager();
             _mapboxContext = new MapboxContext();
-            _mapboxContext.LoadConfigurationWithoutValidation();
+            yield return _mapboxContext.Initialize();
             _dataFetchingManager = new DataFetchingManager(_mapboxContext.GetAccessToken(), _mapboxContext.GetSkuToken);
             _unityContext = new UnityContext();
             _unityContext.Initialize(_taskManager);
@@ -70,7 +74,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         public IEnumerator RequestTileListNoCache()
         {
             var mapboxContext1 = new MapboxContext();
-            mapboxContext1.LoadConfigurationWithoutValidation();
+            yield return mapboxContext1.Initialize();
             var mapService = new MapUnityService(_unityContext, mapboxContext1, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), null, null));
 
@@ -92,7 +96,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         public IEnumerator RequestTileListCheckWithFileSqlite()
         {
             var mapboxContext2 = new MapboxContext();
-            mapboxContext2.LoadConfigurationWithoutValidation();
+            yield return mapboxContext2.Initialize();
             var mapService = new MapUnityService(_unityContext, mapboxContext2, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), _fileCache, _sqliteCache));
             
@@ -128,7 +132,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         public IEnumerator RequestWithAllCaches()
         {
             var mapboxContext3 = new MapboxContext();
-            mapboxContext3.LoadConfigurationWithoutValidation();
+            yield return mapboxContext3.Initialize();
             var mapService = new MapUnityService(_unityContext, mapboxContext3, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), _fileCache, _sqliteCache));
 
@@ -159,7 +163,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         public IEnumerator RequestNoFileYesSqliteCache()
         {
             var mapboxContext4 = new MapboxContext();
-            mapboxContext4.LoadConfigurationWithoutValidation();
+            yield return mapboxContext4.Initialize();
             var mapService = new MapUnityService(_unityContext, mapboxContext4, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), null, _sqliteCache));
         
@@ -186,7 +190,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         {
             var cacheManager = new MapboxCacheManager(_unityContext, new MemoryCache(), null, null);
             var mapboxContext5 = new MapboxContext();
-            mapboxContext5.LoadConfigurationWithoutValidation();
+            yield return mapboxContext5.Initialize();
             var mapService = new MapUnityService(_unityContext, mapboxContext5, null, cacheManager);
         
             var rasterSource = mapService.GetStaticRasterSource(new ImageSourceSettings() { TilesetId = _imageryTileset.Id });
