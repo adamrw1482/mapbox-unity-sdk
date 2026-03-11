@@ -1,4 +1,7 @@
 using System;
+using System.Collections;
+using System.Linq;
+using Mapbox.BaseModule;
 using Mapbox.BaseModule.Data.DataFetchers;
 using Mapbox.BaseModule.Data.Platform.Cache;
 using Mapbox.BaseModule.Data.Platform.Cache.SQLiteCache;
@@ -7,6 +10,8 @@ using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Unity.ModuleBehaviours;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.Example.Scripts.TileProviderBehaviours;
+using Mapbox.ImageModule.Terrain.TerrainStrategies;
+using Mapbox.LocationModule;
 using Mapbox.UnityMapService;
 using Mapbox.UnityMapService.TileProviders;
 using UnityEngine;
@@ -22,34 +27,55 @@ namespace Mapbox.Example.Scripts.Map
         [SerializeField] protected TileProviderBehaviour TileProvider;
         [SerializeField] protected DataFetchingManagerBehaviour DataFetcher;
         [SerializeField] protected MapboxCacheManagerBehaviour CacheManager;
+        [SerializeField] protected LocationProviderFactory LocationFactory;
         private MapService _mapService;
         
         public bool InitializeOnStart = true;
         public Action<MapService> MapServiceReady = (v) => { };
 
+        
         public virtual void Start()
         {
             if (InitializeOnStart)
-                Initialize();
+                StartCoroutine(Initialize());
         }
-        
+
         [ContextMenu("Initialize")]
-        public override void Initialize()
+        public override IEnumerator Initialize()
         {
             if (InitializationStatus != InitializationStatus.WaitingForInitialization)
-                return;
+                yield break;
 
             MapInformation.Initialize();
-            UnityContext.Initialize();
+            
+            yield return UnityContext.Initialize();
+            //we handle permission via unity, instead of using location providers themselves
+            yield return UnityContext.HandlePermission();
+            
+            if (Application.isEditor || UnityContext.LocationPermissionState == LocationPermissionState.Granted)
+            {
+                if (LocationFactory != null)
+                {
+                    yield return LocationFactory.Initialize();
+                    var locationProvider = LocationFactory.DefaultLocationProvider;
+                    MapInformation.SetLatitudeLongitude(locationProvider.CurrentLocation.LatitudeLongitude);
+                }
+            }
+            else
+            {
+                Debug.Log("Location permission is " + UnityContext.LocationPermissionState);
+            }
             
             var mapboxContext = new MapboxContext();
+            yield return mapboxContext.Initialize();
             _mapService = GetMapService(mapboxContext, UnityContext);
             MapServiceReady(_mapService);
-
+            
             MapboxMap = CreateMapObject();
             MapboxMap.Initialized += InitializationCompleted;
-            StartCoroutine(MapboxMap.Initialize());
+            yield return MapboxMap.Initialize();
         }
+        
 
         private void InitializationCompleted()
         {

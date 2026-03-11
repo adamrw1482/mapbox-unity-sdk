@@ -105,6 +105,7 @@ namespace MapboxUnitySDK.Editor
 		static void OpenWindow()
 		{
 			_mapboxContext = new MapboxContext();
+			_mapboxContext.LoadConfigurationWithoutValidation();
 			EditorApplication.delayCall -= OpenWindow;
 			//instantiate the config window
 			instance = GetWindow(typeof(MapboxConfigurationWindow)) as MapboxConfigurationWindow;

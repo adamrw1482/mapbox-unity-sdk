@@ -35,6 +35,7 @@ namespace Mapbox.BaseModuleTests.DataTests
         {
             _taskManager = new MockTaskManager();
             _mapboxContext = new MapboxContext();
+            _mapboxContext.LoadConfigurationWithoutValidation();
             _dataFetchingManager = new DataFetchingManager(_mapboxContext.GetAccessToken(), _mapboxContext.GetSkuToken);
             _unityContext = new UnityContext();
             _unityContext.Initialize(_taskManager);
@@ -66,12 +67,14 @@ namespace Mapbox.BaseModuleTests.DataTests
         [UnityTest, Order(4)]
         public IEnumerator RequestTileList()
         {
-            var mapService = new MapUnityService(_unityContext, new MapboxContext(), null,
+            var mapboxContext1 = new MapboxContext();
+            mapboxContext1.LoadConfigurationWithoutValidation();
+            var mapService = new MapUnityService(_unityContext, mapboxContext1, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), _fileCache, _sqliteCache));
-            
+
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             var vectorSource = mapService.GetVectorSource(new VectorSourceSettings(){ TilesetId = vectorTileset.Id});
-        
+
             List<VectorData> loadedTiles = null;
             var coroutine = Runnable.Instance.StartCoroutine(vectorSource.LoadTilesCoroutine(_testTileHashset, (data) =>
             {
@@ -92,11 +95,13 @@ namespace Mapbox.BaseModuleTests.DataTests
         [UnityTest, Order(3)]
         public IEnumerator RequestWithAllCaches()
         {
-            var mapService = new MapUnityService(_unityContext, new MapboxContext(), null,
+            var mapboxContext2 = new MapboxContext();
+            mapboxContext2.LoadConfigurationWithoutValidation();
+            var mapService = new MapUnityService(_unityContext, mapboxContext2, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), _fileCache, _sqliteCache));
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             var vectorSource = mapService.GetVectorSource(new VectorSourceSettings(){ TilesetId = vectorTileset.Id});
-        
+
             VectorData vectorData = null;
             var coroutineId = Runnable.Instance.StartCoroutine(vectorSource.LoadTileCoroutine(_tileId.Canonical, (data) =>
             {
@@ -112,7 +117,9 @@ namespace Mapbox.BaseModuleTests.DataTests
         [UnityTest, Order(2)]
         public IEnumerator RequestNoFileYesSqliteCache()
         {
-            var mapService = new MapUnityService(_unityContext, new MapboxContext(), null,
+            var mapboxContext3 = new MapboxContext();
+            mapboxContext3.LoadConfigurationWithoutValidation();
+            var mapService = new MapUnityService(_unityContext, mapboxContext3, null,
                 new MapboxCacheManager(_unityContext, new MemoryCache(), null, _sqliteCache));
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             var vectorSource = mapService.GetVectorSource(new VectorSourceSettings(){ TilesetId = vectorTileset.Id});
@@ -137,7 +144,9 @@ namespace Mapbox.BaseModuleTests.DataTests
         public IEnumerator RequestNoFileNoSqliteCaches()
         {
             var cacheManager = new MapboxCacheManager(_unityContext, new MemoryCache(), null, null);
-            var mapService = new MapUnityService(_unityContext, new MapboxContext(), null, cacheManager);
+            var mapboxContext4 = new MapboxContext();
+            mapboxContext4.LoadConfigurationWithoutValidation();
+            var mapService = new MapUnityService(_unityContext, mapboxContext4, null, cacheManager);
             var vectorTileset = MapboxDefaultVector.GetParameters(VectorSourceType.MapboxStreetsV8);
             var vectorSource = mapService.GetVectorSource(new VectorSourceSettings(){ TilesetId = vectorTileset.Id});
         
