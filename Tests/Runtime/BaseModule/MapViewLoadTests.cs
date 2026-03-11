@@ -48,9 +48,9 @@ namespace Mapbox.BaseModuleTests.DataTests
             mapInfo.SetInformation(null, 16, 45, null, 1000);
             mapInfo.Initialize();
             var mapboxContext = new MapboxContext();
-            mapboxContext.LoadConfigurationWithoutValidation();
+            yield return mapboxContext.LoadConfigurationCoroutine(false);
             var unityContext = new UnityContext();
-            unityContext.Initialize();
+            yield return unityContext.Initialize();
 
             var taskManager = new TaskManager();
             taskManager.Initialize();

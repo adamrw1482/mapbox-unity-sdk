@@ -49,15 +49,15 @@ public class MapTest : MonoBehaviour
     //     // yield return _map.Initialize();
     // }
 
-    private void LoadMap(string latlng, bool useSqlite = true, bool useFileCache = true)
+    private IEnumerator LoadMap(string latlng, bool useSqlite = true, bool useFileCache = true)
     {
         var mapInfo = new MapInformation(latlng);
         mapInfo.SetInformation(null, 16, 45, null, 1000);
         mapInfo.Initialize();
         var mapboxContext = new MapboxContext();
-        mapboxContext.LoadConfigurationWithoutValidation();
+        yield return mapboxContext.LoadConfigurationCoroutine(false);
         var unityContext = new UnityContext();
-        unityContext.Initialize();
+        yield return unityContext.Initialize();
 
         var taskManager = unityContext.TaskManager;
         _dataManager = new LoggingDataFetchingManager(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
@@ -135,7 +135,7 @@ public class MapTest : MonoBehaviour
     [UnityTest]
     public IEnumerator LoadMapView()
     {
-        LoadMap(_helsinkiLatitudeLongitudeString);
+        yield return LoadMap(_helsinkiLatitudeLongitudeString);
         yield return _map.Initialize();
         
         var tileCover = new TileCover();
@@ -153,8 +153,8 @@ public class MapTest : MonoBehaviour
     {
         //this wrongly assumes data is already available in the long term cache so it's incomplete
         
-        LoadMap(_helsinkiLatitudeLongitudeString);
-        
+        yield return LoadMap(_helsinkiLatitudeLongitudeString);
+
         //expire all tiles in db
         var sqliteCache = _cacheManager.SqLiteCache as SqliteCache;
         foreach (var tile in sqliteCache.GetAllTiles())
@@ -184,7 +184,7 @@ public class MapTest : MonoBehaviour
     [UnityTest]
     public IEnumerator LoadMapWithoutSql()
     {
-        LoadMap(_helsinkiLatitudeLongitudeString, false);
+        yield return LoadMap(_helsinkiLatitudeLongitudeString, false);
         yield return _map.Initialize();
         
         yield return _map.LoadMapViewCoroutine();
@@ -199,7 +199,7 @@ public class MapTest : MonoBehaviour
     [UnityTest]
     public IEnumerator LoadMapWithoutFile()
     {
-        LoadMap(_helsinkiLatitudeLongitudeString, true, false);
+        yield return LoadMap(_helsinkiLatitudeLongitudeString, true, false);
         yield return _map.Initialize();
         
         yield return _map.LoadMapViewCoroutine();
@@ -215,7 +215,7 @@ public class MapTest : MonoBehaviour
     public IEnumerator LoadThenCancelAllRequests()
     {
         MapboxCacheManager.DeleteAllCache();
-        LoadMap(_helsinkiLatitudeLongitudeString);
+        yield return LoadMap(_helsinkiLatitudeLongitudeString);
         yield return _map.Initialize();
         
         _dataManager.SetDelayTime(5);

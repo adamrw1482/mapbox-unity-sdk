@@ -25,15 +25,6 @@ namespace Mapbox.BaseModule.Map
             yield return LoadConfigurationCoroutine();
         }
 
-        /// <summary>
-        /// Load configuration without token validation.
-        /// For editor tooling only — not for runtime use.
-        /// </summary>
-        public void LoadConfigurationWithoutValidation()
-        {
-            Configuration = LoadAndParseConfig();
-        }
-
         public string GetAccessToken()
         {
             return Configuration.AccessToken;
@@ -83,28 +74,37 @@ namespace Mapbox.BaseModule.Map
 
         private const float TokenValidationTimeoutSeconds = 10f;
 
-        private IEnumerator LoadConfigurationCoroutine()
+        public IEnumerator LoadConfigurationCoroutine(bool validateToken = true)
         {
             var config = LoadAndParseConfig();
-            var tokenValidator = new MapboxTokenApi();
-            var configLoaded = false;
-            tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
-            {
-                HandleTokenResponse(config, response);
-                configLoaded = true;
-            });
 
-            var elapsed = 0f;
-            while (!configLoaded)
+            if (validateToken)
             {
-                elapsed += Time.deltaTime;
-                if (elapsed >= TokenValidationTimeoutSeconds)
+                var tokenValidator = new MapboxTokenApi();
+                var configLoaded = false;
+                tokenValidator.Retrieve(config.GetMapsSkuToken, config.AccessToken, (response) =>
                 {
-                    Debug.LogError("Token validation timed out. Proceeding with unvalidated configuration.");
-                    Configuration = config;
-                    break;
+                    HandleTokenResponse(config, response);
+                    configLoaded = true;
+                });
+
+                var elapsed = 0f;
+                while (!configLoaded)
+                {
+                    elapsed += Time.deltaTime;
+                    if (elapsed >= TokenValidationTimeoutSeconds)
+                    {
+                        Debug.LogError("Token validation timed out. Proceeding with unvalidated configuration.");
+                        Configuration = config;
+                        break;
+                    }
+
+                    yield return null;
                 }
-                yield return null;
+            }
+            else
+            {
+                Configuration = config;
             }
         }
 
