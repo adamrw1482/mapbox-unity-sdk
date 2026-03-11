@@ -17,7 +17,9 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
     public class RoadComponentVisualizer : MapboxComponentVisualizer
     {
         private RoadComponentSettings _settings;
-        private readonly Random _random = new Random();
+
+        [ThreadStatic] private static Random _threadRandom;
+        private static Random GetRandom() => _threadRandom ??= new Random();
 
         public RoadComponentVisualizer(string name, IMapInformation mapInformation, UnityContext unityContext = null,
             RoadComponentSettings settings = null) : base(name, mapInformation, unityContext)
@@ -60,7 +62,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
                 if (key == "structure") structureTagIndex = i;
             }
 
-            var rnd = _random;
+            var rnd = GetRandom();
             var featureCount = layer.FeatureCount();
             var info = new StackMeshInfo(featureCount);
 

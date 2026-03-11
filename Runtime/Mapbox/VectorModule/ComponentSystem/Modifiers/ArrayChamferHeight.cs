@@ -27,8 +27,6 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
     {
         private ChamferSettings _settings;
 
-        private int _startIndex;
-        private float _offsetInTile;
         private static readonly Vector3 Up = Vector3.up;
         
         public ArrayChamferHeight(ChamferSettings settings)
@@ -50,15 +48,14 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             if (vertexData == null || vertexData.Submeshes.Count < 1)
                 return triIndex;
 
-            _startIndex = vertexAnchorIndex;
             var scaledOffset = (_settings.OffsetInMeters / tileSizeX) / scale;
-            
+
             height = (height / scale) / tileSizeX;
             minHeight   = (minHeight > 0)
                 ? (minHeight / scale) / tileSizeX
                 : 0;
 
-            triIndex = Chamfer(vertices, normals, vertexData, triList, triIndex, minHeight, height, scaledOffset);
+            triIndex = Chamfer(vertices, normals, vertexData, triList, triIndex, minHeight, height, scaledOffset, vertexAnchorIndex);
             return triIndex;
         }
         
@@ -97,7 +94,8 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
             int triIndex,
             float minHeight,
             float height,
-            float scaledOffset)
+            float scaledOffset,
+            int startIndex)
         {
             int polyPointCount = vertexData.VertexCount;
             int originalPolygonPointIndexer = 0;
@@ -191,7 +189,7 @@ namespace Mapbox.VectorModule.ComponentSystem.Modifiers
                     normals[vertBase + 3] = n2;
 
                     // ---- triangles ----
-                    int si = _startIndex;
+                    int si = startIndex;
                     int baseA = si + curIdx;
                     int baseB = si + vertBase;
 
