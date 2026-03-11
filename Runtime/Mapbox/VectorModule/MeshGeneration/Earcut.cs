@@ -443,7 +443,7 @@ namespace Mapbox.VectorModule.MeshGeneration
 				queue.Add(getLeftmost(list));
 			}
 
-			queue.Sort(delegate(Node a, Node b) { return (int)Math.Ceiling(a.x - b.x); });
+			queue.Sort(delegate(Node a, Node b) { return a.x.CompareTo(b.x); });
 
 			// process holes from left to right
 			for (i = 0; i < queue.Count; i++)
@@ -469,7 +469,7 @@ namespace Mapbox.VectorModule.MeshGeneration
 				queue.Add(getLeftmost(list));
 			}
 
-			queue.Sort((a, b) => (int)Math.Ceiling(a.x - b.x));
+			queue.Sort((a, b) => a.x.CompareTo(b.x));
 
 			// process holes from left to right
 			for (i = 0; i < queue.Count; i++)

@@ -34,6 +34,7 @@ namespace Mapbox.VectorModuleTests
         public IEnumerator SetUp()
         {
             var mapboxContext = new MapboxContext();
+            yield return mapboxContext.LoadConfigurationCoroutine(false);
             _fs = new ResilientWebRequestFileSource(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
             
             Response response = null;

@@ -318,7 +318,7 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private string TileToToFileInfoExpects(CanonicalTileId tileId, string tilesetId)
 		{
-			var relativePath = string.Format("{0}/{1}{2}{3}.{4}", MapIdToFolderName(tilesetId), tileId.X, tileId.Y, tileId.Z, FileExtension);
+			var relativePath = string.Format("{0}/{1}_{2}_{3}.{4}", MapIdToFolderName(tilesetId), tileId.X, tileId.Y, tileId.Z, FileExtension);
 			return Path.GetFullPath(Path.Combine(PersistantCacheRootFolderPath, relativePath)); 
 		}
 		
