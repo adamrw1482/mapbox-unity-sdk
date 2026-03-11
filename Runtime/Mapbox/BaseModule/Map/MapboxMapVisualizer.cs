@@ -122,7 +122,6 @@ namespace Mapbox.BaseModule.Map
 
             foreach (var tileId in _toRemove)
             {
-                //this tryget is unnecessary, just get it. it cannot not be there.
                 if (ActiveTiles.TryGetValue(tileId, out var tile))
                 {
                     if (tile.LoadingState == LoadingState.Temporary)
@@ -130,25 +129,7 @@ namespace Mapbox.BaseModule.Map
                         TempTiles.Remove(tile);
                     }
 
-                    TileUnloading(tile);
                     PoolTile(tile);
-
-                    if (tile.Children != null)
-                    {
-                        foreach (var child in tile.Children)
-                        {
-                            if (child.LoadingState == LoadingState.Temporary)
-                            {
-                                TempTiles.Remove(child);
-                            }
-
-                            TileUnloading(child);
-                        }
-                    }
-                }
-                else
-                {
-                    //Debug.LogError($"Could not find tile {tileId}");
                 }
             }
 
@@ -189,7 +170,6 @@ namespace Mapbox.BaseModule.Map
                     {
                         foreach (var child in tilePair.Children)
                         {
-                            TileUnloading(child);
                             PoolTile(child);
                         }
                         tilePair.Children.Clear();
@@ -224,12 +204,7 @@ namespace Mapbox.BaseModule.Map
                         TempTiles.Remove(tile);
                     }
 
-                    TileUnloading(tile);
                     PoolTile(tile);
-                }
-                else
-                {
-                    Debug.LogError($"Could not find tile {tileId}");
                 }
             }
         }
@@ -396,6 +371,7 @@ namespace Mapbox.BaseModule.Map
             if (tile.LoadingState == LoadingState.None)
                 return;
 
+            TileUnloading(tile);
             ActiveTiles.Remove(tile.UnwrappedTileId);
             tile.Recycle();
             tile.LoadingState = LoadingState.None;
