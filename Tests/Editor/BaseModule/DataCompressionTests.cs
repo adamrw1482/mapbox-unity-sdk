@@ -17,7 +17,7 @@ namespace Mapbox.BaseModuleTests
         public IEnumerator SetUp()
         {
             var mapboxContext = new MapboxContext();
-            yield return mapboxContext.Initialize();
+            yield return mapboxContext.LoadConfigurationCoroutine(false);
             _fs = new ResilientWebRequestFileSource(mapboxContext.GetAccessToken(), mapboxContext.GetSkuToken);
         }
     

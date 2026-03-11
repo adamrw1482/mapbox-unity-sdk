@@ -50,7 +50,7 @@ namespace Mapbox.BaseModuleTests
             };
 
             var mapboxContext = new MapboxContext();
-            yield return mapboxContext.Initialize();
+            yield return mapboxContext.LoadConfigurationCoroutine(false);
             var unityContext = new UnityContext();
             var taskManager = new MockTaskManager();
             taskManager.Initialize();

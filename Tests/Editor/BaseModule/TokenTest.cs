@@ -17,7 +17,7 @@ namespace Mapbox.BaseModuleTests
         public IEnumerator SetUp()
         {
             var mapboxContext = new MapboxContext();
-            yield return mapboxContext.Initialize();
+            yield return mapboxContext.LoadConfigurationCoroutine(false);
             _tokenApi = new MapboxTokenApi();
             _configAccessToken = mapboxContext.GetAccessToken();
             _configSkuToken = mapboxContext.GetSkuToken;
