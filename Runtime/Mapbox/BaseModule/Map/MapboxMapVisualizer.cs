@@ -25,6 +25,8 @@ namespace Mapbox.BaseModule.Map
 
         private HashSet<UnwrappedTileId> _toRemove;
         private HashSet<CanonicalTileId> _retainedTiles;
+        private Coroutine _internalUpdateCoroutine;
+        private bool _destroyed;
 
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
@@ -50,7 +52,7 @@ namespace Mapbox.BaseModule.Map
             _toRemove = new HashSet<UnwrappedTileId>();
             _retainedTiles = new HashSet<CanonicalTileId>();
 
-            Runnable.Instance.StartCoroutine(InternalUpdate());
+            _internalUpdateCoroutine = Runnable.Instance.StartCoroutine(InternalUpdate());
         }
 
         public virtual IEnumerator Initialize()
@@ -259,6 +261,13 @@ namespace Mapbox.BaseModule.Map
 
         public void OnDestroy()
         {
+            _destroyed = true;
+            if (_internalUpdateCoroutine != null && Runnable.Instance != null)
+            {
+                Runnable.Instance.StopCoroutine(_internalUpdateCoroutine);
+                _internalUpdateCoroutine = null;
+            }
+
             foreach (var layerModule in LayerModules)
             {
                 layerModule.OnDestroy();
@@ -291,7 +300,7 @@ namespace Mapbox.BaseModule.Map
 
         private IEnumerator InternalUpdate()
         {
-            while (true)
+            while (!_destroyed)
             {
                 InternalUpdateCoroutine();
                 yield return null;
@@ -362,6 +371,8 @@ namespace Mapbox.BaseModule.Map
                     if (quadrantCheck[i] == false)
                     {
                         CreateTempTile(quadrants[i], out var unityMapTile);
+                        unityMapTile.LoadingState = LoadingState.Filler;
+                        ActiveTiles[quadrants[i]] = unityMapTile;
                         ShowTile(unityMapTile);
                         activeChildren.Add(unityMapTile);
                         quadrantCheck[i] = true;
@@ -382,17 +393,22 @@ namespace Mapbox.BaseModule.Map
 
         protected void PoolTile(UnityMapTile tile)
         {
+            if (tile.LoadingState == LoadingState.None)
+                return;
+
             ActiveTiles.Remove(tile.UnwrappedTileId);
             tile.Recycle();
             tile.LoadingState = LoadingState.None;
             _tileCreator.PutTile(tile);
-            
+
             if (tile.Children != null)
             {
                 foreach (var tileChild in tile.Children)
                 {
                     PoolTile(tileChild);
-                }tile.Children.Clear();
+                }
+
+                tile.Children.Clear();
             }
         }
 

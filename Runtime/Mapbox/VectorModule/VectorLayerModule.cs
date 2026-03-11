@@ -443,6 +443,7 @@ namespace Mapbox.VectorModule
             if (data.Data == null)
             {
                 callback(new MeshGenerationTaskResult(TaskResultType.Success));
+                return;
             }
 
             var meshTask = new MeshGenTaskWrapper<MeshGenTaskWrapperResult>()

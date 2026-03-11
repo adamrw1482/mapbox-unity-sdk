@@ -20,9 +20,10 @@ namespace Mapbox.BaseModule.Data.Tasks
             if (task != null && !task.IsFaulted)
             {
                 DataCompleted(Task.CompletedTask, DataResult);
+                IsCompleted = true;
                 return;
             }
-            
+
             if (task == null)
             {
                 DataResult ??= new T();
