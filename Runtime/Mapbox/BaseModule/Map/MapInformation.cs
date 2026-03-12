@@ -99,7 +99,7 @@ namespace Mapbox.BaseModule.Map
             if(zoom.HasValue) Zoom = zoom.Value;
             if (pitch.HasValue) Pitch = pitch.Value;
             if (bearing.HasValue) Bearing = bearing.Value;
-            if (scale.HasValue)
+            if (scale.HasValue && !Mathf.Approximately(scale.Value, Scale))
             {
                 Scale = scale.Value;
                 OnWorldScaleChanged();

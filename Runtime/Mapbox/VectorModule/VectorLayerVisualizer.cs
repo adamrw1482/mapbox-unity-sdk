@@ -84,6 +84,10 @@ namespace Mapbox.VectorModule
                             var isVisible = stack.IsZinSupportedRange(_mapInformation.AbsoluteZoom);
                             entity.GameObject.SetActive(isVisible);
                         }
+                        else
+                        {
+                            Debug.Log("All entities should have a stack id");
+                        }
                     }
                 }
             }
@@ -156,6 +160,25 @@ namespace Mapbox.VectorModule
             {
                 modifierStack.UnregisterTile(tileId);
             }
+        }
+
+        public virtual void ClearCaches()
+        {
+            foreach (var entities in _results.Values)
+            {
+                foreach (var entity in entities)
+                {
+                    OnVectorMeshDestroyed(entity.GameObject);
+                    GameObject.Destroy(entity.GameObject);
+                }
+            }
+
+            foreach (var stack in _stackList)
+            {
+                stack.Value.OnDestroy();
+            }
+
+            _results.Clear();
         }
         
         public void OnDestroy()

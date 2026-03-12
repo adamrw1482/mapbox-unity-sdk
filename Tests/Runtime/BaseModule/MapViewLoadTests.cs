@@ -103,7 +103,7 @@ namespace Mapbox.BaseModuleTests.DataTests
                 mapInfo, 
                 _vectorSource, 
                 unityContext, 
-                new Dictionary<string, IVectorLayerVisualizer>(), 
+                new Dictionary<string, List<IVectorLayerVisualizer>>(), 
                 new VectorModuleSettings() { DataSettings = vectorSourceSettings});
             mapVisualizer.LayerModules.Add(_imageLayer);
             mapVisualizer.LayerModules.Add(_terrainLayer);

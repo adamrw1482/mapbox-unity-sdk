@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Utilities;
 using UnityEngine;
@@ -27,9 +28,13 @@ namespace Mapbox.BaseModule.Unity
 		public Material Material;
 		private MeshFilter _meshFilter;
 		public MeshFilter MeshFilter => _meshFilter;
+		public List<UnityMapTile> Children;
+
 		public int MeshVertexCount = 0;
 
-		public bool IsTemporary = false;
+		//public bool IsTemporary = false;
+
+		public LoadingState LoadingState;
 
 		public void Awake()
 		{
@@ -84,5 +89,13 @@ namespace Mapbox.BaseModule.Unity
 			TerrainContainer.OnDestroy();
 			VectorContainer.OnDestroy();
 		}
+	}
+
+	public enum LoadingState
+	{
+		None,
+		Temporary,
+		Finished,
+		Filler
 	}
 }

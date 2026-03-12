@@ -31,7 +31,7 @@ namespace Mapbox.Example.Scripts.MapInput
 		{
 			if (_isInitialized && _map.MapInformation != null && Core.UpdateCamera(_map.MapInformation))
 			{
-				_map.MapInformation.SetInformation(null, Core.ZoomValue, Core.Pitch, Core.Bearing);
+				_map.ChangeView(null, Core.ZoomValue, Core.Pitch, Core.Bearing);
 			}
 		}
 

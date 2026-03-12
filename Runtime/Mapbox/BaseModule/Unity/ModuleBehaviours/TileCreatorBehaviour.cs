@@ -11,13 +11,14 @@ namespace Mapbox.BaseModule.Unity.ModuleBehaviours
         [Tooltip("Materials for base map tile mesh and gameobject")]
         public Material[] TileMaterials;
 
+        public bool InstanceMaterials = true;
         public int CacheSize = 25;
     
         public ITileCreator GetTileCreator(UnityContext unityContext)
         {
             if (_tileCreator != null) return _tileCreator;
 
-            _tileCreator = new TileCreator(unityContext, TileMaterials, CacheSize);
+            _tileCreator = new TileCreator(unityContext, TileMaterials, CacheSize, InstanceMaterials);
             return _tileCreator;
         }
     }
