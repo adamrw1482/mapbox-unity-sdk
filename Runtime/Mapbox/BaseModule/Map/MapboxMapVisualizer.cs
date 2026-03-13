@@ -405,13 +405,16 @@ namespace Mapbox.BaseModule.Map
 
         protected bool CreateTileInstant(UnwrappedTileId tileId, out UnityMapTile tile)
         {
-            //we need to do positioning and scaling before mesh gen for now
             GetMapTile(tileId, out tile);
 
             var result = CreateTile(tile);
 
-            //couldn't create the tile
-            if (!result) PoolTile(tile);
+            if (!result)
+            {
+                tile.Recycle();
+                tile.LoadingState = LoadingState.None;
+                _tileCreator.PutTile(tile);
+            }
 
             return result;
         }
