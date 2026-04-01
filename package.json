@@ -38,6 +38,11 @@
             "displayName": "MapboxComponents",
             "description": "Mapbox Components Demo",
             "path": "Samples~/MapboxComponents"
+        },
+        {
+            "displayName": "LandmarkDemo",
+            "description": "3D Landmarks Demo",
+            "path": "Samples~/LandmarkDemo"
         }
     ]
 }
