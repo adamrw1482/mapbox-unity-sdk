@@ -16,6 +16,8 @@ namespace Mapbox.BaseModule.Utilities
 
 			public const string EventsAPI = "https://events.mapbox.com/";
 
+			public const string LandmarksTilesetId = "mapbox.mapbox-3dbuildings-v1-meshopt";
+			
 			/// <summary> Mercator projection max latitude limit. </summary>
 			public const double LatitudeMax = 85.0511;
 
@@ -29,6 +31,8 @@ namespace Mapbox.BaseModule.Utilities
 			public const float EpsilonFloatingPoint = 1E-05f;
 
 			public const string DefaultTerrainShaderName = "Shader Graphs/ElevatedTerrainShader";
+
+			
 		}
 		
 		public static class Path
