@@ -24,7 +24,7 @@ To add landmarks to your own scene, follow the steps below.
 
 1. Select your map GameObject (the one with `MapboxMapBehaviour`)
 2. Add the `LandmarksLayerModuleScript` component
-3. Assign a **Base Material** — this is the PBR material used for all landmark models. Use `LandmarkMaterialGLTF.mat` from the demo as a starting point
+3. Assign a **Base Material** — this is the PBR material used for all landmark models. The default is `LandmarkMaterialGLTF.mat` included in the package under `LandmarksModule/Materials/`
 
 That's it — landmarks will now appear on the map. But you'll likely see basic OSM buildings overlapping with the landmarks. The next steps fix that.
 

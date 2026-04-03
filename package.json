@@ -14,35 +14,39 @@
     },
     "samples": [
         {
-            "displayName": "LocationBasedGame",
-            "description": "Location Based Game",
+            "displayName": "Location Based Game",
+            "description": "A location-based game using GPS positioning, real-world map rendering, and route navigation.",
             "path": "Samples~/LocationBasedGame"
         },
         {
-            "displayName": "WorldMapViewer",
-            "description": "World Map Viewer",
+            "displayName": "World Map Viewer",
+            "description": "An interactive world map with terrain, imagery, and vector layers. Good starting point for exploring the SDK.",
             "path": "Samples~/WorldMapViewer"
         },
         {
-
-            "displayName": "DirectionsApiDemo",
-            "description": "Directions Api Demo",
+            "displayName": "Directions API",
+            "description": "Route calculation and turn-by-turn navigation using the Mapbox Directions API.",
             "path": "Runtime/Mapbox/DirectionsApi/Samples~/DirectionsApiDemo"
         },
         {
-            "displayName": "GeocodingApiDemo",
-            "description": "Geocoding Api Demo",
+            "displayName": "Geocoding API",
+            "description": "Address search and coordinate lookup using the Mapbox Geocoding API.",
             "path": "Runtime/Mapbox/GeocodingApi/Samples~/GeocodingApiDemo"
         },
         {
-            "displayName": "MapboxComponents",
-            "description": "Mapbox Components Demo",
+            "displayName": "Components Module",
+            "description": "High-performance map rendering using the Components Module with merged building, road, and area meshes.",
             "path": "Samples~/MapboxComponents"
         },
         {
-            "displayName": "LandmarkDemo",
-            "description": "3D Landmarks Demo",
+            "displayName": "3D Landmarks",
+            "description": "Detailed 3D landmark buildings with automatic OSM building suppression using the Components Module.",
             "path": "Samples~/LandmarkDemo"
+        },
+        {
+            "displayName": "3D Landmarks (Vector Module)",
+            "description": "Detailed 3D landmark buildings with automatic OSM building suppression using the Vector Module.",
+            "path": "Samples~/LandmarkDemoWithVector"
         }
     ]
 }

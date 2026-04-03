@@ -340,7 +340,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 8748fd1d2b3ba43b8a127e749084d0d9, type: 2}
+  - {fileID: 2100000, guid: 3502202bf69bb4ccbbb41eb706aa10a7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -510,9 +510,9 @@ GameObject:
   - component: {fileID: 1316629400}
   - component: {fileID: 1316629399}
   - component: {fileID: 1316629407}
-  - component: {fileID: 1316629406}
+  - component: {fileID: 1316629411}
   - component: {fileID: 1316629409}
-  - component: {fileID: 1316629408}
+  - component: {fileID: 1316629410}
   m_Layer: 0
   m_Name: Map
   m_TagString: Untagged
@@ -566,24 +566,6 @@ Transform:
   - {fileID: 2054936222}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1316629406
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316629397}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e13965577acb456182a04c56586cb36e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _layerVisualizers:
-  - {fileID: 11400000, guid: d504bc92e61814fa1ae976b4e856caa6, type: 2}
-  - {fileID: 11400000, guid: 2378591f323f644ca829e280a6405510, type: 2}
-  - {fileID: 11400000, guid: 63db4f96b10e94e348c09665ac45bb16, type: 2}
-  - {fileID: 11400000, guid: 0cd83e5a021674ce1a1aae323bb6807d, type: 2}
-  - {fileID: 11400000, guid: 1b62a8119747b44e1b886afd3fe1d552, type: 2}
 --- !u!114 &1316629407
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -597,24 +579,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TileMaterials:
-  - {fileID: 2100000, guid: aaf04558f9b104d2ebc4e1c86464fc1c, type: 2}
+  - {fileID: 2100000, guid: 067aa582c73e148eea118c9cc3bc0680, type: 2}
   InstanceMaterials: 0
   CacheSize: 25
---- !u!114 &1316629408
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316629397}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a9904b2099ff9480b906c9840df938bf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Map: {fileID: 1316629399}
-  LandmarksLayerModuleScript: {fileID: 1316629409}
-  BuildingLayerVisualizerObject: {fileID: 11400000, guid: d504bc92e61814fa1ae976b4e856caa6, type: 2}
 --- !u!114 &1316629409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -628,6 +595,43 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   BaseMaterial: {fileID: 2100000, guid: 691ea1a86a64e406ab5e7c130d871ce5, type: 2}
+--- !u!114 &1316629410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316629397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e59e4a984017c49429e5aec17ed7b580, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Map: {fileID: 1316629399}
+  LandmarksLayerModuleScript: {fileID: 1316629409}
+  VectorModuleScript: {fileID: 1316629411}
+  LandmarkFilter: {fileID: 11400000, guid: 2c374a8ea7a3a402ab8f6f9ed8285d37, type: 2}
+--- !u!114 &1316629411
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316629397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13ef846e428d4d41b3827620e39b8a6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  vectorModuleSettings:
+    SourceType: 0
+    CustomSourceId: 
+    DataSettings:
+      CacheSize: 100
+      ClampDataLevelToMax: 15
+    RejectTilesOutsideZoom: {x: 12, y: 16}
+  _layerVisualizers:
+  - {fileID: 11400000, guid: 7463126c9ce6549ed818722f0604d6ad, type: 2}
 --- !u!1 &1498144748
 GameObject:
   m_ObjectHideFlags: 0
