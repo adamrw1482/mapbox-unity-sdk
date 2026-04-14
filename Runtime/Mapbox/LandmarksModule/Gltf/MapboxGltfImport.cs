@@ -17,7 +17,7 @@ namespace Mapbox.LandmarksModule
     /// Uses a custom schema chain (FeatureIdRoot -> FeatureIdMesh -> FeatureIdMeshPrimitive)
     /// to capture custom vertex attributes like _FEATURE_ID_RGBA4444 via JsonExtensionData,
     /// without modifying any core library schema files.
-    /// Overrides OnBeforeDisposeVolatileData to notify addon instances that loading is complete
+    /// Subscribes to BeforeDisposeVolatileData to notify addon instances that loading is complete
     /// while buffer data is still accessible.
     /// </summary>
     public class MapboxGltfImport : GltfImportBase<FeatureIdRoot>
@@ -28,7 +28,10 @@ namespace Mapbox.LandmarksModule
             IDeferAgent deferAgent = null,
             IMaterialGenerator materialGenerator = null,
             ICodeLogger logger = null
-        ) : base(downloadProvider, deferAgent, materialGenerator, logger) { }
+        ) : base(downloadProvider, deferAgent, materialGenerator, logger)
+        {
+            BeforeDisposeVolatileData += OnBeforeDisposeVolatileData;
+        }
 
         /// <inheritdoc />
         protected override RootBase ParseJson(string json)
@@ -36,12 +39,10 @@ namespace Mapbox.LandmarksModule
             return JsonConvert.DeserializeObject<FeatureIdRoot>(json);
         }
 
-        /// <inheritdoc />
-        protected override void OnBeforeDisposeVolatileData()
+        void OnBeforeDisposeVolatileData(IGltfReadable gltf)
         {
             var featureIdInstance = GetImportAddonInstance<FeatureIdImportAddonInstance>();
-            featureIdInstance?.OnLoadCompleted(this);
+            featureIdInstance?.OnLoadCompleted(gltf);
         }
     }
 }
-
