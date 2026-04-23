@@ -9,15 +9,28 @@ namespace Mapbox.BaseModule.Data.DataFetchers
     {
         [HideInInspector] public float[] ElevationValues;
         public bool IsElevationDataReady = false;
-        public Action ElevationValuesUpdated;
+
+        /// <summary>
+        /// Fires whenever <see cref="SetElevationValues(float[])"/> or
+        /// <see cref="SetElevationValues(float[],float,float)"/> completes. Multiple
+        /// subscribers can safely attach with <c>+=</c> and detach with <c>-=</c>; the
+        /// former single-setter <c>SetElevationChangedCallback</c> method silently wiped
+        /// other subscribers, so it was removed.
+        /// </summary>
+        public event Action ElevationValuesUpdated;
+
         public float MinElevation = 0;
         public float MaxElevation = 0;
 
-        public void SetElevationChangedCallback(Action callback)
-        {
-            ElevationValuesUpdated = callback;
-        }
-        
+        /// <summary>
+        /// True as soon as the raster <see cref="RasterData.Texture"/> has been assigned,
+        /// regardless of whether the per-pixel float[] has been decoded yet. Shader
+        /// elevation rendering only needs the texture and can show a tile the moment this
+        /// flips true; CPU consumers (collider builder, QueryElevation APIs, CPU elevation
+        /// mode) should wait for <see cref="IsElevationDataReady"/> instead.
+        /// </summary>
+        public bool IsTextureReady => Texture != null;
+
         public override void Clear()
         {
             base.Clear();

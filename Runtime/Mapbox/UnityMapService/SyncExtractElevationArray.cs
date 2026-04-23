@@ -1,81 +1,68 @@
 using System;
+using Unity.Collections;
 using UnityEngine;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
 
 namespace Mapbox.UnityMapService
 {
-    public class SyncExtractElevationArray : IElevationDataExtractionStrategy
-    {
-        public void ExtractHeightData(Texture2D texture, Action<float[]> callback)
-        {
-            byte[] rgbData = texture.GetRawTextureData();
-            var width = texture.width;
-            float[] heightData = new float[width * width];
+	/// <summary>
+	/// Synchronous terrain-RGB -> float[] elevation decoder. Used on platforms that don't
+	/// support <c>AsyncGPUReadback</c>. Iterates the raw texture bytes in-place (no byte[]
+	/// copy) and decodes each pixel via Mapbox's terrain-RGB formula.
+	/// </summary>
+	public class SyncExtractElevationArray : IElevationDataExtractionStrategy
+	{
+		public void ExtractHeightData(Texture2D texture, Action<float[]> callback)
+		{
+			var rgbData = texture.GetRawTextureData<byte>();
+			var width = texture.width;
+			var heightData = new float[width * width];
 
-            for (float y = 0; y < width; y++)
-            {
-                for (float x = 0; x < width; x++)
-                {
-                    var xx = (x / width) * width;
-                    var yy = (y / width) * width;
-                    var index = ((int) yy * width) + (int) xx;
+			int idx = 0;
+			for (int y = 0; y < width; y++)
+			{
+				for (int x = 0; x < width; x++, idx++)
+				{
+					int rgbIdx = idx * 4;
+					float r = rgbData[rgbIdx + 1];
+					float g = rgbData[rgbIdx + 2];
+					float b = rgbData[rgbIdx + 3];
+					// Mapbox terrain-RGB decode inlined for the hot loop.
+					heightData[idx] = -10000f + (r * 65536f + g * 256f + b) * 0.1f;
+				}
+			}
+			callback?.Invoke(heightData);
+		}
 
-                    float r = rgbData[index * 4 + 1];
-                    float g = rgbData[index * 4 + 2];
-                    float b = rgbData[index * 4 + 3];
-                    //var color = rgbData[index];
-                    // float r = color.g;
-                    // float g = color.b;
-                    // float b = color.a;
-                    //the formula below is the same as Conversions.GetAbsoluteHeightFromColor but it's inlined for performance
-                    heightData[(int) (y * width + x)] = (-10000f + ((r * 65536f + g * 256f + b) * 0.1f));
-                    //678 ==> 012345678
-                    //345
-                    //012
-                }
-            }
-            callback?.Invoke(heightData);
-        }
-        
-        public void ExtractHeightData(TerrainData terrainData)
-        {
-            ExtractHeightData(terrainData.Texture, terrainData);
-        }
-        
-        public void ExtractHeightData(Texture2D texture, TerrainData terrainData)
-        {
-            var min = float.MaxValue;
-            var max = float.MinValue;
-            byte[] rgbData = texture.GetRawTextureData();
-            var width = texture.width;
-            float[] heightData = new float[width * width];
+		public void ExtractHeightData(TerrainData terrainData)
+		{
+			ExtractHeightData(terrainData.Texture, terrainData);
+		}
 
-            for (float y = 0; y < width; y++)
-            {
-                for (float x = 0; x < width; x++)
-                {
-                    var xx = (x / width) * width;
-                    var yy = (y / width) * width;
-                    var index = ((int) yy * width) + (int) xx;
+		public void ExtractHeightData(Texture2D texture, TerrainData terrainData)
+		{
+			var rgbData = texture.GetRawTextureData<byte>();
+			var width = texture.width;
+			var heightData = new float[width * width];
+			var min = float.MaxValue;
+			var max = float.MinValue;
 
-                    float r = rgbData[index * 4 + 1];
-                    float g = rgbData[index * 4 + 2];
-                    float b = rgbData[index * 4 + 3];
-                    //var color = rgbData[index];
-                    // float r = color.g;
-                    // float g = color.b;
-                    // float b = color.a;
-                    //the formula below is the same as Conversions.GetAbsoluteHeightFromColor but it's inlined for performance
-                    var value = (-10000f + ((r * 65536f + g * 256f + b) * 0.1f));
-                    heightData[(int)(y * width + x)] = value;
-                    if(value < min) min = value;
-                    if(value > max) max = value;
-                    //678 ==> 012345678
-                    //345
-                    //012
-                }
-            }
-            terrainData.SetElevationValues(heightData, min, max);
-        }
-    }
+			int idx = 0;
+			for (int y = 0; y < width; y++)
+			{
+				for (int x = 0; x < width; x++, idx++)
+				{
+					int rgbIdx = idx * 4;
+					float r = rgbData[rgbIdx + 1];
+					float g = rgbData[rgbIdx + 2];
+					float b = rgbData[rgbIdx + 3];
+					var value = -10000f + (r * 65536f + g * 256f + b) * 0.1f;
+					heightData[idx] = value;
+					if (value < min) min = value;
+					if (value > max) max = value;
+				}
+			}
+			terrainData.SetElevationValues(heightData, min, max);
+		}
+	}
 }

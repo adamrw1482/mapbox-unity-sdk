@@ -69,6 +69,25 @@ namespace Mapbox.BaseModule.Unity
 			}
 			OnElevationValuesUpdated(this);
 		}
+
+		/// <summary>
+		/// Applies a conservative mesh bounds of <c>[0, maxElevationMeters * TileScale]</c>
+		/// on Y so shader-displaced vertices stay inside the mesh's frustum culling volume
+		/// before real <c>MinElevation</c>/<c>MaxElevation</c> are known (or permanently,
+		/// when CPU extraction is disabled). A later call to <see cref="ElevationUpdatedCallback"/>
+		/// tightens the bounds if CPU elevation eventually arrives.
+		/// </summary>
+		/// <param name="maxElevationMeters">Highest elevation (in meters) the camera is expected to view.</param>
+		public void SetFallbackMeshBounds(float maxElevationMeters)
+		{
+			if (_meshFilter == null)
+			{
+				return;
+			}
+			var boxHeight = maxElevationMeters * TileScale;
+			var centerHeight = boxHeight * 0.5f;
+			_meshFilter.mesh.bounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
+		}
 		
 		public void Recycle()
 		{
@@ -88,6 +107,28 @@ namespace Mapbox.BaseModule.Unity
 			ImageContainer.OnDestroy();
 			TerrainContainer.OnDestroy();
 			VectorContainer.OnDestroy();
+
+			// Unity does not auto-free runtime-created Meshes when the GameObject is
+			// destroyed. Release both the render mesh allocated in Awake and the dedicated
+			// collider mesh allocated by ElevatedTerrainStrategy (named "TerrainCollider").
+			// The identity + name checks avoid double-freeing if the collider happens to be
+			// aliased to the render mesh (FlatTerrainStrategy path). Check children too —
+			// the collider may live on a dedicated layer child GameObject.
+			var renderMesh = _meshFilter != null ? _meshFilter.sharedMesh : null;
+			var colliders = GetComponentsInChildren<MeshCollider>(includeInactive: true);
+			foreach (var mc in colliders)
+			{
+				if (mc.sharedMesh != null &&
+				    mc.sharedMesh.name == "TerrainCollider" &&
+				    mc.sharedMesh != renderMesh)
+				{
+					Destroy(mc.sharedMesh);
+				}
+			}
+			if (renderMesh != null)
+			{
+				Destroy(renderMesh);
+			}
 		}
 	}
 

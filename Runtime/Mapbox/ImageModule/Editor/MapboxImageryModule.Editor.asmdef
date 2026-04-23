@@ -1,9 +1,9 @@
 {
-    "name": "MapboxCustomImageryModule.Editor",
+    "name": "MapboxImageryModule.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:60dcad938ceef450e9b8d773e5c61b99",
-        "GUID:15fe16679907f4627ab38b784df8ca99"
+        "GUID:5ff00896142b94bc7a58a7c72b2faf57",
+        "GUID:093b9fb2cd4794a8c94472d55c8bb0a9"
     ],
     "includePlatforms": [
         "Editor"

@@ -10,17 +10,27 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.TerrainStrategies;
+using Mapbox.UnityMapService.DataSources;
 using UnityEngine;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
 
 namespace Mapbox.ImageModule.Terrain
 {
+    /// <summary>
+    /// Terrain layer module. Orchestrates loading of terrain-RGB raster tiles from a
+    /// <see cref="Source{TerrainData}"/>, configures CPU elevation extraction based on
+    /// settings, and hands each tile through a <see cref="TerrainStrategy"/> that produces
+    /// render + optional collider meshes.
+    /// </summary>
     public class TerrainLayerModule : ITerrainLayerModule
     {
         private TerrainLayerModuleSettings _settings;
         private Source<TerrainData> _rasterSource;
         private HashSet<CanonicalTileId> _retainedTerrainTiles;
         private TerrainStrategy _terrainStrategy;
+        // One-shot guard so QueryElevation doesn't spam the console on every call when the
+        // user genuinely disabled CPU extraction.
+        private bool _elevationDisabledWarningLogged;
         
         public TerrainLayerModule(Source<TerrainData> source, TerrainLayerModuleSettings settings) : base()
         {
@@ -33,6 +43,17 @@ namespace Mapbox.ImageModule.Terrain
         public virtual IEnumerator Initialize()
         {
             yield return _rasterSource.Initialize();
+            if (_rasterSource is TerrainSource terrainSource)
+            {
+                terrainSource.ExtractCpuElevationData = _settings.NeedsCpuElevation;
+            }
+            if (!_settings.ExtractCpuElevationData && _settings.NeedsCpuElevation)
+            {
+                var reason = !_settings.UseShaderTerrain
+                    ? "UseShaderTerrain is off (CPU-elevation rendering needs the data)"
+                    : "colliderOptions.addCollider is on (terrain collider needs the data)";
+                Debug.LogWarning($"[Mapbox] TerrainLayerModuleSettings.ExtractCpuElevationData is unchecked, but {reason}. Extraction has been force-enabled; the checkbox has no effect in this configuration.");
+            }
             _terrainStrategy.Initialize(_settings.ElevationLayerProperties);
             if(_settings.LoadBackgroundTextures)
             {
@@ -47,21 +68,21 @@ namespace Mapbox.ImageModule.Terrain
                 unityTile.TerrainContainer.DisableTerrain();
                 return;
             }
-            
+
             var targetTileId = GetDataId(unityTile.CanonicalTileId);
             var parentTileId = targetTileId;
             for (int i = parentTileId.Z; i >= 2; i--)
             {
                 parentTileId.MoveToParent();
-                if (_rasterSource.GetInstantData(parentTileId, out var instantData)  && instantData.IsElevationDataReady)
+                if (_rasterSource.GetInstantData(parentTileId, out var instantData) && IsTileReady(instantData))
                 {
-                    unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Temporary);
+                    unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Temporary, _settings.FallbackMaxElevationMeters);
                     _terrainStrategy.RegisterTile(unityTile, !_settings.UseShaderTerrain);
                     return;
                 }
             }
         }
-        
+
         public virtual bool LoadInstant(UnityMapTile unityTile)
         {
             if (IsZinSupportedRange(unityTile.CanonicalTileId.Z) == false)
@@ -69,16 +90,27 @@ namespace Mapbox.ImageModule.Terrain
                 unityTile.TerrainContainer.DisableTerrain();
                 return true;
             }
-            
+
             var targetTileId = GetDataId(unityTile.CanonicalTileId);
-            if (_rasterSource.GetInstantData(targetTileId, out var instantData) && instantData.IsElevationDataReady)
+            if (_rasterSource.GetInstantData(targetTileId, out var instantData) && IsTileReady(instantData))
             {
-                unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain);
+                unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Final, _settings.FallbackMaxElevationMeters);
                 _terrainStrategy.RegisterTile(unityTile, !_settings.UseShaderTerrain);
                 return true;
             }
-            
+
             return false;
+        }
+
+        /// <summary>
+        /// Readiness gate used by <see cref="LoadInstant"/> and <see cref="LoadTempTile"/>.
+        /// Shader-elevation rendering only needs the raster texture and can display a tile
+        /// as soon as the texture exists. CPU-elevation rendering still needs the per-pixel
+        /// <c>float[]</c> before displacing verts, so it must wait for extraction to finish.
+        /// </summary>
+        private bool IsTileReady(TerrainData data)
+        {
+            return _settings.UseShaderTerrain ? data.IsTextureReady : data.IsElevationDataReady;
         }
 
         public virtual bool RetainTiles(HashSet<CanonicalTileId> retainedTiles)
@@ -157,6 +189,12 @@ namespace Mapbox.ImageModule.Terrain
         /// <returns></returns>
         public float QueryElevation(CanonicalTileId tileId, float x, float y)
         {
+            if (!_settings.NeedsCpuElevation && !_elevationDisabledWarningLogged)
+            {
+                _elevationDisabledWarningLogged = true;
+                Debug.LogWarning("[Mapbox] QueryElevation was called but TerrainLayerModuleSettings.ExtractCpuElevationData is disabled, so no CPU elevation data exists. Returning 0 for every query. Enable ExtractCpuElevationData if anything in your scene snaps to terrain (vector features, buildings, colliders, custom elevation lookups).");
+            }
+
             var originalTileId = tileId;
             var targetTileId = tileId;
             for (int i = 0; i < 5; i++)
@@ -167,7 +205,7 @@ namespace Mapbox.ImageModule.Terrain
                 }
                 targetTileId.MoveToParent();
             }
-            
+
             return 0;
         }
         

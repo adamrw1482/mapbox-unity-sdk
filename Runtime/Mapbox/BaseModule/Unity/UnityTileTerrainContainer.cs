@@ -35,10 +35,28 @@ namespace Mapbox.BaseModule.Unity
             ElevationValuesUpdated = elevationUpdatedCallback;
         }
 
-        public void SetTerrainData(TerrainData terrainData, bool useShaderElevation, TileContainerState state = TileContainerState.Final)
+        /// <summary>
+        /// Assigns terrain data to this tile: wires the material height texture, applies an
+        /// optional conservative fallback bounds (so shader-displaced verts don't get
+        /// frustum-culled before real Min/MaxElevation arrive), and subscribes to future
+        /// elevation updates.
+        /// </summary>
+        /// <param name="terrainData">Raster + optional decoded elevation for this tile.</param>
+        /// <param name="useShaderElevation">When true, the material's <c>_ElevationMultiplier</c> is set to 1 so the vertex shader samples <c>_HeightTexture</c>; otherwise 0 (CPU-displaced verts).</param>
+        /// <param name="state">Marks the tile container as temporary (using a parent's data while its own loads) or final.</param>
+        /// <param name="fallbackMaxElevationMeters">Pre-extraction bounds padding in meters. Pass 0 to skip fallback bounds entirely; otherwise the mesh's Y bounds are expanded to cover <c>[0, value * TileScale]</c>.</param>
+        public void SetTerrainData(TerrainData terrainData, bool useShaderElevation, TileContainerState state = TileContainerState.Final, float fallbackMaxElevationMeters = 0f)
         {
+            // Detach from the previous TerrainData (if any) before swapping. Without this,
+            // a reassignment leaks our subscription on the old data and causes spurious
+            // bounds updates if that data is shared with other tiles.
+            if (TerrainData != null)
+            {
+                TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
+            }
+
             terrainData?.SetDisposeCallback(null);
-            
+
             State = state;
             if (terrainData.Texture == null || terrainData.TileId.Z == 0)
             {
@@ -46,15 +64,26 @@ namespace Mapbox.BaseModule.Unity
             }
             TerrainData = terrainData;
             TerrainData.SetDisposeCallback(_onDisposeCallback);
-            
+
             OnTerrainUpdated();
+
+            // Apply a generous fallback bounds up front so shader-displaced geometry does not
+            // get frustum-culled before real Min/MaxElevation arrive (or forever, if CPU
+            // elevation extraction is disabled). OnElevationValuesUpdated later tightens the
+            // bounds to the actual elevation range if the float[] is decoded.
+            if (fallbackMaxElevationMeters > 0f)
+            {
+                _unityMapTile.SetFallbackMeshBounds(fallbackMaxElevationMeters);
+            }
+
+            // Subscribe multicast-safe so other listeners (e.g. ElevatedTerrainStrategy's
+            // deferred collider rebuild) can coexist.
+            TerrainData.ElevationValuesUpdated += OnElevationValuesUpdated;
+
             if (TerrainData.IsElevationDataReady)
             {
                 OnElevationValuesUpdated();
             }
-
-            TerrainData.SetElevationChangedCallback(OnElevationValuesUpdated);
-            //TerrainData.ElevationValuesUpdated += OnElevationValuesUpdated;
 
             _unityMapTile.Material.SetFloat(ElevationMultiplier, useShaderElevation ? 1 : 0);
         }
@@ -123,9 +152,16 @@ namespace Mapbox.BaseModule.Unity
             return 0;
         }
 
+        /// <summary>
+        /// Hard-disable terrain for this tile: zeroes the shader elevation multiplier,
+        /// unsubscribes from <see cref="TerrainData.ElevationValuesUpdated"/>, and drops the
+        /// cached <see cref="TerrainData"/> reference. Call when the tile's zoom falls
+        /// outside the supported range so nothing lingers on it.
+        /// </summary>
         public void DisableTerrain()
         {
             State = TileContainerState.Final;
+            GetAndClearTerrainData();
             _unityMapTile.Material.SetFloat(ElevationMultiplier, 0);
         }
 
