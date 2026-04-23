@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Mapbox.BaseModule.Data.DataFetchers;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.Settings;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace Mapbox.ImageModule.Terrain.TerrainStrategies
@@ -285,10 +287,77 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			mesh.SetTriangles(triangles, 0, triangles.Length, 0, calculateBounds: false);
 			mesh.RecalculateBounds();
 
-			// Null-then-reassign forces PhysX to re-cook collision data; a same-reference
-			// reassignment is a no-op.
+			if (_colliderOptions.asyncBakeCollider)
+			{
+				// Move the PhysX cook to a worker thread. The assignment (and thus any
+				// implicit recook) happens one frame later once BakeMesh has populated the
+				// native cooked-data cache for this mesh id. PhysX reuses that cache when
+				// sharedMesh is assigned, so the main-thread step is near-free.
+				var handle = new BakeColliderJob
+				{
+					MeshId = mesh.GetInstanceID(),
+					CookingOptions = TerrainColliderCookingOptions
+				}.Schedule();
+				Runnable.Instance.StartCoroutine(CompleteBakeAndAssign(meshCollider, mesh, handle));
+			}
+			else
+			{
+				// Null-then-reassign forces PhysX to re-cook collision data; a same-reference
+				// reassignment is a no-op.
+				meshCollider.sharedMesh = null;
+				meshCollider.sharedMesh = mesh;
+			}
+		}
+
+		/// <summary>
+		/// IJob wrapper around <c>Physics.BakeMesh</c> so the PhysX cook can run on a
+		/// worker thread. The cooking options must match what the MeshCollider is
+		/// configured with, otherwise PhysX discards the cached data and re-cooks on
+		/// assignment.
+		/// </summary>
+		private struct BakeColliderJob : IJob
+		{
+			public int MeshId;
+			public MeshColliderCookingOptions CookingOptions;
+
+			public void Execute()
+			{
+				Physics.BakeMesh(MeshId, false, CookingOptions);
+			}
+		}
+
+		/// <summary>
+		/// Waits for an async <see cref="BakeColliderJob"/> to complete, then assigns the
+		/// pre-cooked mesh to its <see cref="MeshCollider"/>. Handles: (a) the tile or
+		/// collider got destroyed during the bake — we free the orphaned mesh so it doesn't
+		/// leak; (b) a previous <c>TerrainCollider</c> mesh was attached to this collider —
+		/// we destroy it once we've swapped in the new one, since each async build
+		/// allocates a fresh Mesh.
+		/// </summary>
+		private static IEnumerator CompleteBakeAndAssign(MeshCollider meshCollider, Mesh mesh, JobHandle handle)
+		{
+			while (!handle.IsCompleted)
+			{
+				yield return null;
+			}
+			handle.Complete();
+
+			if (meshCollider == null)
+			{
+				if (mesh != null)
+				{
+					UnityEngine.Object.Destroy(mesh);
+				}
+				yield break;
+			}
+
+			var previous = meshCollider.sharedMesh;
 			meshCollider.sharedMesh = null;
 			meshCollider.sharedMesh = mesh;
+			if (previous != null && previous != mesh && previous.name == "TerrainCollider")
+			{
+				UnityEngine.Object.Destroy(previous);
+			}
 		}
 
 		private void CreateElevatedMesh(UnityMapTile tile)

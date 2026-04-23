@@ -27,6 +27,7 @@ namespace Mapbox.ImageModule.Editor
 			if (property.isExpanded)
 			{
 				var addCollider = property.FindPropertyRelative("addCollider");
+				var asyncBake = property.FindPropertyRelative("asyncBakeCollider");
 				var useDedicated = property.FindPropertyRelative("useDedicatedColliderLayer");
 				var colliderLayer = property.FindPropertyRelative("colliderLayerId");
 
@@ -38,6 +39,9 @@ namespace Mapbox.ImageModule.Editor
 
 				using (new EditorGUI.DisabledScope(!addCollider.boolValue))
 				{
+					EditorGUI.PropertyField(new Rect(position.x, y, position.width, line), asyncBake);
+					y += line + spacing;
+
 					EditorGUI.PropertyField(new Rect(position.x, y, position.width, line), useDedicated);
 					y += line + spacing;
 
@@ -64,7 +68,8 @@ namespace Mapbox.ImageModule.Editor
 			}
 
 			var colliderLayer = property.FindPropertyRelative("colliderLayerId");
-			return line + spacing + line + spacing + line + spacing + EditorGUI.GetPropertyHeight(colliderLayer, true);
+			// foldout + addCollider + asyncBake + useDedicated + colliderLayer
+			return line + spacing + line + spacing + line + spacing + line + spacing + line + spacing + EditorGUI.GetPropertyHeight(colliderLayer, true);
 		}
 	}
 }
