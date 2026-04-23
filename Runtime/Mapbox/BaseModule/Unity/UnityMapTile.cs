@@ -70,21 +70,26 @@ namespace Mapbox.BaseModule.Unity
 			OnElevationValuesUpdated(this);
 		}
 
+		// Hard cap used for fallback mesh bounds. Earth's highest point is ~8849m; 10000m
+		// gives a safe margin. Oversize bounds only widen the frustum test; they don't add
+		// any draw cost since there is no geometry outside the real elevation range.
+		private const float FallbackMaxElevationMeters = 10000f;
+
 		/// <summary>
-		/// Applies a conservative mesh bounds of <c>[0, maxElevationMeters * TileScale]</c>
-		/// on Y so shader-displaced vertices stay inside the mesh's frustum culling volume
+		/// Applies a conservative mesh bounds that covers the full plausible terrain height
+		/// range so shader-displaced vertices stay inside the mesh's frustum culling volume
 		/// before real <c>MinElevation</c>/<c>MaxElevation</c> are known (or permanently,
-		/// when CPU extraction is disabled). A later call to <see cref="ElevationUpdatedCallback"/>
-		/// tightens the bounds if CPU elevation eventually arrives.
+		/// when CPU extraction is disabled). A later call to
+		/// <see cref="ElevationUpdatedCallback"/> tightens the bounds if CPU elevation
+		/// eventually arrives.
 		/// </summary>
-		/// <param name="maxElevationMeters">Highest elevation (in meters) the camera is expected to view.</param>
-		public void SetFallbackMeshBounds(float maxElevationMeters)
+		public void SetFallbackMeshBounds()
 		{
 			if (_meshFilter == null)
 			{
 				return;
 			}
-			var boxHeight = maxElevationMeters * TileScale;
+			var boxHeight = FallbackMaxElevationMeters * TileScale;
 			var centerHeight = boxHeight * 0.5f;
 			_meshFilter.mesh.bounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
 		}

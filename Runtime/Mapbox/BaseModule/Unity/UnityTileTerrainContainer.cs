@@ -36,16 +36,15 @@ namespace Mapbox.BaseModule.Unity
         }
 
         /// <summary>
-        /// Assigns terrain data to this tile: wires the material height texture, applies an
-        /// optional conservative fallback bounds (so shader-displaced verts don't get
-        /// frustum-culled before real Min/MaxElevation arrive), and subscribes to future
-        /// elevation updates.
+        /// Assigns terrain data to this tile: wires the material height texture, applies a
+        /// conservative fallback mesh bounds (so shader-displaced verts don't get frustum-
+        /// culled before real Min/MaxElevation arrive), and subscribes to future elevation
+        /// updates.
         /// </summary>
         /// <param name="terrainData">Raster + optional decoded elevation for this tile.</param>
         /// <param name="useShaderElevation">When true, the material's <c>_ElevationMultiplier</c> is set to 1 so the vertex shader samples <c>_HeightTexture</c>; otherwise 0 (CPU-displaced verts).</param>
         /// <param name="state">Marks the tile container as temporary (using a parent's data while its own loads) or final.</param>
-        /// <param name="fallbackMaxElevationMeters">Pre-extraction bounds padding in meters. Pass 0 to skip fallback bounds entirely; otherwise the mesh's Y bounds are expanded to cover <c>[0, value * TileScale]</c>.</param>
-        public void SetTerrainData(TerrainData terrainData, bool useShaderElevation, TileContainerState state = TileContainerState.Final, float fallbackMaxElevationMeters = 0f)
+        public void SetTerrainData(TerrainData terrainData, bool useShaderElevation, TileContainerState state = TileContainerState.Final)
         {
             // Detach from the previous TerrainData (if any) before swapping. Without this,
             // a reassignment leaks our subscription on the old data and causes spurious
@@ -71,10 +70,7 @@ namespace Mapbox.BaseModule.Unity
             // get frustum-culled before real Min/MaxElevation arrive (or forever, if CPU
             // elevation extraction is disabled). OnElevationValuesUpdated later tightens the
             // bounds to the actual elevation range if the float[] is decoded.
-            if (fallbackMaxElevationMeters > 0f)
-            {
-                _unityMapTile.SetFallbackMeshBounds(fallbackMaxElevationMeters);
-            }
+            _unityMapTile.SetFallbackMeshBounds();
 
             // Subscribe multicast-safe so other listeners (e.g. ElevatedTerrainStrategy's
             // deferred collider rebuild) can coexist.

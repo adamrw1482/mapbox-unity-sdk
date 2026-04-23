@@ -76,7 +76,7 @@ namespace Mapbox.ImageModule.Terrain
                 parentTileId.MoveToParent();
                 if (_rasterSource.GetInstantData(parentTileId, out var instantData) && IsTileReady(instantData))
                 {
-                    unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Temporary, _settings.FallbackMaxElevationMeters);
+                    unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Temporary);
                     _terrainStrategy.RegisterTile(unityTile, !_settings.UseShaderTerrain);
                     return;
                 }
@@ -94,7 +94,7 @@ namespace Mapbox.ImageModule.Terrain
             var targetTileId = GetDataId(unityTile.CanonicalTileId);
             if (_rasterSource.GetInstantData(targetTileId, out var instantData) && IsTileReady(instantData))
             {
-                unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Final, _settings.FallbackMaxElevationMeters);
+                unityTile.TerrainContainer.SetTerrainData(instantData, _settings.UseShaderTerrain, TileContainerState.Final);
                 _terrainStrategy.RegisterTile(unityTile, !_settings.UseShaderTerrain);
                 return true;
             }

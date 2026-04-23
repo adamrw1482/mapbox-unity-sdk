@@ -26,9 +26,6 @@ namespace Mapbox.ImageModule.Terrain
         [Tooltip("Decode each terrain-RGB tile into a CPU float[] so features can query ground height. ON (default) is required for: vector snap-to-terrain (buildings, roads, POIs), terrain colliders, CPU elevation rendering, and TryGetElevation/QueryElevation. Turn OFF only for purely-terrain-rendered apps to save ~65K pixel decodes and a ~256KB float[] per tile. Force-enabled (and shown disabled) whenever UseShaderTerrain is off or colliderOptions.addCollider is on.")]
         public bool ExtractCpuElevationData = true;
 
-        [Tooltip("Meters. Terrain tile bounds get padded to this height until real Min/MaxElevation arrive (or permanently if CPU extraction is off) so shader-displaced geometry does not get frustum-culled when the camera tilts. Set to the highest elevation you expect to view. Default 3000m covers most real-world terrain.")]
-        public float FallbackMaxElevationMeters = 3000f;
-
         [Tooltip("Tileset id, retina flag, cache size, and data-zoom clamp for the terrain raster source.")]
         public ImageSourceSettings DataSettings;
 
