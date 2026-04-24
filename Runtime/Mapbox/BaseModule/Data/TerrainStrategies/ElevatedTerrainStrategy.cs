@@ -7,6 +7,8 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.Settings;
+using Unity.Burst;
+using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
@@ -44,10 +46,18 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 		private TerrainColliderOptions _colliderOptions;
 
-		// Collider geometry is reused across every tile's collider build. Lazily sized to
-		// match modificationOptions.sampleCount the first time BuildAndAssignCollider runs.
-		private Vector3[] _colliderVertices;
-		private int[] _colliderTriangles;
+		// Collider geometry is written by a Burst job into persistent NativeArrays so the
+		// data flows zero-copy into Mesh.SetVertices / SetIndices. Triangles are generated
+		// once per sampleCount change (they don't depend on elevation), so only the vertex
+		// buffer is written per tile build. The elevation mirror is a NativeArray copy of
+		// the current data tile's managed ElevationValues — populated lazily when the
+		// source reference changes, reused across the 16 render tiles that share one data
+		// tile.
+		private NativeArray<Vector3> _colliderVerticesNative;
+		private NativeArray<int> _colliderTrianglesNative;
+		private int _colliderNativeSampleCount = -1;
+		private NativeArray<float> _elevationNative;
+		private float[] _elevationNativeMirror;
 
 		// Shared flat render mesh used by every tile in shader mode. All render tiles have
 		// byte-identical CPU vertex data in that mode (the per-tile _HeightTexture_ST
@@ -107,7 +117,8 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 		/// <summary>
 		/// Cascaded from <c>TerrainLayerModule.OnDestroy</c>. Releases the shared render
-		/// mesh; per-tile collider meshes are released from <c>UnityMapTile.OnDestroy</c>.
+		/// mesh and the persistent NativeArrays that back Burst collider builds; per-tile
+		/// collider meshes are released from <c>UnityMapTile.OnDestroy</c>.
 		/// </summary>
 		public override void OnDestroy()
 		{
@@ -116,6 +127,9 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				UnityEngine.Object.Destroy(_sharedFlatMesh);
 				_sharedFlatMesh = null;
 			}
+			if (_colliderVerticesNative.IsCreated) _colliderVerticesNative.Dispose();
+			if (_colliderTrianglesNative.IsCreated) _colliderTrianglesNative.Dispose();
+			if (_elevationNative.IsCreated) _elevationNative.Dispose();
 		}
 
 		public override void RegisterTile(UnityMapTile tile, bool createElevatedMesh)
@@ -321,92 +335,38 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			var size = _elevationOptions.TileMeshSize;
 			var scale = tile.TileScale;
 
-			var vertexCount = side * side;
-			var triangleCount = sampleCount * sampleCount * 6;
-			if (_colliderVertices == null || _colliderVertices.Length != vertexCount)
-			{
-				_colliderVertices = new Vector3[vertexCount];
-			}
-			if (_colliderTriangles == null || _colliderTriangles.Length != triangleCount)
-			{
-				_colliderTriangles = new int[triangleCount];
-			}
-			var vertices = _colliderVertices;
-			var triangles = _colliderTriangles;
-
-			// Lift the elevation-sampling math out of the inner loop: QueryHeightData
-			// otherwise recomputes width / reads scale-offset per call. Doing it once per
-			// build saves a function call + Mathf.Sqrt + Vector2 construction per vertex.
+			// Elevation mirror is populated once per data tile and shared across the 16
+			// render tiles that sample the same data. Triangles are regenerated only when
+			// sampleCount changes — see EnsureColliderBuffers.
 			var container = tile.TerrainContainer;
 			var elevationValues = container.TerrainData.ElevationValues;
 			var dataWidth = (int)Mathf.Sqrt(elevationValues.Length);
 			var scaleOffset = container.TerrainTextureScaleOffset;
-			var sectionWidth = dataWidth * scaleOffset.x - 1f;
-			var paddingX = dataWidth * scaleOffset.z;
-			var paddingY = dataWidth * scaleOffset.w;
-			var invSampleCount = 1f / sampleCount;
-			var maxIndex = dataWidth - 1;
 
-			for (int y = 0; y < side; y++)
+			EnsureColliderBuffers(sampleCount);
+			EnsureElevationNative(elevationValues);
+
+			new BuildColliderVerticesJob
 			{
-				var yrat = y * invSampleCount;
-				var sampleYf = paddingY + yrat * sectionWidth;
-				if (sampleYf < 0f) sampleYf = 0f; else if (sampleYf > maxIndex) sampleYf = maxIndex;
-				var y0 = (int)sampleYf;
-				var y1 = y0 + 1; if (y1 > maxIndex) y1 = maxIndex;
-				var fy = sampleYf - y0;
-				var row0 = y0 * dataWidth;
-				var row1 = y1 * dataWidth;
-				var yy = (1f - yrat) * size;
-				for (int x = 0; x < side; x++)
-				{
-					var xrat = x * invSampleCount;
-					var sampleXf = paddingX + xrat * sectionWidth;
-					if (sampleXf < 0f) sampleXf = 0f; else if (sampleXf > maxIndex) sampleXf = maxIndex;
-					var x0 = (int)sampleXf;
-					var x1 = x0 + 1; if (x1 > maxIndex) x1 = maxIndex;
-					var fx = sampleXf - x0;
-
-					// Bilinear: the render tile's vertex grid is routinely denser than the
-					// shared data tile's pixel sub-region, so nearest-neighbor steps visibly.
-					var h00 = elevationValues[row0 + x0];
-					var h10 = elevationValues[row0 + x1];
-					var h01 = elevationValues[row1 + x0];
-					var h11 = elevationValues[row1 + x1];
-					var h0 = h00 + (h10 - h00) * fx;
-					var h1 = h01 + (h11 - h01) * fx;
-					var sample = h0 + (h1 - h0) * fy;
-
-					vertices[y * side + x] = new Vector3(xrat * size, sample * scale, -yy);
-				}
-			}
-
-			int ti = 0;
-			for (int y = 0; y < sampleCount; y++)
-			{
-				for (int x = 0; x < sampleCount; x++)
-				{
-					int vertA = y * side + x;
-					int vertB = vertA + side + 1;
-					int vertC = vertA + side;
-					triangles[ti++] = vertA;
-					triangles[ti++] = vertC;
-					triangles[ti++] = vertB;
-
-					vertA = y * side + x;
-					vertB = vertA + 1;
-					vertC = vertA + side + 1;
-					triangles[ti++] = vertA;
-					triangles[ti++] = vertC;
-					triangles[ti++] = vertB;
-				}
-			}
+				ElevationValues = _elevationNative,
+				DataWidth = dataWidth,
+				SampleCount = sampleCount,
+				Side = side,
+				Size = size,
+				Scale = scale,
+				SectionWidth = dataWidth * scaleOffset.x - 1f,
+				PaddingX = dataWidth * scaleOffset.z,
+				PaddingY = dataWidth * scaleOffset.w,
+				Vertices = _colliderVerticesNative
+			}.Run();
 
 			mesh.Clear();
-			// SetVertices/SetTriangles accept the shared buffer directly and skip the
-			// validation that the .vertices / .triangles property setters perform.
-			mesh.SetVertices(vertices);
-			mesh.SetTriangles(triangles, 0, triangles.Length, 0, calculateBounds: false);
+			mesh.SetVertices(_colliderVerticesNative);
+			// SetIndices is the canonical NativeArray-taking Mesh index API; the
+			// NativeArray overload of SetTriangles isn't present on every Unity 2022.3
+			// point release. MeshTopology.Triangles produces equivalent triangle-list
+			// geometry.
+			mesh.SetIndices(_colliderTrianglesNative, MeshTopology.Triangles, 0, calculateBounds: false);
 			mesh.RecalculateBounds();
 
 			// Record what we just built so RegisterCollider can short-circuit on
@@ -432,6 +392,132 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				// reassignment is a no-op.
 				meshCollider.sharedMesh = null;
 				meshCollider.sharedMesh = mesh;
+			}
+		}
+
+		/// <summary>
+		/// (Re)allocates the persistent collider NativeArrays when the strategy's
+		/// sampleCount changes, and generates the triangle index list once — triangles are
+		/// a pure function of <paramref name="sampleCount"/> and never need rebuilding per
+		/// tile.
+		/// </summary>
+		private void EnsureColliderBuffers(int sampleCount)
+		{
+			if (_colliderNativeSampleCount == sampleCount && _colliderVerticesNative.IsCreated && _colliderTrianglesNative.IsCreated)
+			{
+				return;
+			}
+			if (_colliderVerticesNative.IsCreated) _colliderVerticesNative.Dispose();
+			if (_colliderTrianglesNative.IsCreated) _colliderTrianglesNative.Dispose();
+
+			var side = sampleCount + 1;
+			_colliderVerticesNative = new NativeArray<Vector3>(side * side, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+			_colliderTrianglesNative = new NativeArray<int>(sampleCount * sampleCount * 6, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+			int ti = 0;
+			for (int y = 0; y < sampleCount; y++)
+			{
+				for (int x = 0; x < sampleCount; x++)
+				{
+					int vertA = y * side + x;
+					int vertB = vertA + side + 1;
+					int vertC = vertA + side;
+					_colliderTrianglesNative[ti++] = vertA;
+					_colliderTrianglesNative[ti++] = vertC;
+					_colliderTrianglesNative[ti++] = vertB;
+
+					vertA = y * side + x;
+					vertB = vertA + 1;
+					vertC = vertA + side + 1;
+					_colliderTrianglesNative[ti++] = vertA;
+					_colliderTrianglesNative[ti++] = vertC;
+					_colliderTrianglesNative[ti++] = vertB;
+				}
+			}
+			_colliderNativeSampleCount = sampleCount;
+		}
+
+		/// <summary>
+		/// Mirrors the current data tile's managed <c>ElevationValues</c> into the
+		/// strategy's persistent <see cref="_elevationNative"/>. Reuses the existing
+		/// NativeArray when the source reference is unchanged, so the 16 render tiles that
+		/// share a data tile pay the ~256 KB copy only once.
+		/// </summary>
+		private void EnsureElevationNative(float[] source)
+		{
+			if (ReferenceEquals(source, _elevationNativeMirror) && _elevationNative.IsCreated && _elevationNative.Length == source.Length)
+			{
+				return;
+			}
+			if (_elevationNative.IsCreated && _elevationNative.Length != source.Length)
+			{
+				_elevationNative.Dispose();
+			}
+			if (!_elevationNative.IsCreated)
+			{
+				_elevationNative = new NativeArray<float>(source.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+			}
+			_elevationNative.CopyFrom(source);
+			_elevationNativeMirror = source;
+		}
+
+		/// <summary>
+		/// Burst-compiled vertex fill for the collider mesh. Bilinearly samples the
+		/// mirrored elevation NativeArray and writes world-local vertex positions. Grid
+		/// topology (triangles) is produced once in <see cref="EnsureColliderBuffers"/>,
+		/// not in this job.
+		/// </summary>
+		[BurstCompile]
+		private struct BuildColliderVerticesJob : IJob
+		{
+			[ReadOnly] public NativeArray<float> ElevationValues;
+			public int DataWidth;
+			public int SampleCount;
+			public int Side;
+			public float Size;
+			public float Scale;
+			public float SectionWidth;
+			public float PaddingX;
+			public float PaddingY;
+			public NativeArray<Vector3> Vertices;
+
+			public void Execute()
+			{
+				var invSampleCount = 1f / SampleCount;
+				var maxIndex = DataWidth - 1;
+
+				for (int y = 0; y < Side; y++)
+				{
+					var yrat = y * invSampleCount;
+					var sampleYf = PaddingY + yrat * SectionWidth;
+					if (sampleYf < 0f) sampleYf = 0f; else if (sampleYf > maxIndex) sampleYf = maxIndex;
+					var y0 = (int)sampleYf;
+					var y1 = y0 + 1; if (y1 > maxIndex) y1 = maxIndex;
+					var fy = sampleYf - y0;
+					var row0 = y0 * DataWidth;
+					var row1 = y1 * DataWidth;
+					var yy = (1f - yrat) * Size;
+
+					for (int x = 0; x < Side; x++)
+					{
+						var xrat = x * invSampleCount;
+						var sampleXf = PaddingX + xrat * SectionWidth;
+						if (sampleXf < 0f) sampleXf = 0f; else if (sampleXf > maxIndex) sampleXf = maxIndex;
+						var x0 = (int)sampleXf;
+						var x1 = x0 + 1; if (x1 > maxIndex) x1 = maxIndex;
+						var fx = sampleXf - x0;
+
+						var h00 = ElevationValues[row0 + x0];
+						var h10 = ElevationValues[row0 + x1];
+						var h01 = ElevationValues[row1 + x0];
+						var h11 = ElevationValues[row1 + x1];
+						var h0 = h00 + (h10 - h00) * fx;
+						var h1 = h01 + (h11 - h01) * fx;
+						var sample = h0 + (h1 - h0) * fy;
+
+						Vertices[y * Side + x] = new Vector3(xrat * Size, sample * Scale, -yy);
+					}
+				}
 			}
 		}
 
