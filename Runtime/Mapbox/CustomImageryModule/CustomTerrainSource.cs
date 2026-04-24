@@ -11,7 +11,7 @@ namespace Mapbox.CustomImageryModule
         protected CustomSourceSettings _customSourceSettings;
         protected ImageSourceSettings _settings;
         
-        public CustomTerrainSource(CustomSourceSettings customSettings, DataFetchingManager dataFetchingManager, MapboxCacheManager mapboxCacheManager, ImageSourceSettings settings) 
+        public CustomTerrainSource(CustomSourceSettings customSettings, DataFetchingManager dataFetchingManager, MapboxCacheManager mapboxCacheManager, ImageSourceSettings settings)
             : base(dataFetchingManager, mapboxCacheManager, settings)
         {
             _customSourceSettings = customSettings;
@@ -20,16 +20,11 @@ namespace Mapbox.CustomImageryModule
 
         protected override RasterTile CreateTile(CanonicalTileId tileId, string tilesetId)
         {
-            if (_customSourceSettings.InvertY)
-            {
-                return new CustomTMSTile(
-                    _customSourceSettings.UrlFormat,
-                    tileId, tilesetId, true);
-            }
-            else
-            {
-                return new RasterTile(tileId, tilesetId, true);
-            }
+            return new CustomTMSTile(
+                _customSourceSettings.UrlFormat,
+                tileId, tilesetId, true,
+                _customSourceSettings.InvertY,
+                _customSourceSettings.IsMapboxService);
         }
         
         protected override TerrainData CreateRasterDataWrapper(RasterTile tile)

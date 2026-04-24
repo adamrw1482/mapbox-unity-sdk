@@ -21,14 +21,7 @@ namespace Mapbox.CustomImageryModule
 
         protected override RasterTile CreateTile(CanonicalTileId tileId, string tilesetId)
         {
-            if (_customSourceSettings.InvertY)
-            {
-                return new CustomTMSTile(_customSourceSettings.UrlFormat, tileId, tilesetId, true);
-            }
-            else
-            {
-                return new RasterTile(tileId, tilesetId, true);
-            }
+            return new CustomTMSTile(_customSourceSettings.UrlFormat, tileId, tilesetId, true, _customSourceSettings.InvertY, _customSourceSettings.IsMapboxService);
         }
 
         protected override RasterData CreateRasterDataWrapper(RasterTile tile)
