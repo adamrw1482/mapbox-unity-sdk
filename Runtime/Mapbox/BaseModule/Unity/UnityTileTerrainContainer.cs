@@ -134,28 +134,48 @@ namespace Mapbox.BaseModule.Unity
         
         public float QueryHeightData(float x, float y)
         {
-            if (TerrainData != null && TerrainData.ElevationValues.Length > 0)
+            var values = TerrainData?.ElevationValues;
+            if (values == null || values.Length == 0)
             {
-                var width = (int)Mathf.Sqrt(TerrainData.ElevationValues.Length);
-                var sectionWidth = width * _terrainTextureScaleOffset.x - 1;
-                var padding = width * new Vector2(_terrainTextureScaleOffset.z, _terrainTextureScaleOffset.w);
-                
-                var xx = padding.x + (x * sectionWidth);
-                var yy = padding.y + (y * sectionWidth);
-
-                var index = (int) yy * width
-                            + (int) xx;
-                if (TerrainData.ElevationValues.Length <= index)
-                {
-                    return 0;
-                }
-                else
-                {
-                    return TerrainData.ElevationValues[(int) yy * width + (int) xx];
-                }
-
+                return 0;
             }
-            return 0;
+
+            var width = (int)Mathf.Sqrt(values.Length);
+            var sectionWidth = width * _terrainTextureScaleOffset.x - 1f;
+            var xx = _terrainTextureScaleOffset.z * width + x * sectionWidth;
+            var yy = _terrainTextureScaleOffset.w * width + y * sectionWidth;
+            return BilinearSampleElevation(values, width, xx, yy);
+        }
+
+        /// <summary>
+        /// Bilinearly samples the decoded elevation array at (xx, yy) in data-texture
+        /// pixel space. Render tiles share a coarser data tile with 16 neighbors, so a
+        /// 129-vertex mesh routinely samples a ~64×64 data sub-region — multiple verts
+        /// land inside the same texel. Nearest-neighbor sampling in that regime produces
+        /// visible stepping; the four-corner lerp smooths it out for ~4 reads + 3 lerps
+        /// per sample.
+        /// </summary>
+        private static float BilinearSampleElevation(float[] values, int width, float xx, float yy)
+        {
+            if (xx < 0f) xx = 0f; else if (xx > width - 1) xx = width - 1;
+            if (yy < 0f) yy = 0f; else if (yy > width - 1) yy = width - 1;
+
+            var x0 = (int)xx;
+            var y0 = (int)yy;
+            var x1 = x0 + 1; if (x1 >= width) x1 = width - 1;
+            var y1 = y0 + 1; if (y1 >= width) y1 = width - 1;
+            var fx = xx - x0;
+            var fy = yy - y0;
+
+            var row0 = y0 * width;
+            var row1 = y1 * width;
+            var h00 = values[row0 + x0];
+            var h10 = values[row0 + x1];
+            var h01 = values[row1 + x0];
+            var h11 = values[row1 + x1];
+            var h0 = h00 + (h10 - h00) * fx;
+            var h1 = h01 + (h11 - h01) * fx;
+            return h0 + (h1 - h0) * fy;
         }
 
         /// <summary>

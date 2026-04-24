@@ -345,19 +345,38 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			var paddingX = dataWidth * scaleOffset.z;
 			var paddingY = dataWidth * scaleOffset.w;
 			var invSampleCount = 1f / sampleCount;
-			var evLength = elevationValues.Length;
+			var maxIndex = dataWidth - 1;
 
 			for (int y = 0; y < side; y++)
 			{
 				var yrat = y * invSampleCount;
-				var sampleY = (int)(paddingY + yrat * sectionWidth);
-				var rowStart = sampleY * dataWidth;
+				var sampleYf = paddingY + yrat * sectionWidth;
+				if (sampleYf < 0f) sampleYf = 0f; else if (sampleYf > maxIndex) sampleYf = maxIndex;
+				var y0 = (int)sampleYf;
+				var y1 = y0 + 1; if (y1 > maxIndex) y1 = maxIndex;
+				var fy = sampleYf - y0;
+				var row0 = y0 * dataWidth;
+				var row1 = y1 * dataWidth;
 				var yy = (1f - yrat) * size;
 				for (int x = 0; x < side; x++)
 				{
 					var xrat = x * invSampleCount;
-					var sampleIdx = rowStart + (int)(paddingX + xrat * sectionWidth);
-					var sample = (sampleIdx >= 0 && sampleIdx < evLength) ? elevationValues[sampleIdx] : 0f;
+					var sampleXf = paddingX + xrat * sectionWidth;
+					if (sampleXf < 0f) sampleXf = 0f; else if (sampleXf > maxIndex) sampleXf = maxIndex;
+					var x0 = (int)sampleXf;
+					var x1 = x0 + 1; if (x1 > maxIndex) x1 = maxIndex;
+					var fx = sampleXf - x0;
+
+					// Bilinear: the render tile's vertex grid is routinely denser than the
+					// shared data tile's pixel sub-region, so nearest-neighbor steps visibly.
+					var h00 = elevationValues[row0 + x0];
+					var h10 = elevationValues[row0 + x1];
+					var h01 = elevationValues[row1 + x0];
+					var h11 = elevationValues[row1 + x1];
+					var h0 = h00 + (h10 - h00) * fx;
+					var h1 = h01 + (h11 - h01) * fx;
+					var sample = h0 + (h1 - h0) * fy;
+
 					vertices[y * side + x] = new Vector3(xrat * size, sample * scale, -yy);
 				}
 			}

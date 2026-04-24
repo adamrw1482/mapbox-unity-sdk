@@ -93,21 +93,32 @@ namespace Mapbox.BaseModule.Data.DataFetchers
         private float ReadElevation(float x, float y, Vector4 terrainTextureScaleOffset)
         {
             var width = (int) Mathf.Sqrt(ElevationValues.Length);
-            var sectionWidth = width * terrainTextureScaleOffset.x - 1;
-            var padding = width * new Vector2(terrainTextureScaleOffset.z, terrainTextureScaleOffset.w);
+            var sectionWidth = width * terrainTextureScaleOffset.x - 1f;
+            var xx = terrainTextureScaleOffset.z * width + Mathf.Clamp01(x) * sectionWidth;
+            var yy = terrainTextureScaleOffset.w * width + Mathf.Clamp01(y) * sectionWidth;
 
-            var xx = padding.x + (Mathf.Clamp01(x) * sectionWidth);
-            var yy = padding.y + (Mathf.Clamp01(y) * sectionWidth);
+            // Bilinear sample — when the caller's UV resolution is finer than the data
+            // texture's sub-region (typical for render tiles sharing one data tile with 15
+            // neighbors), nearest-neighbor sampling produces visible stepping.
+            if (xx < 0f) xx = 0f; else if (xx > width - 1) xx = width - 1;
+            if (yy < 0f) yy = 0f; else if (yy > width - 1) yy = width - 1;
 
-            var index = (int) yy * width + (int) xx;
-            if (index >= ElevationValues.Length)
-            {
-                return 0;
-            }
-            else
-            {
-                return ElevationValues[index];
-            }
+            var x0 = (int)xx;
+            var y0 = (int)yy;
+            var x1 = x0 + 1; if (x1 >= width) x1 = width - 1;
+            var y1 = y0 + 1; if (y1 >= width) y1 = width - 1;
+            var fx = xx - x0;
+            var fy = yy - y0;
+
+            var row0 = y0 * width;
+            var row1 = y1 * width;
+            var h00 = ElevationValues[row0 + x0];
+            var h10 = ElevationValues[row0 + x1];
+            var h01 = ElevationValues[row1 + x0];
+            var h11 = ElevationValues[row1 + x1];
+            var h0 = h00 + (h10 - h00) * fx;
+            var h1 = h01 + (h11 - h01) * fx;
+            return h0 + (h1 - h0) * fy;
         }
 
         
