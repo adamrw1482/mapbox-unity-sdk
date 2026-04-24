@@ -2,12 +2,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using Mapbox.BaseModule.Data.DataFetchers;
+using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.Settings;
 using Unity.Jobs;
 using UnityEngine;
+using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
 
 namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 {
@@ -46,6 +48,19 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// match modificationOptions.sampleCount the first time BuildAndAssignCollider runs.
 		private Vector3[] _colliderVertices;
 		private int[] _colliderTriangles;
+
+		// Shared flat render mesh used by every tile in shader mode. All render tiles have
+		// byte-identical CPU vertex data in that mode (the per-tile _HeightTexture_ST
+		// sub-region determines the actual surface); pointing every MeshFilter at this
+		// single Mesh avoids per-tile Mesh allocation and upload.
+		private const string SharedFlatMeshName = "TerrainSharedFlat";
+		private Mesh _sharedFlatMesh;
+
+		// Tracks the (TerrainData, CanonicalTileId) last used to build each MeshCollider's
+		// sharedMesh. Temp-tile → final-tile transitions can trigger RegisterTile with the
+		// same data; skipping the rebuild avoids a redundant PhysX re-cook.
+		private readonly Dictionary<MeshCollider, (TerrainData data, CanonicalTileId tileId)>
+			_lastColliderBuild = new Dictionary<MeshCollider, (TerrainData, CanonicalTileId)>();
 		
 		public override int RequiredVertexCount
 		{
@@ -75,6 +90,32 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			
 			_baseMesh = CreateBaseMesh(_elevationOptions.TileMeshSize, _sideVertexCount);
 			_requiredVertexCount = _baseMesh.Vertices.Length;
+
+			// Build the shader-mode shared render mesh from the base data once. Every
+			// shader-mode tile's MeshFilter will point at this single instance.
+			_sharedFlatMesh = new Mesh { name = SharedFlatMeshName };
+			_sharedFlatMesh.subMeshCount = 2;
+			_sharedFlatMesh.vertices = _baseMesh.Vertices;
+			_sharedFlatMesh.normals = _baseMesh.Normals;
+			for (var i = 0; i < _baseMesh.Triangles.Count; i++)
+			{
+				_sharedFlatMesh.SetTriangles(_baseMesh.Triangles[i], i);
+			}
+			_sharedFlatMesh.uv = _baseMesh.Uvs;
+			_sharedFlatMesh.UploadMeshData(markNoLongerReadable: false);
+		}
+
+		/// <summary>
+		/// Cascaded from <c>TerrainLayerModule.OnDestroy</c>. Releases the shared render
+		/// mesh; per-tile collider meshes are released from <c>UnityMapTile.OnDestroy</c>.
+		/// </summary>
+		public override void OnDestroy()
+		{
+			if (_sharedFlatMesh != null)
+			{
+				UnityEngine.Object.Destroy(_sharedFlatMesh);
+				_sharedFlatMesh = null;
+			}
 		}
 
 		public override void RegisterTile(UnityMapTile tile, bool createElevatedMesh)
@@ -84,8 +125,29 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				tile.gameObject.layer = _elevationOptions.unityLayerOptions.layerId;
 			}
 
-			if (tile.MeshVertexCount != RequiredVertexCount)
+			if (!createElevatedMesh)
 			{
+				// Shader mode: point the tile at the shared flat mesh. Byte-identical
+				// vertex data across tiles means a single Mesh covers the whole pool; the
+				// shader picks the right sub-region via per-tile _HeightTexture_ST.
+				if (tile.MeshFilter.sharedMesh != _sharedFlatMesh)
+				{
+					var previous = tile.MeshFilter.sharedMesh;
+					tile.MeshFilter.sharedMesh = _sharedFlatMesh;
+					// The mesh UnityMapTile.Awake allocated is now orphaned; destroy it
+					// unless something else (not us) already put the shared mesh here.
+					if (previous != null && previous != _sharedFlatMesh && previous.name != SharedFlatMeshName)
+					{
+						UnityEngine.Object.Destroy(previous);
+					}
+				}
+				tile.MeshVertexCount = _sharedFlatMesh.vertexCount;
+			}
+			else if (tile.MeshVertexCount != RequiredVertexCount)
+			{
+				// CPU mode: each tile needs its own unique vertex buffer since the Y
+				// displacement is per-tile. Reset the tile's Awake-allocated mesh from the
+				// base template.
 				Mesh sharedMesh;
 				(sharedMesh = tile.MeshFilter.sharedMesh).Clear();
 				var newMesh = _baseMesh;
@@ -101,7 +163,7 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				tile.MeshVertexCount = newMesh.Vertices.Length;
 				tile.ElevationUpdatedCallback();
 			}
-			
+
 			if (createElevatedMesh)
 			{
 				CreateElevatedMesh(tile);
@@ -117,12 +179,23 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		/// Ensures <paramref name="tile"/> has a <see cref="MeshCollider"/> backed by a
 		/// CPU-elevated mesh. Builds immediately when elevation data is already decoded,
 		/// otherwise defers until <see cref="TerrainData.ElevationValuesUpdated"/> fires
-		/// (async GPU-readback path).
+		/// (async GPU-readback path). Short-circuits when the tile's existing collider was
+		/// already built from the same data + tileId (temp→final transitions trigger
+		/// RegisterTile multiple times without the underlying data changing).
 		/// </summary>
 		private void RegisterCollider(UnityMapTile tile)
 		{
 			var data = tile.TerrainContainer != null ? tile.TerrainContainer.TerrainData : null;
 			if (data == null)
+			{
+				return;
+			}
+
+			var existing = FindExistingCollider(tile);
+			if (existing != null &&
+			    _lastColliderBuild.TryGetValue(existing, out var last) &&
+			    ReferenceEquals(last.data, data) &&
+			    last.tileId.Equals(tile.CanonicalTileId))
 			{
 				return;
 			}
@@ -162,6 +235,21 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// useDedicatedColliderLayer is enabled. Keyed by name so we can locate + reuse it
 		// across pool cycles without maintaining a per-tile dictionary.
 		private const string ColliderChildName = "TerrainCollider";
+
+		/// <summary>
+		/// Looks up the existing <see cref="MeshCollider"/> for this tile without creating
+		/// one, mirroring the location rule in <see cref="GetOrCreateCollider"/>. Used by
+		/// the rebuild-short-circuit check.
+		/// </summary>
+		private MeshCollider FindExistingCollider(UnityMapTile tile)
+		{
+			if (_colliderOptions.useDedicatedColliderLayer)
+			{
+				var childTransform = tile.transform.Find(ColliderChildName);
+				return childTransform != null ? childTransform.GetComponent<MeshCollider>() : null;
+			}
+			return tile.GetComponent<MeshCollider>();
+		}
 
 		/// <summary>
 		/// Returns the <see cref="MeshCollider"/> the collider mesh should be assigned to.
@@ -246,16 +334,31 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			var vertices = _colliderVertices;
 			var triangles = _colliderTriangles;
 
+			// Lift the elevation-sampling math out of the inner loop: QueryHeightData
+			// otherwise recomputes width / reads scale-offset per call. Doing it once per
+			// build saves a function call + Mathf.Sqrt + Vector2 construction per vertex.
+			var container = tile.TerrainContainer;
+			var elevationValues = container.TerrainData.ElevationValues;
+			var dataWidth = (int)Mathf.Sqrt(elevationValues.Length);
+			var scaleOffset = container.TerrainTextureScaleOffset;
+			var sectionWidth = dataWidth * scaleOffset.x - 1f;
+			var paddingX = dataWidth * scaleOffset.z;
+			var paddingY = dataWidth * scaleOffset.w;
+			var invSampleCount = 1f / sampleCount;
+			var evLength = elevationValues.Length;
+
 			for (int y = 0; y < side; y++)
 			{
-				var yrat = (float)y / sampleCount;
+				var yrat = y * invSampleCount;
+				var sampleY = (int)(paddingY + yrat * sectionWidth);
+				var rowStart = sampleY * dataWidth;
+				var yy = (1f - yrat) * size;
 				for (int x = 0; x < side; x++)
 				{
-					var xrat = (float)x / sampleCount;
-					var xx = xrat * size;
-					var yy = (1f - yrat) * size;
-					var elevation = tile.TerrainContainer.QueryHeightData(xrat, yrat) * scale;
-					vertices[y * side + x] = new Vector3(xx, elevation, -yy);
+					var xrat = x * invSampleCount;
+					var sampleIdx = rowStart + (int)(paddingX + xrat * sectionWidth);
+					var sample = (sampleIdx >= 0 && sampleIdx < evLength) ? elevationValues[sampleIdx] : 0f;
+					vertices[y * side + x] = new Vector3(xrat * size, sample * scale, -yy);
 				}
 			}
 
@@ -286,6 +389,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			mesh.SetVertices(vertices);
 			mesh.SetTriangles(triangles, 0, triangles.Length, 0, calculateBounds: false);
 			mesh.RecalculateBounds();
+
+			// Record what we just built so RegisterCollider can short-circuit on
+			// redundant subsequent RegisterTile calls (temp→final transitions).
+			_lastColliderBuild[meshCollider] = (tile.TerrainContainer.TerrainData, tile.CanonicalTileId);
 
 			if (_colliderOptions.asyncBakeCollider)
 			{

@@ -1,4 +1,5 @@
 using System;
+using Mapbox.BaseModule.Data.DataFetchers;
 using Unity.Collections;
 using UnityEngine;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
@@ -16,7 +17,7 @@ namespace Mapbox.UnityMapService
 		{
 			var rgbData = texture.GetRawTextureData<byte>();
 			var width = texture.width;
-			var heightData = new float[width * width];
+			var heightData = ElevationArrayPool.Rent(width * width);
 
 			int idx = 0;
 			for (int y = 0; y < width; y++)
@@ -43,7 +44,7 @@ namespace Mapbox.UnityMapService
 		{
 			var rgbData = texture.GetRawTextureData<byte>();
 			var width = texture.width;
-			var heightData = new float[width * width];
+			var heightData = ElevationArrayPool.Rent(width * width);
 			var min = float.MaxValue;
 			var max = float.MinValue;
 

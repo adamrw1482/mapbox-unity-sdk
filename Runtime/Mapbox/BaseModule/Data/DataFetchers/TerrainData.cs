@@ -37,6 +37,23 @@ namespace Mapbox.BaseModule.Data.DataFetchers
             IsElevationDataReady = false;
         }
 
+        /// <summary>
+        /// Returns the rented <see cref="ElevationValues"/> array to
+        /// <see cref="ElevationArrayPool"/> when the cache evicts this entry, then runs
+        /// the standard <see cref="MapboxTileData"/> dispose callback. After this call
+        /// <c>ElevationValues</c> is null; nothing should hold a reference past dispose.
+        /// </summary>
+        public override void Dispose()
+        {
+            if (ElevationValues != null)
+            {
+                ElevationArrayPool.Return(ElevationValues);
+                ElevationValues = null;
+            }
+            IsElevationDataReady = false;
+            base.Dispose();
+        }
+
         public void SetElevationValues(float[] elevationArray)
         {
             ElevationValues = elevationArray;

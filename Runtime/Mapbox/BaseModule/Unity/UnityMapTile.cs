@@ -30,6 +30,36 @@ namespace Mapbox.BaseModule.Unity
 		public MeshFilter MeshFilter => _meshFilter;
 		public List<UnityMapTile> Children;
 
+		// Per-tile state (height texture, scale-offset, elevation multiplier, etc.) is
+		// pushed via this MaterialPropertyBlock instead of a per-tile Material instance.
+		// One Material is shared across the entire tile pool (set in TileCreator), which
+		// lets URP's SRP Batcher merge the tile draws into a single batch.
+		private MaterialPropertyBlock _propertyBlock;
+		public MaterialPropertyBlock PropertyBlock
+		{
+			get
+			{
+				if (_propertyBlock == null)
+				{
+					_propertyBlock = new MaterialPropertyBlock();
+				}
+				return _propertyBlock;
+			}
+		}
+
+		/// <summary>
+		/// Pushes the cached <see cref="PropertyBlock"/> onto the renderer. Call once
+		/// after a logical batch of property mutations (the block can hold many properties
+		/// at once, so multiple <c>Set*</c> calls between two <c>Apply</c> calls coalesce).
+		/// </summary>
+		public void ApplyPropertyBlock()
+		{
+			if (_meshRenderer != null && _propertyBlock != null)
+			{
+				_meshRenderer.SetPropertyBlock(_propertyBlock);
+			}
+		}
+
 		public int MeshVertexCount = 0;
 
 		//public bool IsTemporary = false;
@@ -55,17 +85,21 @@ namespace Mapbox.BaseModule.Unity
 #if UNITY_EDITOR
 			gameObject.name = tileId.ToString();
 #endif
-			
-			Material.SetFloat(_tileScaleFieldNameID, TileScale);
+
+			PropertyBlock.SetFloat(_tileScaleFieldNameID, TileScale);
+			ApplyPropertyBlock();
 		}
 		
 		public void ElevationUpdatedCallback()
 		{
-			if (MeshFilter != null)
+			if (_meshRenderer != null)
 			{
 				var centerHeight = (TerrainContainer.TerrainData.MaxElevation + TerrainContainer.TerrainData.MinElevation) / 2 * TileScale;
 				var boxHeight = (TerrainContainer.TerrainData.MaxElevation - TerrainContainer.TerrainData.MinElevation)  * TileScale;
-				_meshFilter.mesh.bounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
+				// Renderer.localBounds overrides the Mesh's bounds for culling without
+				// cloning the Mesh. Using MeshFilter.mesh.bounds would silently clone the
+				// sharedMesh, which defeats per-tile Mesh sharing.
+				_meshRenderer.localBounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
 			}
 			OnElevationValuesUpdated(this);
 		}
@@ -85,13 +119,13 @@ namespace Mapbox.BaseModule.Unity
 		/// </summary>
 		public void SetFallbackMeshBounds()
 		{
-			if (_meshFilter == null)
+			if (_meshRenderer == null)
 			{
 				return;
 			}
 			var boxHeight = FallbackMaxElevationMeters * TileScale;
 			var centerHeight = boxHeight * 0.5f;
-			_meshFilter.mesh.bounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
+			_meshRenderer.localBounds = new Bounds(new Vector3(.5f, centerHeight, -.5f), new Vector3(1, boxHeight, 1));
 		}
 		
 		public void Recycle()
@@ -114,11 +148,12 @@ namespace Mapbox.BaseModule.Unity
 			VectorContainer.OnDestroy();
 
 			// Unity does not auto-free runtime-created Meshes when the GameObject is
-			// destroyed. Release both the render mesh allocated in Awake and the dedicated
+			// destroyed. Release the render mesh allocated in Awake and any dedicated
 			// collider mesh allocated by ElevatedTerrainStrategy (named "TerrainCollider").
-			// The identity + name checks avoid double-freeing if the collider happens to be
-			// aliased to the render mesh (FlatTerrainStrategy path). Check children too —
-			// the collider may live on a dedicated layer child GameObject.
+			// Skip the shader-mode shared flat mesh ("TerrainSharedFlat") — it is owned by
+			// the strategy and disposed via TerrainLayerModule.OnDestroy. The identity
+			// checks avoid double-freeing an aliased render/collider mesh (FlatTerrainStrategy).
+			// Colliders may live on a dedicated-layer child GameObject; scan children too.
 			var renderMesh = _meshFilter != null ? _meshFilter.sharedMesh : null;
 			var colliders = GetComponentsInChildren<MeshCollider>(includeInactive: true);
 			foreach (var mc in colliders)
@@ -130,7 +165,7 @@ namespace Mapbox.BaseModule.Unity
 					Destroy(mc.sharedMesh);
 				}
 			}
-			if (renderMesh != null)
+			if (renderMesh != null && renderMesh.name != "TerrainSharedFlat")
 			{
 				Destroy(renderMesh);
 			}

@@ -31,6 +31,9 @@ namespace Mapbox.ImageModule.Terrain
         // One-shot guard so QueryElevation doesn't spam the console on every call when the
         // user genuinely disabled CPU extraction.
         private bool _elevationDisabledWarningLogged;
+        // Reused across GetDataId(IEnumerable) calls to avoid allocating a fresh HashSet
+        // plus iterator chain from Where/Select/Distinct on every tile-cover update.
+        private readonly HashSet<CanonicalTileId> _dataIdScratch = new HashSet<CanonicalTileId>();
         
         public TerrainLayerModule(Source<TerrainData> source, TerrainLayerModuleSettings settings) : base()
         {
@@ -134,6 +137,7 @@ namespace Mapbox.ImageModule.Terrain
         public void OnDestroy()
         {
             _rasterSource.OnDestroy();
+            _terrainStrategy?.OnDestroy();
         }
         
         //COROUTINE METHODS only used in initialization so far
@@ -211,7 +215,19 @@ namespace Mapbox.ImageModule.Terrain
         
         public IEnumerable<CanonicalTileId> GetDataId(IEnumerable<CanonicalTileId> tileIdList)
         {
-            return tileIdList.Where(x => IsZinSupportedRange(x.Z)).Select(GetDataId).Distinct();
+            // With the data-zoom offset of 2, up to 16 render tile ids collapse to the
+            // same data id. Reuse the scratch set to avoid allocating a HashSet plus
+            // Where/Select/Distinct iterator chain per call.
+            _dataIdScratch.Clear();
+            foreach (var tileId in tileIdList)
+            {
+                if (!IsZinSupportedRange(tileId.Z))
+                {
+                    continue;
+                }
+                _dataIdScratch.Add(GetDataId(tileId));
+            }
+            return _dataIdScratch;
         }
 
         /// <summary>

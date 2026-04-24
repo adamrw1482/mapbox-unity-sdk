@@ -28,6 +28,14 @@ namespace Mapbox.BaseModule.Unity
         [SerializeField] public TerrainData TerrainData;
         private Vector4 _terrainTextureScaleOffset;
 
+        /// <summary>
+        /// Scale/offset Vector4 that maps this tile's UV [0,1] to the shared data tile's
+        /// UV sub-region (data tile is <c>currentZ − 2</c> zoom coarser than this render
+        /// tile). Exposed so the collider builder can lift sampling math out of its inner
+        /// loop instead of calling <see cref="QueryHeightData(float,float)"/> per vertex.
+        /// </summary>
+        public Vector4 TerrainTextureScaleOffset => _terrainTextureScaleOffset;
+
         public UnityTileTerrainContainer(UnityMapTile unityMapTile, Action elevationUpdatedCallback, Action onDisposeCallback)
         {
             _unityMapTile = unityMapTile;
@@ -81,7 +89,8 @@ namespace Mapbox.BaseModule.Unity
                 OnElevationValuesUpdated();
             }
 
-            _unityMapTile.Material.SetFloat(ElevationMultiplier, useShaderElevation ? 1 : 0);
+            _unityMapTile.PropertyBlock.SetFloat(ElevationMultiplier, useShaderElevation ? 1 : 0);
+            _unityMapTile.ApplyPropertyBlock();
         }
 
         public void OnTerrainUpdated()
@@ -90,13 +99,13 @@ namespace Mapbox.BaseModule.Unity
                 return;
         
             _terrainTextureScaleOffset = _unityMapTile.CanonicalTileId.CalculateScaleOffsetAtZoom(TerrainData.TileId.Z);
-            
-            _unityMapTile.Material.SetVector(HeightTextureST, _terrainTextureScaleOffset);
-            _unityMapTile.Material.SetTexture(HeightTexture, TerrainData.Texture);
 
-            //_unityMapTile._material.SetFloat(_tileScaleFieldNameID, _unityMapTile.TileScale);
-            _unityMapTile.Material.SetFloat("_IsFallbackTexture", 0);
-            _unityMapTile.Material.SetFloat(ElevationChangeTime, Time.time);
+            var block = _unityMapTile.PropertyBlock;
+            block.SetVector(HeightTextureST, _terrainTextureScaleOffset);
+            block.SetTexture(HeightTexture, TerrainData.Texture);
+            block.SetFloat("_IsFallbackTexture", 0);
+            block.SetFloat(ElevationChangeTime, Time.time);
+            _unityMapTile.ApplyPropertyBlock();
         }
 
         public void OnElevationValuesUpdated()
@@ -116,7 +125,8 @@ namespace Mapbox.BaseModule.Unity
                 return null;
 
             TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
-            _unityMapTile.Material.SetTexture(HeightTexture, Texture2D.grayTexture);
+            _unityMapTile.PropertyBlock.SetTexture(HeightTexture, Texture2D.grayTexture);
+            _unityMapTile.ApplyPropertyBlock();
             var rd = TerrainData;
             TerrainData = null;
             return rd;
@@ -158,7 +168,8 @@ namespace Mapbox.BaseModule.Unity
         {
             State = TileContainerState.Final;
             GetAndClearTerrainData();
-            _unityMapTile.Material.SetFloat(ElevationMultiplier, 0);
+            _unityMapTile.PropertyBlock.SetFloat(ElevationMultiplier, 0);
+            _unityMapTile.ApplyPropertyBlock();
         }
 
         public void OnDestroy()
