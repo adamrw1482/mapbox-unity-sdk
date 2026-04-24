@@ -385,7 +385,13 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 				vertices[i].Set(vertices[i].x, elevation, vertices[i].z);
 			}
-			mesh.vertices = vertices;
+			mesh.SetVertices(vertices);
+			// Actual displaced bounds are tighter than the min/max-padded fallback bounds
+			// set by UnityMapTile.ElevationUpdatedCallback. Mesh normals/tangents are not
+			// recalculated: the terrain shader derives the surface normal from the height
+			// texture directly in the fragment stage, so the mesh's vertex normals are
+			// never read in either mode.
+			mesh.RecalculateBounds();
 		}
 
 		#region mesh gen
