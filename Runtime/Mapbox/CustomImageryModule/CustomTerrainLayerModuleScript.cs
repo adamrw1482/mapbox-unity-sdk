@@ -29,12 +29,13 @@ namespace Mapbox.CustomImageryModule
             UnityContext unityContext)
         {
             Settings.DataSettings.TilesetId = "CustomTerrain";
-            
+
+            // Pass Settings.DataSettings through so cache size, retina flag, non-readable
+            // textures, and data-zoom clamp from the inspector reach CustomTerrainSource.
+            // Previously a throwaway ImageSourceSettings was used here and the user's
+            // inspector values never took effect.
             var unityService = service as MapUnityService;
-            var source = new CustomTerrainSource(CustomSourceSettings, unityService.FetchingManager, unityService.CacheManager, new ImageSourceSettings()
-            {
-                TilesetId = "CustomTerrain"
-            });
+            var source = new CustomTerrainSource(CustomSourceSettings, unityService.FetchingManager, unityService.CacheManager, Settings.DataSettings);
             ModuleImplementation = new TerrainLayerModule(source, Settings);
             return ModuleImplementation;
         }

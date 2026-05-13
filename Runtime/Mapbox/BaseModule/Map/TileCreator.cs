@@ -59,21 +59,19 @@ namespace Mapbox.BaseModule.Map
 
             if (TileMaterials?.Length == 1)
             {
-                if (_instanceMaterial)
-                {
-                    tile.MeshRenderer.material = TileMaterials[0];
-                    tile.Material = tile.MeshRenderer.material;
-                }
-                else
-                {
-                    tile.MeshRenderer.sharedMaterial = TileMaterials[0];
-                    tile.Material = tile.MeshRenderer.sharedMaterial;
-                }
+                // Always use sharedMaterial. Per-tile state goes through the tile's
+                // MaterialPropertyBlock (UnityTileTerrainContainer / UnityTileImageContainer
+                // mutate it), which lets URP's SRP Batcher merge tile draws into a single
+                // batch. The legacy _instanceMaterial flag is retained on the constructor
+                // for back-compat but no longer differentiates: per-tile state lives on the
+                // property block, not on a unique Material instance.
+                tile.MeshRenderer.sharedMaterial = TileMaterials[0];
+                tile.Material = tile.MeshRenderer.sharedMaterial;
             }
             else if (TileMaterials?.Length > 1)
             {
-                tile.MeshRenderer.materials = TileMaterials;
-                tile.Material = tile.MeshRenderer.material;
+                tile.MeshRenderer.sharedMaterials = TileMaterials;
+                tile.Material = tile.MeshRenderer.sharedMaterial;
             }
             
             tile.gameObject.SetActive(false);

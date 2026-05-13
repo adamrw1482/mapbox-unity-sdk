@@ -1,9 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using Mapbox.BaseModule.Data.DataFetchers;
+using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.ImageModule.Terrain.Settings;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
+using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
 
 namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 {
@@ -29,16 +37,40 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		private List<Vector3> _newVertexList;
 		private List<Vector3> _newNormalList;
 		private List<Vector2> _newUvList;
-		//private List<int> _newTriangleList;
-		private Vector3 _newDir;
-		private int _vertA, _vertB, _vertC;
-		private int _counter;
 
 		private bool _useTileSkirts = false;
 		private float _skirtSize = 1;
 
 		private int _sideVertexCount;
 		private int _requiredVertexCount;
+
+		private TerrainColliderOptions _colliderOptions;
+
+		// Collider geometry is written by a Burst job into persistent NativeArrays so the
+		// data flows zero-copy into Mesh.SetVertices / SetIndices. Triangles are generated
+		// once per sampleCount change (they don't depend on elevation), so only the vertex
+		// buffer is written per tile build. The elevation mirror is a NativeArray copy of
+		// the current data tile's managed ElevationValues — populated lazily when the
+		// source reference changes, reused across the 16 render tiles that share one data
+		// tile.
+		private NativeArray<Vector3> _colliderVerticesNative;
+		private NativeArray<int> _colliderTrianglesNative;
+		private int _colliderNativeSampleCount = -1;
+		private NativeArray<float> _elevationNative;
+		private float[] _elevationNativeMirror;
+
+		// Shared flat render mesh used by every tile in shader mode. All render tiles have
+		// byte-identical CPU vertex data in that mode (the per-tile _HeightTexture_ST
+		// sub-region determines the actual surface); pointing every MeshFilter at this
+		// single Mesh avoids per-tile Mesh allocation and upload.
+		private const string SharedFlatMeshName = "TerrainSharedFlat";
+		private Mesh _sharedFlatMesh;
+
+		// Tracks the (TerrainData, CanonicalTileId) last used to build each MeshCollider's
+		// sharedMesh. Temp-tile → final-tile transitions can trigger RegisterTile with the
+		// same data; skipping the rebuild avoids a redundant PhysX re-cook.
+		private readonly Dictionary<MeshCollider, (TerrainData data, CanonicalTileId tileId)>
+			_lastColliderBuild = new Dictionary<MeshCollider, (TerrainData, CanonicalTileId)>();
 		
 		public override int RequiredVertexCount
 		{
@@ -56,10 +88,11 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			}
 
 			_useTileSkirts = elOptions.sideWallOptions.isActive;
-			 _sideVertexCount = _useTileSkirts 
-				? _elevationOptions.modificationOptions.sampleCount + 3 
+			 _sideVertexCount = _useTileSkirts
+				? _elevationOptions.modificationOptions.sampleCount + 3
 				: _elevationOptions.modificationOptions.sampleCount + 1;
 			_skirtSize = elOptions.sideWallOptions.wallHeight;
+			_colliderOptions = elOptions.colliderOptions;
 			
 			_newVertexList = new List<Vector3>(_requiredVertexCount);
 			_newNormalList = new List<Vector3>(_requiredVertexCount);
@@ -67,6 +100,36 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			
 			_baseMesh = CreateBaseMesh(_elevationOptions.TileMeshSize, _sideVertexCount);
 			_requiredVertexCount = _baseMesh.Vertices.Length;
+
+			// Build the shader-mode shared render mesh from the base data once. Every
+			// shader-mode tile's MeshFilter will point at this single instance.
+			_sharedFlatMesh = new Mesh { name = SharedFlatMeshName };
+			_sharedFlatMesh.subMeshCount = 2;
+			_sharedFlatMesh.vertices = _baseMesh.Vertices;
+			_sharedFlatMesh.normals = _baseMesh.Normals;
+			for (var i = 0; i < _baseMesh.Triangles.Count; i++)
+			{
+				_sharedFlatMesh.SetTriangles(_baseMesh.Triangles[i], i);
+			}
+			_sharedFlatMesh.uv = _baseMesh.Uvs;
+			_sharedFlatMesh.UploadMeshData(markNoLongerReadable: false);
+		}
+
+		/// <summary>
+		/// Cascaded from <c>TerrainLayerModule.OnDestroy</c>. Releases the shared render
+		/// mesh and the persistent NativeArrays that back Burst collider builds; per-tile
+		/// collider meshes are released from <c>UnityMapTile.OnDestroy</c>.
+		/// </summary>
+		public override void OnDestroy()
+		{
+			if (_sharedFlatMesh != null)
+			{
+				UnityEngine.Object.Destroy(_sharedFlatMesh);
+				_sharedFlatMesh = null;
+			}
+			if (_colliderVerticesNative.IsCreated) _colliderVerticesNative.Dispose();
+			if (_colliderTrianglesNative.IsCreated) _colliderTrianglesNative.Dispose();
+			if (_elevationNative.IsCreated) _elevationNative.Dispose();
 		}
 
 		public override void RegisterTile(UnityMapTile tile, bool createElevatedMesh)
@@ -76,8 +139,29 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				tile.gameObject.layer = _elevationOptions.unityLayerOptions.layerId;
 			}
 
-			if (tile.MeshVertexCount != RequiredVertexCount)
+			if (!createElevatedMesh)
 			{
+				// Shader mode: point the tile at the shared flat mesh. Byte-identical
+				// vertex data across tiles means a single Mesh covers the whole pool; the
+				// shader picks the right sub-region via per-tile _HeightTexture_ST.
+				if (tile.MeshFilter.sharedMesh != _sharedFlatMesh)
+				{
+					var previous = tile.MeshFilter.sharedMesh;
+					tile.MeshFilter.sharedMesh = _sharedFlatMesh;
+					// The mesh UnityMapTile.Awake allocated is now orphaned; destroy it
+					// unless something else (not us) already put the shared mesh here.
+					if (previous != null && previous != _sharedFlatMesh && previous.name != SharedFlatMeshName)
+					{
+						UnityEngine.Object.Destroy(previous);
+					}
+				}
+				tile.MeshVertexCount = _sharedFlatMesh.vertexCount;
+			}
+			else if (tile.MeshVertexCount != RequiredVertexCount)
+			{
+				// CPU mode: each tile needs its own unique vertex buffer since the Y
+				// displacement is per-tile. Reset the tile's Awake-allocated mesh from the
+				// base template.
 				Mesh sharedMesh;
 				(sharedMesh = tile.MeshFilter.sharedMesh).Clear();
 				var newMesh = _baseMesh;
@@ -93,10 +177,398 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				tile.MeshVertexCount = newMesh.Vertices.Length;
 				tile.ElevationUpdatedCallback();
 			}
-			
+
 			if (createElevatedMesh)
 			{
 				CreateElevatedMesh(tile);
+			}
+
+			if (_colliderOptions != null && _colliderOptions.addCollider)
+			{
+				RegisterCollider(tile);
+			}
+		}
+
+		/// <summary>
+		/// Ensures <paramref name="tile"/> has a <see cref="MeshCollider"/> backed by a
+		/// CPU-elevated mesh. Builds immediately when elevation data is already decoded,
+		/// otherwise defers until <see cref="TerrainData.ElevationValuesUpdated"/> fires
+		/// (async GPU-readback path). Short-circuits when the tile's existing collider was
+		/// already built from the same data + tileId (temp→final transitions trigger
+		/// RegisterTile multiple times without the underlying data changing).
+		/// </summary>
+		private void RegisterCollider(UnityMapTile tile)
+		{
+			var data = tile.TerrainContainer != null ? tile.TerrainContainer.TerrainData : null;
+			if (data == null)
+			{
+				return;
+			}
+
+			var existing = FindExistingCollider(tile);
+			if (existing != null &&
+			    _lastColliderBuild.TryGetValue(existing, out var last) &&
+			    ReferenceEquals(last.data, data) &&
+			    last.tileId.Equals(tile.CanonicalTileId))
+			{
+				return;
+			}
+
+			if (data.IsElevationDataReady)
+			{
+				BuildAndAssignCollider(tile);
+			}
+			else
+			{
+				// Defer until values arrive. The callback self-unsubscribes on fire and
+				// no-ops if the tile has since been recycled onto different data, so a late
+				// async readback does not stomp a freshly-reassigned tile.
+				Action rebuild = null;
+				rebuild = () =>
+				{
+					if (tile == null || tile.TerrainContainer == null || tile.TerrainContainer.TerrainData != data)
+					{
+						data.ElevationValuesUpdated -= rebuild;
+						return;
+					}
+					BuildAndAssignCollider(tile);
+					data.ElevationValuesUpdated -= rebuild;
+				};
+				data.ElevationValuesUpdated += rebuild;
+			}
+		}
+
+		// Our generated grid has no duplicate verts, no degenerate triangles, and doesn't
+		// need welding, so we tell PhysX to skip those cook stages. Keeps
+		// CookForFasterSimulation on for faster runtime queries against the static terrain.
+		private const MeshColliderCookingOptions TerrainColliderCookingOptions =
+			MeshColliderCookingOptions.CookForFasterSimulation |
+			MeshColliderCookingOptions.UseFastMidphase;
+
+		// Name of the dedicated child GameObject that holds the MeshCollider when
+		// useDedicatedColliderLayer is enabled. Keyed by name so we can locate + reuse it
+		// across pool cycles without maintaining a per-tile dictionary.
+		private const string ColliderChildName = "TerrainCollider";
+
+		/// <summary>
+		/// Looks up the existing <see cref="MeshCollider"/> for this tile without creating
+		/// one, mirroring the location rule in <see cref="GetOrCreateCollider"/>. Used by
+		/// the rebuild-short-circuit check.
+		/// </summary>
+		private MeshCollider FindExistingCollider(UnityMapTile tile)
+		{
+			if (_colliderOptions.useDedicatedColliderLayer)
+			{
+				var childTransform = tile.transform.Find(ColliderChildName);
+				return childTransform != null ? childTransform.GetComponent<MeshCollider>() : null;
+			}
+			return tile.GetComponent<MeshCollider>();
+		}
+
+		/// <summary>
+		/// Returns the <see cref="MeshCollider"/> the collider mesh should be assigned to.
+		/// When <see cref="TerrainColliderOptions.useDedicatedColliderLayer"/> is enabled
+		/// the collider lives on a child GameObject so it can sit on its own Unity Layer
+		/// independently of the tile's render layer; otherwise it's attached to the tile
+		/// itself. Applies our tuned <see cref="TerrainColliderCookingOptions"/> on first
+		/// creation.
+		/// </summary>
+		private MeshCollider GetOrCreateCollider(UnityMapTile tile)
+		{
+			if (_colliderOptions.useDedicatedColliderLayer)
+			{
+				var childTransform = tile.transform.Find(ColliderChildName);
+				GameObject childGo;
+				if (childTransform == null)
+				{
+					childGo = new GameObject(ColliderChildName);
+					childGo.transform.SetParent(tile.transform, worldPositionStays: false);
+				}
+				else
+				{
+					childGo = childTransform.gameObject;
+				}
+				childGo.layer = _colliderOptions.colliderLayerId;
+
+				var childCollider = childGo.GetComponent<MeshCollider>();
+				if (childCollider == null)
+				{
+					childCollider = childGo.AddComponent<MeshCollider>();
+					childCollider.cookingOptions = TerrainColliderCookingOptions;
+				}
+				return childCollider;
+			}
+
+			var meshCollider = tile.GetComponent<MeshCollider>();
+			if (meshCollider == null)
+			{
+				meshCollider = tile.gameObject.AddComponent<MeshCollider>();
+				meshCollider.cookingOptions = TerrainColliderCookingOptions;
+			}
+			return meshCollider;
+		}
+
+		/// <summary>
+		/// Builds a dedicated CPU-elevated collider mesh for <paramref name="tile"/> and
+		/// assigns it to the tile's <see cref="MeshCollider"/>. Grid resolution mirrors the
+		/// render mesh so physics stays visually aligned with the terrain surface.
+		/// </summary>
+		private void BuildAndAssignCollider(UnityMapTile tile)
+		{
+			var meshCollider = GetOrCreateCollider(tile);
+
+			// Unity auto-populates sharedMesh on a newly added MeshCollider from the
+			// GameObject's MeshFilter.sharedMesh. We must NOT write into that mesh — it is
+			// the render mesh. Detect and allocate a dedicated collider Mesh instead.
+			var mesh = meshCollider.sharedMesh;
+			if (mesh == null || mesh == tile.MeshFilter.sharedMesh)
+			{
+				mesh = new Mesh { name = "TerrainCollider" };
+				mesh.MarkDynamic();
+			}
+
+			// Grid resolution matches the render mesh so the collision surface aligns with
+			// the visible terrain. If the user picks a coarser SimplificationFactor, the
+			// collider follows.
+			var sampleCount = _elevationOptions.modificationOptions.sampleCount;
+			var side = sampleCount + 1;
+			var size = _elevationOptions.TileMeshSize;
+			var scale = tile.TileScale;
+
+			// Elevation mirror is populated once per data tile and shared across the 16
+			// render tiles that sample the same data. Triangles are regenerated only when
+			// sampleCount changes — see EnsureColliderBuffers.
+			var container = tile.TerrainContainer;
+			var elevationValues = container.TerrainData.ElevationValues;
+			var dataWidth = (int)Mathf.Sqrt(elevationValues.Length);
+			var scaleOffset = container.TerrainTextureScaleOffset;
+
+			EnsureColliderBuffers(sampleCount);
+			EnsureElevationNative(elevationValues);
+
+			new BuildColliderVerticesJob
+			{
+				ElevationValues = _elevationNative,
+				DataWidth = dataWidth,
+				SampleCount = sampleCount,
+				Side = side,
+				Size = size,
+				Scale = scale,
+				SectionWidth = dataWidth * scaleOffset.x - 1f,
+				PaddingX = dataWidth * scaleOffset.z,
+				PaddingY = dataWidth * scaleOffset.w,
+				Vertices = _colliderVerticesNative
+			}.Run();
+
+			mesh.Clear();
+			mesh.SetVertices(_colliderVerticesNative);
+			// SetIndices is the canonical NativeArray-taking Mesh index API; the
+			// NativeArray overload of SetTriangles isn't present on every Unity 2022.3
+			// point release. MeshTopology.Triangles produces equivalent triangle-list
+			// geometry.
+			mesh.SetIndices(_colliderTrianglesNative, MeshTopology.Triangles, 0, calculateBounds: false);
+			mesh.RecalculateBounds();
+
+			// Record what we just built so RegisterCollider can short-circuit on
+			// redundant subsequent RegisterTile calls (temp→final transitions).
+			_lastColliderBuild[meshCollider] = (tile.TerrainContainer.TerrainData, tile.CanonicalTileId);
+
+			if (_colliderOptions.asyncBakeCollider)
+			{
+				// Move the PhysX cook to a worker thread. The assignment (and thus any
+				// implicit recook) happens one frame later once BakeMesh has populated the
+				// native cooked-data cache for this mesh id. PhysX reuses that cache when
+				// sharedMesh is assigned, so the main-thread step is near-free.
+				var handle = new BakeColliderJob
+				{
+					MeshId = mesh.GetInstanceID(),
+					CookingOptions = TerrainColliderCookingOptions
+				}.Schedule();
+				Runnable.Instance.StartCoroutine(CompleteBakeAndAssign(meshCollider, mesh, handle));
+			}
+			else
+			{
+				// Null-then-reassign forces PhysX to re-cook collision data; a same-reference
+				// reassignment is a no-op.
+				meshCollider.sharedMesh = null;
+				meshCollider.sharedMesh = mesh;
+			}
+		}
+
+		/// <summary>
+		/// (Re)allocates the persistent collider NativeArrays when the strategy's
+		/// sampleCount changes, and generates the triangle index list once — triangles are
+		/// a pure function of <paramref name="sampleCount"/> and never need rebuilding per
+		/// tile.
+		/// </summary>
+		private void EnsureColliderBuffers(int sampleCount)
+		{
+			if (_colliderNativeSampleCount == sampleCount && _colliderVerticesNative.IsCreated && _colliderTrianglesNative.IsCreated)
+			{
+				return;
+			}
+			if (_colliderVerticesNative.IsCreated) _colliderVerticesNative.Dispose();
+			if (_colliderTrianglesNative.IsCreated) _colliderTrianglesNative.Dispose();
+
+			var side = sampleCount + 1;
+			_colliderVerticesNative = new NativeArray<Vector3>(side * side, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+			_colliderTrianglesNative = new NativeArray<int>(sampleCount * sampleCount * 6, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+			int ti = 0;
+			for (int y = 0; y < sampleCount; y++)
+			{
+				for (int x = 0; x < sampleCount; x++)
+				{
+					int vertA = y * side + x;
+					int vertB = vertA + side + 1;
+					int vertC = vertA + side;
+					_colliderTrianglesNative[ti++] = vertA;
+					_colliderTrianglesNative[ti++] = vertC;
+					_colliderTrianglesNative[ti++] = vertB;
+
+					vertA = y * side + x;
+					vertB = vertA + 1;
+					vertC = vertA + side + 1;
+					_colliderTrianglesNative[ti++] = vertA;
+					_colliderTrianglesNative[ti++] = vertC;
+					_colliderTrianglesNative[ti++] = vertB;
+				}
+			}
+			_colliderNativeSampleCount = sampleCount;
+		}
+
+		/// <summary>
+		/// Mirrors the current data tile's managed <c>ElevationValues</c> into the
+		/// strategy's persistent <see cref="_elevationNative"/>. Reuses the existing
+		/// NativeArray when the source reference is unchanged, so the 16 render tiles that
+		/// share a data tile pay the ~256 KB copy only once.
+		/// </summary>
+		private void EnsureElevationNative(float[] source)
+		{
+			if (ReferenceEquals(source, _elevationNativeMirror) && _elevationNative.IsCreated && _elevationNative.Length == source.Length)
+			{
+				return;
+			}
+			if (_elevationNative.IsCreated && _elevationNative.Length != source.Length)
+			{
+				_elevationNative.Dispose();
+			}
+			if (!_elevationNative.IsCreated)
+			{
+				_elevationNative = new NativeArray<float>(source.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+			}
+			_elevationNative.CopyFrom(source);
+			_elevationNativeMirror = source;
+		}
+
+		/// <summary>
+		/// Burst-compiled vertex fill for the collider mesh. Bilinearly samples the
+		/// mirrored elevation NativeArray and writes world-local vertex positions. Grid
+		/// topology (triangles) is produced once in <see cref="EnsureColliderBuffers"/>,
+		/// not in this job.
+		/// </summary>
+		[BurstCompile]
+		private struct BuildColliderVerticesJob : IJob
+		{
+			[ReadOnly] public NativeArray<float> ElevationValues;
+			public int DataWidth;
+			public int SampleCount;
+			public int Side;
+			public float Size;
+			public float Scale;
+			public float SectionWidth;
+			public float PaddingX;
+			public float PaddingY;
+			public NativeArray<Vector3> Vertices;
+
+			public void Execute()
+			{
+				var invSampleCount = 1f / SampleCount;
+				var maxIndex = DataWidth - 1;
+
+				for (int y = 0; y < Side; y++)
+				{
+					var yrat = y * invSampleCount;
+					var sampleYf = PaddingY + yrat * SectionWidth;
+					if (sampleYf < 0f) sampleYf = 0f; else if (sampleYf > maxIndex) sampleYf = maxIndex;
+					var y0 = (int)sampleYf;
+					var y1 = y0 + 1; if (y1 > maxIndex) y1 = maxIndex;
+					var fy = sampleYf - y0;
+					var row0 = y0 * DataWidth;
+					var row1 = y1 * DataWidth;
+					var yy = (1f - yrat) * Size;
+
+					for (int x = 0; x < Side; x++)
+					{
+						var xrat = x * invSampleCount;
+						var sampleXf = PaddingX + xrat * SectionWidth;
+						if (sampleXf < 0f) sampleXf = 0f; else if (sampleXf > maxIndex) sampleXf = maxIndex;
+						var x0 = (int)sampleXf;
+						var x1 = x0 + 1; if (x1 > maxIndex) x1 = maxIndex;
+						var fx = sampleXf - x0;
+
+						var h00 = ElevationValues[row0 + x0];
+						var h10 = ElevationValues[row0 + x1];
+						var h01 = ElevationValues[row1 + x0];
+						var h11 = ElevationValues[row1 + x1];
+						var h0 = h00 + (h10 - h00) * fx;
+						var h1 = h01 + (h11 - h01) * fx;
+						var sample = h0 + (h1 - h0) * fy;
+
+						Vertices[y * Side + x] = new Vector3(xrat * Size, sample * Scale, -yy);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// IJob wrapper around <c>Physics.BakeMesh</c> so the PhysX cook can run on a
+		/// worker thread. The cooking options must match what the MeshCollider is
+		/// configured with, otherwise PhysX discards the cached data and re-cooks on
+		/// assignment.
+		/// </summary>
+		private struct BakeColliderJob : IJob
+		{
+			public int MeshId;
+			public MeshColliderCookingOptions CookingOptions;
+
+			public void Execute()
+			{
+				Physics.BakeMesh(MeshId, false, CookingOptions);
+			}
+		}
+
+		/// <summary>
+		/// Waits for an async <see cref="BakeColliderJob"/> to complete, then assigns the
+		/// pre-cooked mesh to its <see cref="MeshCollider"/>. Handles: (a) the tile or
+		/// collider got destroyed during the bake — we free the orphaned mesh so it doesn't
+		/// leak; (b) a previous <c>TerrainCollider</c> mesh was attached to this collider —
+		/// we destroy it once we've swapped in the new one, since each async build
+		/// allocates a fresh Mesh.
+		/// </summary>
+		private static IEnumerator CompleteBakeAndAssign(MeshCollider meshCollider, Mesh mesh, JobHandle handle)
+		{
+			while (!handle.IsCompleted)
+			{
+				yield return null;
+			}
+			handle.Complete();
+
+			if (meshCollider == null)
+			{
+				if (mesh != null)
+				{
+					UnityEngine.Object.Destroy(mesh);
+				}
+				yield break;
+			}
+
+			var previous = meshCollider.sharedMesh;
+			meshCollider.sharedMesh = null;
+			meshCollider.sharedMesh = mesh;
+			if (previous != null && previous != mesh && previous.name == "TerrainCollider")
+			{
+				UnityEngine.Object.Destroy(previous);
 			}
 		}
 
@@ -125,7 +597,13 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 				vertices[i].Set(vertices[i].x, elevation, vertices[i].z);
 			}
-			mesh.vertices = vertices;
+			mesh.SetVertices(vertices);
+			// Actual displaced bounds are tighter than the min/max-padded fallback bounds
+			// set by UnityMapTile.ElevationUpdatedCallback. Mesh normals/tangents are not
+			// recalculated: the terrain shader derives the surface normal from the height
+			// texture directly in the fragment stage, so the mesh's vertex normals are
+			// never read in either mode.
+			mesh.RecalculateBounds();
 		}
 
 		#region mesh gen
@@ -200,6 +678,37 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			return mesh;
 		}
 
+		/// <summary>
+		/// Fraction of tile size that the outer skirt ring extends past the tile boundary.
+		/// Kept constant so coarse meshes (e.g. <c>sampleCount=2</c> with
+		/// <c>SimplificationFactor=64</c>) don't balloon the skirt half-way into neighboring
+		/// tiles. 1% is narrow enough to be invisible at typical zoom levels and wide enough
+		/// to hide seam artifacts from float-precision mismatches.
+		/// </summary>
+		private const float SkirtOuterOffsetFraction = 0.01f;
+
+		/// <summary>
+		/// Maps a skirt-loop index (<c>-1 .. sideVertexCount-2</c>) to the [0,1] UV range
+		/// used for interior vertices, with the outer ring pinned to a fixed offset outside
+		/// the tile rather than one grid step. Without this, a 3x3 grid puts the skirt half
+		/// a tile outside the edge and overlaps neighboring tiles.
+		/// </summary>
+		/// <param name="index">Loop index. <c>-1</c> is the left/top outer skirt row; <c>sideVertexCount-2</c> is the right/bottom outer skirt row.</param>
+		/// <param name="interiorSteps">Number of grid segments along one tile side (<c>sampleCount</c>).</param>
+		/// <param name="sideVertexCount">Total verts per tile axis including skirts.</param>
+		private static float RatioForSkirtIndex(int index, int interiorSteps, int sideVertexCount)
+		{
+			if (index == -1)
+			{
+				return -SkirtOuterOffsetFraction;
+			}
+			if (index == sideVertexCount - 2)
+			{
+				return 1f + SkirtOuterOffsetFraction;
+			}
+			return (float)index / interiorSteps;
+		}
+
 		private MeshDataArray CreateBaseMeshSkirts(float size, int sideVertexCount)
 		{
 			//TODO use arrays instead of lists
@@ -207,16 +716,17 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			_newNormalList.Clear();
 			_newUvList.Clear();
 			var _newTriangleList = new List<int>();
+			var interiorSteps = sideVertexCount - 3;
 
 			//012
 			//345
 			//678
 			for (int y = -1; y < sideVertexCount - 1; y++)
 			{
-				var yrat = (float)y / (sideVertexCount - 3); // 1 for buffer pixel, 2 for skirts
+				var yrat = RatioForSkirtIndex(y, interiorSteps, sideVertexCount);
 				for (int x = -1; x < sideVertexCount - 1; x++)
 				{
-					var xrat = (float)x / (sideVertexCount - 3);
+					var xrat = RatioForSkirtIndex(x, interiorSteps, sideVertexCount);
 
 					var xx = Mathf.LerpUnclamped(0, size, xrat);
 					//lerp x/y swapped here because of the texture space conversion (y to -y)
@@ -281,9 +791,8 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			mesh.Vertices = _newVertexList.ToArray();
 			mesh.Normals = _newNormalList.ToArray();
 			mesh.Uvs = _newUvList.ToArray();
-			topQuadTris.AddRange(_newTriangleList.ToArray());
+			topQuadTris.AddRange(_newTriangleList);
 			mesh.Triangles.Add(topQuadTris.ToArray());
-			//mesh.Triangles.Add(_newTriangleList.ToArray());
 			return mesh;
 		}
 		#endregion

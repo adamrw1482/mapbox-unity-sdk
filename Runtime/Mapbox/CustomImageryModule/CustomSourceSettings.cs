@@ -10,5 +10,7 @@ namespace Mapbox.CustomImageryModule
         public string UrlFormat;
         [Tooltip("Invert Y axis coordinates for TMS coordinate system, which starts from bottom left and grows to top-right")]
         public bool InvertY;
+        [Tooltip("Enable when the URL points to a Mapbox-hosted tileset (api.mapbox.com). Appends access_token and sku query parameters automatically.")]
+        public bool IsMapboxService;
     }
 }
