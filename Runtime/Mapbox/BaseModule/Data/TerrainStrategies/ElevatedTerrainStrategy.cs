@@ -75,6 +75,12 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// same data; skipping the rebuild avoids a redundant PhysX re-cook.
 		private readonly Dictionary<MeshCollider, (TerrainData data, CanonicalTileId tileId)>
 			_lastColliderBuild = new Dictionary<MeshCollider, (TerrainData, CanonicalTileId)>();
+
+		// Sweep dead-collider entries from _lastColliderBuild once it exceeds this count.
+		// Bounded by tile-pool peak in normal use; the sweep catches the case where
+		// GameObjects actually destroy (scene teardown, runtime tile-pool resize).
+		private const int LastColliderBuildSweepThreshold = 256;
+		private readonly List<MeshCollider> _deadColliderKeysScratch = new List<MeshCollider>();
 		
 		public override int RequiredVertexCount
 		{
@@ -143,6 +149,8 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			if (_colliderVerticesNative.IsCreated) _colliderVerticesNative.Dispose();
 			if (_colliderTrianglesNative.IsCreated) _colliderTrianglesNative.Dispose();
 			if (_elevationNative.IsCreated) _elevationNative.Dispose();
+			_lastColliderBuild.Clear();
+			_elevationNativeMirror = null;
 		}
 
 		public override void RegisterTile(UnityMapTile tile, bool createElevatedMesh)
@@ -174,9 +182,18 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			{
 				// CPU mode: each tile needs its own unique vertex buffer since the Y
 				// displacement is per-tile. Reset the tile's Awake-allocated mesh from the
-				// base template.
-				Mesh sharedMesh;
-				(sharedMesh = tile.MeshFilter.sharedMesh).Clear();
+				// base template — but never Clear() _sharedFlatMesh, which would wipe the
+				// mesh used by every shader-mode tile. Allocate a fresh per-tile mesh if
+				// this tile's MeshFilter is still pointing at the shared instance (happens
+				// when a runtime config change flips the tile shader→CPU and the new
+				// RequiredVertexCount differs from _sharedFlatMesh.vertexCount).
+				var sharedMesh = tile.MeshFilter.sharedMesh;
+				if (sharedMesh == _sharedFlatMesh)
+				{
+					sharedMesh = new Mesh();
+					tile.MeshFilter.sharedMesh = sharedMesh;
+				}
+				sharedMesh.Clear();
 				var newMesh = _baseMesh;
 				sharedMesh.subMeshCount = 2;
 				sharedMesh.vertices = newMesh.Vertices;
@@ -262,6 +279,27 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// useDedicatedColliderLayer is enabled. Keyed by name so we can locate + reuse it
 		// across pool cycles without maintaining a per-tile dictionary.
 		private const string ColliderChildName = "TerrainCollider";
+
+		// Removes _lastColliderBuild entries whose MeshCollider key has been destroyed
+		// (GameObject teardown, scene unload). Unity's overloaded == returns true for
+		// destroyed-vs-null, but Dictionary<K,V> hashes by C# reference equality and
+		// would otherwise keep dead proxies indefinitely.
+		private void SweepDeadColliderEntries()
+		{
+			_deadColliderKeysScratch.Clear();
+			foreach (var kv in _lastColliderBuild)
+			{
+				if (kv.Key == null)
+				{
+					_deadColliderKeysScratch.Add(kv.Key);
+				}
+			}
+			for (int i = 0; i < _deadColliderKeysScratch.Count; i++)
+			{
+				_lastColliderBuild.Remove(_deadColliderKeysScratch[i]);
+			}
+			_deadColliderKeysScratch.Clear();
+		}
 
 		/// <summary>
 		/// Looks up the existing <see cref="MeshCollider"/> for this tile without creating
@@ -389,6 +427,14 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 			// Record what we just built so RegisterCollider can short-circuit on
 			// redundant subsequent RegisterTile calls (temp→final transitions).
+			// Sweep dead Unity Object keys opportunistically when the dict grows past
+			// the soft cap so destroyed-collider proxies don't linger across long
+			// sessions (Unity's overloaded == doesn't reach Dictionary's reference
+			// equality, so dead keys would otherwise stay queryable).
+			if (_lastColliderBuild.Count > LastColliderBuildSweepThreshold)
+			{
+				SweepDeadColliderEntries();
+			}
 			_lastColliderBuild[meshCollider] = (tile.TerrainContainer.TerrainData, tile.CanonicalTileId);
 
 			if (_colliderOptions.asyncBakeCollider)

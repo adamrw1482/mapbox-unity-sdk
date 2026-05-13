@@ -525,11 +525,11 @@ namespace Mapbox.BaseModule.Map
                 var terrainData = unityMapTile.TerrainContainer?.TerrainData;
                 if (terrainData != null && terrainData.IsElevationDataReady)
                 {
-                    var terrain = _mapInformation.Terrain;
-                    if (terrainData.MaxElevation > terrain.MaxElevation)
-                        terrain.MaxElevation = terrainData.MaxElevation;
-                    if (terrainData.MinElevation < terrain.MinElevation)
-                        terrain.MinElevation = terrainData.MinElevation;
+                    // Recompute from ActiveTiles rather than widening against the existing
+                    // Min/Max: the prior accumulate-only path left MinElevation pinned at
+                    // its initial 0 whenever every loaded tile was at or above sea level,
+                    // since (positive < 0) never fires.
+                    RecomputeTerrainBounds();
                 }
 
                 TileLoaded(unityMapTile);

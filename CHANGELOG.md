@@ -2,6 +2,9 @@
 
 ### v3.0.7
 
+#### Breaking changes
+- `IMapInformation` gained a new member: `TerrainInfo Terrain { get; }`. Any project that ships its own `IMapInformation` implementation will need to add this property — return an instance of `TerrainInfo` (defaults are fine for a non-terrain map). The built-in `MapInformation` already implements it.
+
 #### Changes
 - Added new documentation.
 - Added a new demo scene demonstrating how to use POI information.
