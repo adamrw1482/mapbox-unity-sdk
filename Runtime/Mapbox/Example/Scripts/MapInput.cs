@@ -3,11 +3,6 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
 using UnityEngine;
 using UnityEngine.EventSystems;
-#if MAPBOX_NEW_INPUT_SYSTEM
-using UnityEngine.InputSystem;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
-using TouchPhase = UnityEngine.InputSystem.TouchPhase;
-#endif
 
 namespace Mapbox.Example.Scripts.MapInput
 {
@@ -72,13 +67,15 @@ namespace Mapbox.Example.Scripts.MapInput
 		private float _pinchDeltaThisFrame;
 		private float _tiltAvgDeltaYThisFrame;
 
+		// Backend-agnostic input source. PointerInput's two implementations are gated
+		// by MAPBOX_NEW_INPUT_SYSTEM in PointerInput.cs; the rest of this file is
+		// free of #if branching as a result.
+		private readonly IPointerInput _input = new PointerInput();
+
 		public virtual void Initialize(Camera camera, IMapInformation mapInfo)
 		{
 			_camera = camera ? camera : Camera.main;
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (!UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.enabled)
-				UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
-#endif
+			_input.EnableTouchSupport();
 		}
 
 		/// <summary>
@@ -141,14 +138,7 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// <summary>
 		/// Returns the number of active touches, or 0 if no touch device is available.
 		/// </summary>
-		private int GetTouchCount()
-		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			return Touch.activeTouches.Count;
-#else
-			return Input.touchCount;
-#endif
-		}
+		private int GetTouchCount() => _input.TouchCount;
 
 		/// <summary>
 		/// Call at the start of UpdateCamera to maintain input state between frames.
@@ -177,28 +167,12 @@ namespace Mapbox.Example.Scripts.MapInput
 			// Read both touches' positions, Y-deltas, and stable ids. Doing this once
 			// here (not redundantly inside each detector) keeps the decision symmetric
 			// and prevents stale-state races.
-			Vector2 touch0Pos, touch1Pos;
-			float touch0DeltaY, touch1DeltaY;
-			int t0Id, t1Id;
-#if MAPBOX_NEW_INPUT_SYSTEM
-			var t0 = Touch.activeTouches[0];
-			var t1 = Touch.activeTouches[1];
-			touch0Pos = t0.screenPosition;
-			touch1Pos = t1.screenPosition;
-			touch0DeltaY = t0.delta.y;
-			touch1DeltaY = t1.delta.y;
-			t0Id = t0.touchId;
-			t1Id = t1.touchId;
-#else
-			var t0 = Input.GetTouch(0);
-			var t1 = Input.GetTouch(1);
-			touch0Pos = t0.position;
-			touch1Pos = t1.position;
-			touch0DeltaY = t0.deltaPosition.y;
-			touch1DeltaY = t1.deltaPosition.y;
-			t0Id = t0.fingerId;
-			t1Id = t1.fingerId;
-#endif
+			var touch0Pos = _input.GetTouchPosition(0);
+			var touch1Pos = _input.GetTouchPosition(1);
+			var touch0DeltaY = _input.GetTouchDeltaY(0);
+			var touch1DeltaY = _input.GetTouchDeltaY(1);
+			var t0Id = _input.GetTouchId(0);
+			var t1Id = _input.GetTouchId(1);
 			var currentDistance = Vector2.Distance(touch0Pos, touch1Pos);
 
 			// Reseed when the pair changes (first two-finger frame OR a 2→3→2 / finger-swap
@@ -252,16 +226,9 @@ namespace Mapbox.Example.Scripts.MapInput
 			if (EventSystem.current == null)
 				return false;
 
-#if MAPBOX_NEW_INPUT_SYSTEM
-			var touchCount = GetTouchCount();
-			if (touchCount > 0)
-				return EventSystem.current.IsPointerOverGameObject(Touch.activeTouches[0].finger.index);
+			if (_input.TouchCount > 0)
+				return EventSystem.current.IsPointerOverGameObject(_input.GetTouchPointerId(0));
 			return EventSystem.current.IsPointerOverGameObject();
-#else
-			if (Input.touchCount > 0)
-				return EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
-			return EventSystem.current.IsPointerOverGameObject();
-#endif
 		}
 
 		/// <summary>
@@ -269,17 +236,9 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected Vector3 GetPointerPosition()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count > 0)
-				return Touch.activeTouches[0].screenPosition;
-			if (Mouse.current != null)
-				return Mouse.current.position.ReadValue();
-			return Vector3.zero;
-#else
-			if (Input.touchCount > 0)
-				return Input.GetTouch(0).position;
-			return Input.mousePosition;
-#endif
+			if (_input.TouchCount > 0)
+				return _input.GetTouchPosition(0);
+			return _input.MousePosition;
 		}
 
 		/// <summary>
@@ -287,15 +246,9 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected bool GetPointerDown()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count > 0)
-				return Touch.activeTouches[0].phase == TouchPhase.Began;
-			return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-#else
-			if (Input.touchCount > 0)
-				return Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began;
-			return Input.GetMouseButtonDown(0);
-#endif
+			if (_input.TouchCount > 0)
+				return _input.GetTouchPhase(0) == PointerTouchPhase.Began;
+			return _input.MouseLeftPressedThisFrame;
 		}
 
 		/// <summary>
@@ -304,26 +257,15 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected bool GetPointerHeld()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			var touchCount = Touch.activeTouches.Count;
+			var touchCount = _input.TouchCount;
 			if (touchCount == 1)
 			{
-				var phase = Touch.activeTouches[0].phase;
-				return phase == TouchPhase.Moved || phase == TouchPhase.Stationary;
+				var phase = _input.GetTouchPhase(0);
+				return phase == PointerTouchPhase.Moved || phase == PointerTouchPhase.Stationary;
 			}
 			if (touchCount == 0)
-				return Mouse.current != null && Mouse.current.leftButton.isPressed;
+				return _input.MouseLeftHeld;
 			return false;
-#else
-			if (Input.touchCount == 1)
-			{
-				var phase = Input.GetTouch(0).phase;
-				return phase == UnityEngine.TouchPhase.Moved || phase == UnityEngine.TouchPhase.Stationary;
-			}
-			if (Input.touchCount == 0)
-				return Input.GetMouseButton(0);
-			return false;
-#endif
 		}
 
 		/// <summary>
@@ -331,15 +273,9 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected bool GetSecondaryDown()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count > 0)
+			if (_input.TouchCount > 0)
 				return false;
-			return Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame;
-#else
-			if (Input.touchCount > 0)
-				return false;
-			return Input.GetMouseButtonDown(1);
-#endif
+			return _input.MouseRightPressedThisFrame;
 		}
 
 		/// <summary>
@@ -347,15 +283,9 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected bool GetSecondaryHeld()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count > 0)
+			if (_input.TouchCount > 0)
 				return false;
-			return Mouse.current != null && Mouse.current.rightButton.isPressed;
-#else
-			if (Input.touchCount > 0)
-				return false;
-			return Input.GetMouseButton(1);
-#endif
+			return _input.MouseRightHeld;
 		}
 
 		/// <summary>
@@ -376,31 +306,17 @@ namespace Mapbox.Example.Scripts.MapInput
 			}
 
 			// Mouse scroll fallback only when no two-finger gesture is active.
-			if (GetTouchCount() >= 2)
+			if (_input.TouchCount >= 2)
 			{
 				return false;
 			}
 
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Mouse.current != null)
+			var scrollY = _input.MouseScrollY;
+			if (Mathf.Abs(scrollY) > 0f)
 			{
-				var scroll = Mouse.current.scroll.ReadValue();
-				if (Mathf.Abs(scroll.y) > 0)
-				{
-					// Raw scroll.y is ~120 per notch on Windows; legacy Input.GetAxis
-					// returns ~0.1 per notch. Divide by 1200 so both paths feed the
-					// same magnitude into ZoomSensitivity.
-					zoomDelta = scroll.y / 1200f;
-					return true;
-				}
-			}
-#else
-			if (Input.mouseScrollDelta.magnitude > 0)
-			{
-				zoomDelta = Input.GetAxis("Mouse ScrollWheel");
+				zoomDelta = scrollY;
 				return true;
 			}
-#endif
 			return false;
 		}
 
@@ -426,23 +342,13 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected Vector3 GetZoomCenter()
 		{
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count >= 2)
+			if (_input.TouchCount >= 2)
 			{
-				var touch0 = Touch.activeTouches[0];
-				var touch1 = Touch.activeTouches[1];
-				return ((Vector3)touch0.screenPosition + (Vector3)touch1.screenPosition) / 2f;
+				Vector3 t0 = _input.GetTouchPosition(0);
+				Vector3 t1 = _input.GetTouchPosition(1);
+				return (t0 + t1) / 2f;
 			}
-			return Mouse.current != null ? (Vector3)Mouse.current.position.ReadValue() : Vector3.zero;
-#else
-			if (Input.touchCount >= 2)
-			{
-				var touch0 = Input.GetTouch(0);
-				var touch1 = Input.GetTouch(1);
-				return (touch0.position + touch1.position) / 2f;
-			}
-			return Input.mousePosition;
-#endif
+			return _input.MousePosition;
 		}
 
 		#endregion
