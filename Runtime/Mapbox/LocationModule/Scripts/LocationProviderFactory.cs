@@ -9,7 +9,7 @@ namespace Mapbox.LocationModule
 	/// Factory to provide access to various LocationProviders.
 	/// This is meant to be attached to a game object.
 	/// </summary>
-	public sealed class LocationProviderFactory : MonoBehaviour
+	public class LocationProviderFactory : MonoBehaviour
 	{
 		public LocationProviderType LocationProviderType;
 		[NonSerialized] public bool IsLocationProviderReady = false;
