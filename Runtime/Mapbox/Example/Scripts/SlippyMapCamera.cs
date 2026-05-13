@@ -79,7 +79,13 @@ namespace Mapbox.Example.Scripts.MapInput
             if (controlPlane.HasValue) _controlPlane = controlPlane.Value;
             if (_rotationSettings.MapRoot == null)
             {
-                _rotationSettings.MapRoot = GameObject.FindObjectOfType<MapBehaviourCore>().transform;
+                var foundRoot = GameObject.FindObjectOfType<MapBehaviourCore>();
+                if (foundRoot == null)
+                {
+                    Debug.LogError("SlippyMapCamera.Initialize: rotationSettings.MapRoot is unset and no MapBehaviourCore could be found in the scene. Camera rotation will not work; assign a MapRoot explicitly.");
+                    return;
+                }
+                _rotationSettings.MapRoot = foundRoot.transform;
             }
             Pitch = start.Pitch;
             Bearing = start.Bearing;

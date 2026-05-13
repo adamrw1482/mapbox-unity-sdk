@@ -30,7 +30,10 @@ namespace Mapbox.BaseModule.Unity
 
         public void SetImageData(RasterData imageData, TileContainerState state = TileContainerState.Final)
         {
-            ImageData?.SetDisposeCallback(null);
+            if (ImageData != null)
+            {
+                ImageData.RemoveDisposeCallback(_onDispose);
+            }
 
             State = state;
             if (imageData.Texture == null || imageData.TileId.Z == 0)
@@ -39,7 +42,7 @@ namespace Mapbox.BaseModule.Unity
             }
 
             ImageData = imageData;
-            ImageData.SetDisposeCallback(_onDispose);
+            ImageData.AddDisposeCallback(_onDispose);
             OnImageryUpdated();
         }
 
@@ -65,7 +68,7 @@ namespace Mapbox.BaseModule.Unity
             _unityMapTile.PropertyBlock.SetTexture(MainTex, Texture2D.blackTexture);
             _unityMapTile.ApplyPropertyBlock();
             var rd = ImageData;
-            ImageData.SetDisposeCallback(null);
+            ImageData.RemoveDisposeCallback(_onDispose);
             ImageData = null;
             return rd;
         }

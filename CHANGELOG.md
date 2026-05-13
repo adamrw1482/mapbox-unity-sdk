@@ -4,6 +4,8 @@
 
 #### Breaking changes
 - `IMapInformation` gained a new member: `TerrainInfo Terrain { get; }`. Any project that ships its own `IMapInformation` implementation will need to add this property — return an instance of `TerrainInfo` (defaults are fine for a non-terrain map). The built-in `MapInformation` already implements it.
+- `CustomTMSTile` constructor now takes two additional parameters (`invertY`, `isMapboxService`). The legacy 4-arg constructor (`urlFormat`, `tileId`, `tilesetId`, `useNonReadableTexture`) is preserved as an overload defaulting to `invertY: true, isMapboxService: false` — external subclasses keep compiling. New code should use the 6-arg form.
+- `MapboxTileData.SetDisposeCallback` was replaced with `AddDisposeCallback` / `RemoveDisposeCallback` (multicast). This is an `internal` API; only relevant if you have access to it via reflection or an internal-visible-to dependency.
 
 #### Changes
 - Added new documentation.

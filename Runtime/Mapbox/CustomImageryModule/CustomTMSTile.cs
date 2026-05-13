@@ -14,6 +14,13 @@ namespace Mapbox.CustomImageryModule
         private string _urlFormat;
         private bool _invertY;
         private bool _isMapboxService;
+
+        // Legacy 4-arg constructor preserved so external subclasses compiled against the
+        // 3.0.6 API keep building. Defaults match the pre-3.0.7 behavior (invertY = true,
+        // non-Mapbox-service URL request path).
+        public CustomTMSTile(string urlFormat, CanonicalTileId tileId, string tilesetId, bool useNonReadableTexture)
+            : this(urlFormat, tileId, tilesetId, useNonReadableTexture, invertY: true, isMapboxService: false) { }
+
         public CustomTMSTile(string urlFormat, CanonicalTileId tileId, string tilesetId, bool useNonReadableTexture, bool invertY, bool isMapboxService) : base(tileId, tilesetId, useNonReadableTexture)
         {
             _urlFormat = urlFormat;

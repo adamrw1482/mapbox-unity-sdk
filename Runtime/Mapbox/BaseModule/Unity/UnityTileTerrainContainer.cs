@@ -69,9 +69,8 @@ namespace Mapbox.BaseModule.Unity
             if (TerrainData != null)
             {
                 TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
+                TerrainData.RemoveDisposeCallback(_onDisposeCallback);
             }
-
-            terrainData.SetDisposeCallback(null);
 
             State = state;
             if (terrainData.Texture == null || terrainData.TileId.Z == 0)
@@ -79,7 +78,8 @@ namespace Mapbox.BaseModule.Unity
                 Debug.Log("no texture?");
             }
             TerrainData = terrainData;
-            TerrainData.SetDisposeCallback(_onDisposeCallback);
+            // Add (don't replace) — multiple render tiles share one TerrainData.
+            TerrainData.AddDisposeCallback(_onDisposeCallback);
 
             OnTerrainUpdated();
 
@@ -134,6 +134,7 @@ namespace Mapbox.BaseModule.Unity
                 return null;
 
             TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
+            TerrainData.RemoveDisposeCallback(_onDisposeCallback);
             _unityMapTile.PropertyBlock.SetTexture(HeightTexture, Texture2D.grayTexture);
             _unityMapTile.ApplyPropertyBlock();
             var rd = TerrainData;

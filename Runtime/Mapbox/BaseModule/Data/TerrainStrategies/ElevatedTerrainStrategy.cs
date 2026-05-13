@@ -68,9 +68,11 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// sub-region determines the actual surface); pointing every MeshFilter at this
 		// single Mesh avoids per-tile Mesh allocation and upload.
 		// Exposed for UnityMapTile.OnDestroy so its leak cleanup can identify which meshes
-		// it must skip (this one is owned by the strategy) versus destroy (per-tile collider).
+		// it must skip (this one is owned by the strategy) versus destroy (per-tile collider
+		// or CPU-elevated render mesh).
 		public const string SharedFlatMeshName = "TerrainSharedFlat";
 		public const string TerrainColliderMeshName = "TerrainCollider";
+		public const string TerrainCpuMeshName = "TerrainCpuMesh";
 		private Mesh _sharedFlatMesh;
 
 		// Tracks the (TerrainData, CanonicalTileId) last used to build each MeshCollider's
@@ -84,6 +86,12 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// GameObjects actually destroy (scene teardown, runtime tile-pool resize).
 		private const int LastColliderBuildSweepThreshold = 256;
 		private readonly List<MeshCollider> _deadColliderKeysScratch = new List<MeshCollider>();
+
+		// Tracks deferred-rebuild closures so OnDestroy can unsubscribe them. Without this
+		// list, if a TerrainData is disposed before ElevationValuesUpdated fires, the
+		// closure stays attached to the event and roots both tile + data via capture.
+		private readonly List<(TerrainData data, Action rebuild)> _pendingRebuilds =
+			new List<(TerrainData, Action)>();
 		
 		public override int RequiredVertexCount
 		{
@@ -144,6 +152,19 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		/// </summary>
 		public override void OnDestroy()
 		{
+			// Detach any pending-rebuild subscriptions before disposing — closures
+			// would otherwise stay attached to TerrainData.ElevationValuesUpdated and
+			// root captured (tile, data) indefinitely if the event never fires.
+			for (int i = 0; i < _pendingRebuilds.Count; i++)
+			{
+				var entry = _pendingRebuilds[i];
+				if (entry.data != null && entry.rebuild != null)
+				{
+					entry.data.ElevationValuesUpdated -= entry.rebuild;
+				}
+			}
+			_pendingRebuilds.Clear();
+
 			if (_sharedFlatMesh != null)
 			{
 				UnityEngine.Object.Destroy(_sharedFlatMesh);
@@ -191,10 +212,16 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				// when a runtime config change flips the tile shader→CPU and the new
 				// RequiredVertexCount differs from _sharedFlatMesh.vertexCount).
 				var sharedMesh = tile.MeshFilter.sharedMesh;
-				if (sharedMesh == _sharedFlatMesh)
+				if (sharedMesh == null || sharedMesh == _sharedFlatMesh)
 				{
-					sharedMesh = new Mesh();
+					sharedMesh = new Mesh { name = TerrainCpuMeshName };
 					tile.MeshFilter.sharedMesh = sharedMesh;
+				}
+				else
+				{
+					// Re-tag any pre-existing per-tile mesh (e.g. the Awake mesh) so
+					// UnityMapTile.OnDestroy correctly destroys it on tile teardown.
+					sharedMesh.name = TerrainCpuMeshName;
 				}
 				sharedMesh.Clear();
 				var newMesh = _baseMesh;
@@ -213,6 +240,23 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 			if (createElevatedMesh)
 			{
+				// Same-vertex-count shader→CPU transition: the else-if branch above didn't
+				// fire, but MeshFilter.sharedMesh might still be _sharedFlatMesh. Allocate
+				// a per-tile owned mesh in that case so CreateElevatedMesh's writes don't
+				// hit the shared one.
+				if (tile.MeshFilter.sharedMesh == null || tile.MeshFilter.sharedMesh == _sharedFlatMesh)
+				{
+					var perTile = new Mesh { name = TerrainCpuMeshName };
+					perTile.subMeshCount = 2;
+					perTile.vertices = _baseMesh.Vertices;
+					perTile.normals = _baseMesh.Normals;
+					for (var i = 0; i < _baseMesh.Triangles.Count; i++)
+					{
+						perTile.SetTriangles(_baseMesh.Triangles[i], i);
+					}
+					perTile.uv = _baseMesh.Uvs;
+					tile.MeshFilter.sharedMesh = perTile;
+				}
 				CreateElevatedMesh(tile);
 			}
 
@@ -255,18 +299,23 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			{
 				// Defer until values arrive. The callback self-unsubscribes on fire and
 				// no-ops if the tile has since been recycled onto different data, so a late
-				// async readback does not stomp a freshly-reassigned tile.
+				// async readback does not stomp a freshly-reassigned tile. We also track
+				// the subscription in _pendingRebuilds so OnDestroy can detach pending
+				// closures whose data is disposed before the event fires.
 				Action rebuild = null;
+				(TerrainData data, Action rebuild) entry = (data, null);
 				rebuild = () =>
 				{
+					data.ElevationValuesUpdated -= rebuild;
+					_pendingRebuilds.Remove(entry);
 					if (tile == null || tile.TerrainContainer == null || tile.TerrainContainer.TerrainData != data)
 					{
-						data.ElevationValuesUpdated -= rebuild;
 						return;
 					}
 					BuildAndAssignCollider(tile);
-					data.ElevationValuesUpdated -= rebuild;
 				};
+				entry.rebuild = rebuild;
+				_pendingRebuilds.Add(entry);
 				data.ElevationValuesUpdated += rebuild;
 			}
 		}
@@ -645,7 +694,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 		private void CreateElevatedMesh(UnityMapTile tile)
 		{
-			var mesh = tile.MeshFilter.mesh;
+			// Use sharedMesh (not .mesh) — the .mesh getter implicitly clones the assigned
+			// shared mesh on first access and orphans the original. We pre-ensured a
+			// uniquely-owned per-tile mesh in RegisterTile above.
+			var mesh = tile.MeshFilter.sharedMesh;
 			var vertices = mesh.vertices;
 			var sampleCount = (int)Mathf.Sqrt(mesh.vertexCount);
 			for (int i = 0; i < vertices.Length; i++)

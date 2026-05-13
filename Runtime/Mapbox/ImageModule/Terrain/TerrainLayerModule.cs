@@ -149,13 +149,20 @@ namespace Mapbox.ImageModule.Terrain
 
         public virtual IEnumerator LoadTiles(IEnumerable<CanonicalTileId> tiles)
         {
-            yield return _rasterSource.LoadTilesCoroutine(GetDataId(tiles));
+            // Materialize before passing to the coroutine: the IEnumerable returned by
+            // GetDataId is the shared _dataIdScratch set. If LoadTilesCoroutine consumes
+            // lazily and another GetDataId call clears the scratch before it finishes,
+            // the consumer would see the wrong contents.
+            var materialized = new List<CanonicalTileId>(GetDataId(tiles));
+            yield return _rasterSource.LoadTilesCoroutine(materialized);
         }
-        
+
         public IEnumerable<IEnumerator> GetTileCoverCoroutines(IEnumerable<CanonicalTileId> tiles)
         {
-            var targetTiles = GetDataId(tiles).Distinct();
-            return targetTiles.Select(x => LoadTileData(x)).Where(x => x != null);
+            // Same materialization rationale: callers iterate this lazily downstream and
+            // would otherwise read a mutated _dataIdScratch after another GetDataId call.
+            var materialized = new List<CanonicalTileId>(GetDataId(tiles));
+            return materialized.Select(LoadTileData).Where(x => x != null);
         }
         #endregion
         
