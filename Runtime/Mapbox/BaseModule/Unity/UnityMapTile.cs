@@ -72,13 +72,6 @@ namespace Mapbox.BaseModule.Unity
 
 		public LoadingState LoadingState;
 
-		// Incremented every time this tile is pool-recycled. Deferred-pool consumers
-		// (MapboxMapVisualizer._pendingPool) snapshot this when queuing and skip the
-		// flush if the value has moved — protects against re-borrow races where the
-		// tile got synchronously pooled and re-issued via GetTile() between queue and
-		// flush.
-		public int Generation;
-
 		public void Awake()
 		{
 			ImageContainer = new UnityTileImageContainer(this, DataDisposed);

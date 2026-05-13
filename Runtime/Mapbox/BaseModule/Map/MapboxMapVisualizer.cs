@@ -37,40 +37,6 @@ namespace Mapbox.BaseModule.Map
         // Reusable scratch array to avoid per-frame allocation in InternalUpdateCoroutine
         private readonly UnwrappedTileId[] _quadrants = new UnwrappedTileId[4];
 
-        // Tiles deferred for pooling on the next coroutine tick.
-        // Pooling a child the same frame the parent first becomes visible flickers on iOS.
-        // Stores (tile, generation-snapshot) so a flush can detect tiles that got
-        // synchronously pool-recycled and re-issued via GetTile() between queue and flush.
-        private struct PendingPoolEntry
-        {
-            public UnityMapTile Tile;
-            public int Generation;
-        }
-        private readonly List<PendingPoolEntry> _pendingPool = new List<PendingPoolEntry>();
-
-        private void QueuePool(UnityMapTile tile)
-        {
-            if (tile == null) return;
-            _pendingPool.Add(new PendingPoolEntry { Tile = tile, Generation = tile.Generation });
-        }
-
-        private void FlushPendingPool()
-        {
-            for (var i = 0; i < _pendingPool.Count; i++)
-            {
-                var entry = _pendingPool[i];
-                // Skip entries whose tile was already pool-recycled (and possibly reused
-                // for a different id) between queueing and now. PoolTile bumps Generation,
-                // so a mismatch means we're stale.
-                if (entry.Tile == null || entry.Tile.Generation != entry.Generation)
-                {
-                    continue;
-                }
-                PoolTile(entry.Tile);
-            }
-            _pendingPool.Clear();
-        }
-
         // Explicit stack for the iterative DelveInto (was recursive with per-call new bool[4]
         // and new UnwrappedTileId[4] allocations). Bounded by recursion depth × 4, so the
         // List reaches its peak size after one large call and never re-allocates after.
@@ -158,15 +124,6 @@ namespace Mapbox.BaseModule.Map
                     foreach (var child in tempTile.Children)
                     {
                         _toRemove.Remove(child.UnwrappedTileId);
-                        // Invalidate any in-flight pending-pool entry that snapshotted this
-                        // child's prior generation — but only for children that are still in
-                        // Filler state. Bumping unconditionally would also invalidate a
-                        // pending entry queued for a different (legitimate) reason such as
-                        // parent-finished child-pool.
-                        if (child.LoadingState == LoadingState.Filler)
-                        {
-                            child.Generation++;
-                        }
                     }
                 }
             }
@@ -214,11 +171,7 @@ namespace Mapbox.BaseModule.Map
                         TempTiles.Remove(tile);
                     }
 
-                    // Defer pooling by one frame for the iOS-flicker rationale. A subsequent
-                    // Load before the flush may re-queue the same tile via the same code
-                    // path — that's harmless because PoolTile bumps Generation and the flush
-                    // filters by gen-snapshot match (second queue is skipped).
-                    QueuePool(tile);
+                    PoolTile(tile);
                 }
             }
 
@@ -242,19 +195,12 @@ namespace Mapbox.BaseModule.Map
         {
             // Drain the terrain-bounds dirty flag once per tick. Recompute is O(ActiveTiles)
             // so doing it here (and not on every PoolTile / CreateTile / async-decode event)
-            // turns what was O(N²) for a Load into a single O(N) pass per frame.
+            // turns the per-event cost into a single O(N) pass per frame.
             if (_terrainBoundsDirty)
             {
                 RecomputeTerrainBounds();
                 _terrainBoundsDirty = false;
             }
-
-            // Flush tiles deferred from the previous tick. Holding the children active for
-            // one extra frame after the parent's ShowTile lets the parent finish rendering
-            // before the children deactivate, which avoids a one-frame transparent gap on
-            // iOS (see project_ios_tile_flicker note). FlushPendingPool filters out entries
-            // whose tile was already pool-recycled and re-issued between queue and flush.
-            FlushPendingPool();
 
             //finish temp tiles from tempTiles list
             _toRemove.Clear();
@@ -273,9 +219,9 @@ namespace Mapbox.BaseModule.Map
 
                     if (tilePair.Children != null && tilePair.Children.Count > 0)
                     {
-                        for (int c = 0; c < tilePair.Children.Count; c++)
+                        foreach (var child in tilePair.Children)
                         {
-                            QueuePool(tilePair.Children[c]);
+                            PoolTile(child);
                         }
                         tilePair.Children.Clear();
                     }
@@ -305,7 +251,7 @@ namespace Mapbox.BaseModule.Map
                         TempTiles.Remove(tile);
                     }
 
-                    QueuePool(tile);
+                    PoolTile(tile);
                 }
             }
         }
@@ -358,10 +304,6 @@ namespace Mapbox.BaseModule.Map
                 }
             }
             _pendingElevationWatches.Clear();
-
-            // Flush any deferred pool entries so each pending tile gets its Recycle()
-            // (returns elevation arrays to the pool, restores shared meshes, etc).
-            FlushPendingPool();
 
             foreach (var layerModule in LayerModules)
             {
@@ -544,11 +486,6 @@ namespace Mapbox.BaseModule.Map
             if (tile.LoadingState == LoadingState.None)
                 return;
 
-            // Invalidate any deferred-pool entries that snapshotted this tile's previous
-            // generation — they'd otherwise re-pool the tile after it's been reissued via
-            // GetTile() for a different id.
-            tile.Generation++;
-
             // Snapshot whether this tile is currently holding either bounds value, OR
             // is the last contributor in ActiveTiles (so the empty-fallback path needs
             // to run). Recycle() clears TerrainData below, so we check first.
@@ -696,11 +633,6 @@ namespace Mapbox.BaseModule.Map
             {
                 tile.Recycle();
                 tile.LoadingState = LoadingState.None;
-                // Mirror PoolTile's bump so any pending-pool entry that snapshotted
-                // this tile's pre-failure generation is invalidated when the next
-                // flush runs. The failure path is otherwise a silent bypass of the
-                // re-borrow protection enforced everywhere else.
-                tile.Generation++;
                 _tileCreator.PutTile(tile);
             }
 
