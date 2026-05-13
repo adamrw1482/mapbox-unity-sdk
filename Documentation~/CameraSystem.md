@@ -100,6 +100,17 @@ Zoom at cursor works with both mouse and touch — when using pinch, the zoom ce
 
 ---
 
+## Input System Support
+
+The cameras work with both Unity's legacy Input Manager and the new Input System package. The active path is selected at compile time:
+
+- **Default (no Input System package installed)** — uses the legacy `UnityEngine.Input` API. No action needed.
+- **With `com.unity.inputsystem` installed** — the example asmdef declares a `versionDefines` entry that automatically defines `MAPBOX_NEW_INPUT_SYSTEM`. The new-input branch activates and reads pointer state via `Mouse.current` / `Touch.activeTouches`.
+
+The Input System package is *not* a hard dependency of the SDK — projects that don't install it keep the legacy path with no extra setup. Projects that set **Active Input Handling** to "Input System Package (New)" only must install the package; otherwise `UnityEngine.Input` is unavailable at runtime.
+
+---
+
 ## Writing a Custom Camera
 
 If neither camera mode fits your needs, you can create your own by writing a class that extends `MapInput` and a MonoBehaviour that extends `MapCameraBehaviour<T>`.

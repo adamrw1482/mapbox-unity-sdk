@@ -57,11 +57,28 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 					stack = new Stack<float[]>();
 					_pools[array.Length] = stack;
 				}
+				AssertNotAlreadyInStack(stack, array);
 				if (stack.Count >= MaxPerSizeDepth)
 				{
 					return; // Drop to GC; cap bounds peak RAM held by the pool.
 				}
 				stack.Push(array);
+			}
+		}
+
+		// O(N) check that only runs in editor/dev builds. Double-return would silently
+		// alias two callers to the same backing buffer on the next pair of Rent() calls,
+		// producing data corruption that's hard to track down.
+		[System.Diagnostics.Conditional("UNITY_ASSERTIONS")]
+		private static void AssertNotAlreadyInStack(Stack<float[]> stack, float[] array)
+		{
+			foreach (var existing in stack)
+			{
+				if (ReferenceEquals(existing, array))
+				{
+					UnityEngine.Debug.LogError("ElevationArrayPool.Return called twice for the same array — likely double-return. The duplicate is being dropped.");
+					throw new System.InvalidOperationException("ElevationArrayPool double-return detected.");
+				}
 			}
 		}
 	}

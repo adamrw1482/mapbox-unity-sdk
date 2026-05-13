@@ -67,7 +67,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// byte-identical CPU vertex data in that mode (the per-tile _HeightTexture_ST
 		// sub-region determines the actual surface); pointing every MeshFilter at this
 		// single Mesh avoids per-tile Mesh allocation and upload.
-		private const string SharedFlatMeshName = "TerrainSharedFlat";
+		// Exposed for UnityMapTile.OnDestroy so its leak cleanup can identify which meshes
+		// it must skip (this one is owned by the strategy) versus destroy (per-tile collider).
+		public const string SharedFlatMeshName = "TerrainSharedFlat";
+		public const string TerrainColliderMeshName = "TerrainCollider";
 		private Mesh _sharedFlatMesh;
 
 		// Tracks the (TerrainData, CanonicalTileId) last used to build each MeshCollider's
@@ -378,7 +381,7 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			var mesh = meshCollider.sharedMesh;
 			if (mesh == null || mesh == tile.MeshFilter.sharedMesh)
 			{
-				mesh = new Mesh { name = "TerrainCollider" };
+				mesh = new Mesh { name = TerrainColliderMeshName };
 				mesh.MarkDynamic();
 			}
 
@@ -634,7 +637,7 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			var previous = meshCollider.sharedMesh;
 			meshCollider.sharedMesh = null;
 			meshCollider.sharedMesh = mesh;
-			if (previous != null && previous != mesh && previous.name == "TerrainCollider")
+			if (previous != null && previous != mesh && previous.name == TerrainColliderMeshName)
 			{
 				UnityEngine.Object.Destroy(previous);
 			}

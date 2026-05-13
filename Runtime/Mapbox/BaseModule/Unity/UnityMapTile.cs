@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Utilities;
+using Mapbox.ImageModule.Terrain.TerrainStrategies;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -154,23 +155,24 @@ namespace Mapbox.BaseModule.Unity
 
 			// Unity does not auto-free runtime-created Meshes when the GameObject is
 			// destroyed. Release the render mesh allocated in Awake and any dedicated
-			// collider mesh allocated by ElevatedTerrainStrategy (named "TerrainCollider").
-			// Skip the shader-mode shared flat mesh ("TerrainSharedFlat") — it is owned by
-			// the strategy and disposed via TerrainLayerModule.OnDestroy. The identity
-			// checks avoid double-freeing an aliased render/collider mesh (FlatTerrainStrategy).
-			// Colliders may live on a dedicated-layer child GameObject; scan children too.
+			// collider mesh allocated by ElevatedTerrainStrategy. Skip the shader-mode
+			// shared flat mesh — it is owned by the strategy and disposed via
+			// TerrainLayerModule.OnDestroy. The identity checks avoid double-freeing
+			// an aliased render/collider mesh (FlatTerrainStrategy). Colliders may live
+			// on a dedicated-layer child GameObject; scan children too. Names are pulled
+			// from the strategy's constants so renames stay in sync.
 			var renderMesh = _meshFilter != null ? _meshFilter.sharedMesh : null;
 			var colliders = GetComponentsInChildren<MeshCollider>(includeInactive: true);
 			foreach (var mc in colliders)
 			{
 				if (mc.sharedMesh != null &&
-				    mc.sharedMesh.name == "TerrainCollider" &&
+				    mc.sharedMesh.name == ElevatedTerrainStrategy.TerrainColliderMeshName &&
 				    mc.sharedMesh != renderMesh)
 				{
 					Destroy(mc.sharedMesh);
 				}
 			}
-			if (renderMesh != null && renderMesh.name != "TerrainSharedFlat")
+			if (renderMesh != null && renderMesh.name != ElevatedTerrainStrategy.SharedFlatMeshName)
 			{
 				Destroy(renderMesh);
 			}

@@ -35,6 +35,20 @@ namespace Mapbox.BaseModule.Map
         // Pooling a child the same frame the parent first becomes visible flickers on iOS.
         private readonly List<UnityMapTile> _pendingPool = new List<UnityMapTile>();
 
+        // Explicit stack for the iterative DelveInto (was recursive with per-call new bool[4]
+        // and new UnwrappedTileId[4] allocations). Bounded by recursion depth × 4, so the
+        // List reaches its peak size after one large call and never re-allocates after.
+        private struct DelveFrame
+        {
+            public UnwrappedTileId TileId;
+            public int Depth;
+            public int Found;       // bitmask: bit i set if quadrant i is satisfied (here or via descendants)
+            public int NextChild;   // 0..4
+            public int ParentFrame; // index in _delveStack, or -1 for root
+            public int ParentSlot;  // which slot of the parent we are filling (0..3)
+        }
+        private readonly List<DelveFrame> _delveStack = new List<DelveFrame>();
+
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
             _unityContext = unityContext;
@@ -333,66 +347,109 @@ namespace Mapbox.BaseModule.Map
 
         protected bool DelveInto(UnwrappedTileId tileId, List<UnityMapTile> activeChildren, int recursiveDepth = 3)
         {
-            var quadrantCheck = new bool[4];
-            var quadrants = new UnwrappedTileId[4]
+            // Iterative replacement for the prior recursive implementation. Same semantics:
+            // at each level we look up the 4 quadrants in ActiveTiles; missing ones recurse
+            // deeper up to `recursiveDepth`; if any quadrant at a level is satisfied (here
+            // or via a descendant), the remaining slots at THAT level get temp filler tiles.
+            _delveStack.Clear();
+            _delveStack.Add(new DelveFrame
             {
-                tileId.Quadrant(0),
-                tileId.Quadrant(1),
-                tileId.Quadrant(2),
-                tileId.Quadrant(3),
-            };
-            for (int i = 0; i < 4; i++)
-            {
-                var quadrant = quadrants[i];
-                if (ActiveTiles.TryGetValue(quadrant, out var unityMapTile))
-                {
-                    _toRemove.Remove(quadrant);
-                    unityMapTile.LoadingState = LoadingState.Filler;
-                    activeChildren.Add(unityMapTile);
-                    if (unityMapTile.Children != null && unityMapTile.Children.Count > 0)
-                    {
-                        foreach (var subchild in unityMapTile.Children)
-                        {
-                            activeChildren.Add(subchild);
-                        }
-                        unityMapTile.Children.Clear();
-                    }
+                TileId = tileId,
+                Depth = recursiveDepth,
+                Found = 0,
+                NextChild = 0,
+                ParentFrame = -1,
+                ParentSlot = -1,
+            });
 
-                    ShowTile(unityMapTile);
-                    quadrantCheck[i] = true;
-                }
-            }
+            bool rootResult = false;
 
-            if (recursiveDepth > 0)
+            while (_delveStack.Count > 0)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (quadrantCheck[i] == false && tileId.Z < 22)
-                    {
-                        quadrantCheck[i] = DelveInto(quadrants[i], activeChildren, recursiveDepth - 1);
-                    }
-                }
-            }
+                int frameIdx = _delveStack.Count - 1;
+                var frame = _delveStack[frameIdx];
 
-            if (quadrantCheck[0] || quadrantCheck[1] || quadrantCheck[2] || quadrantCheck[3])
-            {
-                for (int i = 0; i < 4; i++)
+                if (frame.NextChild < 4)
                 {
-                    if (quadrantCheck[i] == false)
+                    int slot = frame.NextChild;
+                    var quadrant = frame.TileId.Quadrant(slot);
+                    frame.NextChild++;
+
+                    if (ActiveTiles.TryGetValue(quadrant, out var unityMapTile))
                     {
-                        CreateTempTile(quadrants[i], out var unityMapTile);
+                        _toRemove.Remove(quadrant);
                         unityMapTile.LoadingState = LoadingState.Filler;
-                        ActiveTiles[quadrants[i]] = unityMapTile;
-                        ShowTile(unityMapTile);
                         activeChildren.Add(unityMapTile);
-                        quadrantCheck[i] = true;
+                        if (unityMapTile.Children != null && unityMapTile.Children.Count > 0)
+                        {
+                            foreach (var subchild in unityMapTile.Children)
+                            {
+                                activeChildren.Add(subchild);
+                            }
+                            unityMapTile.Children.Clear();
+                        }
+                        ShowTile(unityMapTile);
+                        frame.Found |= 1 << slot;
+                        _delveStack[frameIdx] = frame;
+                    }
+                    else if (frame.Depth > 0 && frame.TileId.Z < 22)
+                    {
+                        // Save the advanced NextChild before pushing the child frame —
+                        // we'll resume this slot's evaluation after the child finishes.
+                        _delveStack[frameIdx] = frame;
+                        _delveStack.Add(new DelveFrame
+                        {
+                            TileId = quadrant,
+                            Depth = frame.Depth - 1,
+                            Found = 0,
+                            NextChild = 0,
+                            ParentFrame = frameIdx,
+                            ParentSlot = slot,
+                        });
+                    }
+                    else
+                    {
+                        // Leaf miss: nothing found here, no deeper recursion allowed.
+                        _delveStack[frameIdx] = frame;
                     }
                 }
+                else
+                {
+                    bool anyFound = frame.Found != 0;
+                    if (anyFound)
+                    {
+                        for (int i = 0; i < 4; i++)
+                        {
+                            if ((frame.Found & (1 << i)) == 0)
+                            {
+                                var q = frame.TileId.Quadrant(i);
+                                CreateTempTile(q, out var unityMapTile);
+                                unityMapTile.LoadingState = LoadingState.Filler;
+                                ActiveTiles[q] = unityMapTile;
+                                ShowTile(unityMapTile);
+                                activeChildren.Add(unityMapTile);
+                            }
+                        }
+                    }
 
-                return true;
+                    if (frame.ParentFrame >= 0)
+                    {
+                        var parent = _delveStack[frame.ParentFrame];
+                        if (anyFound)
+                        {
+                            parent.Found |= 1 << frame.ParentSlot;
+                        }
+                        _delveStack[frame.ParentFrame] = parent;
+                    }
+                    else
+                    {
+                        rootResult = anyFound;
+                    }
+                    _delveStack.RemoveAt(frameIdx);
+                }
             }
 
-            return false;
+            return rootResult;
         }
 
         protected void ShowTile(UnityMapTile unityTile)

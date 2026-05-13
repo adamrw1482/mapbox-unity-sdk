@@ -27,6 +27,13 @@ namespace Mapbox.Example.Scripts.MapInput
             if (MapBehaviour == null) MapBehaviour = FindObjectOfType<MapBehaviourCore>();
             if (Camera == null) Camera = Camera.main;
 
+            if (MapBehaviour == null)
+            {
+                Debug.LogError($"{GetType().Name} could not find a MapBehaviourCore in the scene. Assign the MapBehaviour field or add a Mapbox map to the scene; the camera will not initialize.", this);
+                enabled = false;
+                return;
+            }
+
             MapBehaviour.Initialized += OnMapInitialized;
         }
 

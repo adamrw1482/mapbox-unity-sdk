@@ -105,7 +105,10 @@ namespace Mapbox.UnityMapService.TileProviders
 			_stack.Clear();
 			tileCover.Tiles.Clear();
 
-			_maxZoom = (int)Mathf.Min(Settings.MaximumZoomLevel, mapInformation.AbsoluteZoom);
+			// Cap at 30: distToSplit uses (1 << (_maxZoom - zoom)), which overflows int
+			// past 30. Practically unreachable in Mercator (pyramid maxes around z22-24)
+			// but guards against Inspector misconfig of MaximumZoomLevel.
+			_maxZoom = (int)Mathf.Min(30f, Mathf.Min(Settings.MaximumZoomLevel, mapInformation.AbsoluteZoom));
 			var cam = Settings.Camera;
 			GeometryUtility.CalculateFrustumPlanes(cam, _planes);
 
