@@ -12,9 +12,47 @@ namespace Mapbox.UnityMapService.TileProviders
 	[Serializable]
 	public class UnityTileProviderSettings
 	{
+		/// <summary>
+		/// Camera used for frustum culling and LOD calculations.
+		/// Falls back to Camera.main if not set.
+		/// </summary>
+		[Tooltip("Camera used for frustum culling and LOD calculations. Falls back to Camera.main if not set.")]
 		public Camera Camera;
+
+		/// <summary>
+		/// Tiles below this zoom level are always subdivided without distance checks.
+		/// Higher values force more subdivisions, producing more tiles to fill the view.
+		/// Lower values improve performance. Default of 2 works well for most cases.
+		/// </summary>
+		[Tooltip("Tiles below this zoom are always subdivided regardless of distance. Lower values improve performance. Default 2 works for most cases.")]
 		public float MinimumZoomLevel = 2;
+
+		/// <summary>
+		/// Maximum zoom level the quadtree will subdivide to, clamped by the map's AbsoluteZoom.
+		/// Higher values produce finer detail near the camera but cost more to render.
+		/// Lower values improve performance at the expense of close-up detail.
+		/// Typical range is 14-18 for most applications.
+		/// </summary>
+		[Tooltip("Maximum tile detail level. Higher = sharper close-up detail but more tiles to render. Typical range 14-18. Default 22.")]
 		public float MaximumZoomLevel = 22;
+
+		/// <summary>
+		/// Controls how aggressively tiles subdivide with distance.
+		/// Higher values produce more tiles with finer detail at distance but cost more to render.
+		/// Lower values improve performance with coarser detail at distance.
+		/// Values below 0.5 may cause visible quality loss. Default 1.0.
+		/// </summary>
+		[Tooltip("Tile detail vs. performance. Higher = more detail at distance, lower = better performance. Below 0.5 may reduce quality. Default 1.0.")]
+		public float SubdivisionBias = 1.0f;
+
+		/// <summary>
+		/// Expands the 4 side frustum planes outward by this distance (world units).
+		/// Pre-loads tiles just outside the screen edges to prevent pop-in during camera pans.
+		/// Higher values give smoother panning but load more off-screen tiles.
+		/// Does not affect near/far planes. Typical range 0-50. Set to 0 to disable.
+		/// </summary>
+		[Tooltip("Pre-loads tiles beyond screen edges to reduce pop-in during panning. Higher = smoother but more tiles loaded. Typical range 0-50. Default 0.")]
+		public float FrustumBuffer = 0f;
 
 		public UnityTileProviderSettings(Camera cam, float minZoom = 2, float maxZoom = 22)
 		{
@@ -23,151 +61,195 @@ namespace Mapbox.UnityMapService.TileProviders
 			MaximumZoomLevel = maxZoom;
 		}
 	}
-	
-    public class UnityTileProvider : TileProvider
-    {
-	    public UnityTileProviderSettings Settings;
-        private float _quadMaxLevel;
-        private Plane[] _planes = new Plane[6];
-        private Stack<UnityRectD> _stack;
-        private List<UnityRectD> _rectpool;
-        private int _rectIndex = 0;
 
-        public UnityTileProvider(UnityTileProviderSettings settings)
-        {
-	        Settings = settings;
-	        
-	        if(Settings.Camera == null) Settings.Camera = Camera.main;
-	        
-	        _rectpool = new List<UnityRectD>(200);
-	        for (int i = 0; i < 200; i++)
-	        {
-		        _rectpool.Add(new UnityRectD());
-	        }
-	        _stack = new Stack<UnityRectD>(200);
-        }
+	public class UnityTileProvider : TileProvider
+	{
+		public UnityTileProviderSettings Settings;
+		protected int _maxZoom;
+		protected readonly Plane[] _planes = new Plane[6];
+		protected TileNode[] _pool;
+		protected int _poolCount;
+		protected readonly Stack<int> _stack;
 
-        private UnityRectD GetRectD()
-        {
-	        if(_rectIndex >= _rectpool.Count)
-		        _rectpool.Add(new UnityRectD());
-	        var value = _rectpool[_rectIndex];
-	        _rectIndex++;
-	        return value;
-        }
-        
-        public override bool GetTileCover(IMapInformation mapInformation, TileCover tileCover)
-        {
-	        _rectIndex = 0;
-            tileCover.Tiles.Clear();
-            _quadMaxLevel = Mathf.Min(Settings.MaximumZoomLevel, mapInformation.AbsoluteZoom);
-            GeometryUtility.CalculateFrustumPlanes(Settings.Camera, _planes);
-            var worldBaseBounds = GetRectD();
-	        worldBaseBounds.Set(new UnwrappedTileId(0, 0, 0), -mapInformation.CenterMercator, mapInformation.Scale, 0);
-	        _stack.Clear();
-	        _stack.Push(worldBaseBounds);
-            while (_stack.Count > 0)
-            {
-                var tile = _stack.Pop();
-                if (!GeometryUtility.TestPlanesAABB(_planes, tile.UnityBounds))
-                {
-                    continue;
-                }
+		// Reusable array for 4 bottom-plane corners to avoid per-frame allocation
+		protected readonly Vector3[] _corners = new Vector3[4];
 
-                if (tile.Id.Z == _quadMaxLevel || !ShouldSplit(tile.Id.Z, tile.UnityBounds.size.z, tile.UnityBounds.SqrDistance(Settings.Camera.transform.position)))
-                {
-                    tileCover.Tiles.Add(tile.Id);
-                    continue;
-                }
+		public UnityTileProvider(UnityTileProviderSettings settings)
+		{
+			Settings = settings;
 
-                for (var i = 0; i < 4; i++)
-                {
-                    var child  = tile.Quadrant(GetRectD(), i);
-                    _stack.Push(child);
-                }
-            }
+			if (Settings.Camera == null) Settings.Camera = Camera.main;
 
-            return true;
-        }
+			_pool = new TileNode[256];
+			_stack = new Stack<int>(256);
+		}
 
-        private bool ShouldSplit(int zoom, float sizeX, float dist)
-        {
-            if (zoom < Settings.MinimumZoomLevel)
-            {
-                return true;
-            }
-            else if (zoom == _quadMaxLevel)
-            {
-                return false;
-            }
+		protected int AllocNode()
+		{
+			if (_poolCount >= _pool.Length)
+			{
+				var newPool = new TileNode[_pool.Length * 2];
+				Array.Copy(_pool, newPool, _pool.Length);
+				_pool = newPool;
+			}
 
-            return dist < Mathf.Pow(sizeX , 2);
-        }
-        
-        private struct UnityRectD
-        {
-        	public UnwrappedTileId Id;
-        	public Bounds UnityBounds;
-    
-        	private Vector2d _offset;
-        	private float _worldScale;
-        	private float _currentElevationSample;
-        	const int TileSize = 256;
-        	
-        	public void Set(UnwrappedTileId id, Vector2d vector2d, float worldScale, float unityBoundHeight = 1)
-        	{
-        		_currentElevationSample = unityBoundHeight;
-        		_offset = vector2d;
-        		_worldScale = worldScale;
-        		Id = id;
-        		
-        		var min = Conversions.PixelsToMeters(
-        			Id.X * TileSize,
-        			Id.Y * TileSize,
-        			Id.Z);
-        		var max = Conversions.PixelsToMeters(
-        			(Id.X + 1) * TileSize,
-        			(Id.Y + 1) * TileSize,
-        			Id.Z);
-        		
-        		UnityFlatSpaceCalculations(
-        			(float)min.x + vector2d.x,
-        			(float)min.y + vector2d.y,
-        			(float)(max.x - min.x),
-        			worldScale, _currentElevationSample);
-        	}
-        	
-        	private void UnityFlatSpaceCalculations(double boundX, double boundY, double boundZ, float worldScale, float boundHeight)
-        	{
-        		//var boundsTopLeft = bounds.TopLeft;
-        		var topleftX = (float) (boundX / worldScale);
-        		var toplefty = (float) (boundY / worldScale);
-        		var boundsSize = (float)(boundZ / worldScale);
-    
-        		UnityBounds = new Bounds(
-        			new Vector3(topleftX + boundsSize / 2, boundHeight/2, toplefty - boundsSize / 2),
-        			new Vector3(
-        				boundsSize,
-        				boundHeight,
-        				boundsSize));
-        	}
-    
-        	public UnityRectD Quadrant(UnityRectD rectD, int i)
-        	{
-        		var childX  = (Id.X << 1) + (i % 2);
-        		var childY  = (Id.Y << 1) + (i >> 1);
+			return _poolCount++;
+		}
 
-                rectD.Set(new UnwrappedTileId(Id.Z + 1, childX, childY), _offset, _worldScale, _currentElevationSample);
-                return rectD;
-            }
-    
-        	public UnwrappedTileId QuadrantTileId(int i)
-        	{
-        		var childX  = (Id.X << 1) + (i % 2);
-        		var childY  = (Id.Y << 1) + (i >> 1);
-    
-        		return new UnwrappedTileId(Id.Z + 1, childX, childY);
-        	}
-        }
-    }
+		public override bool GetTileCover(IMapInformation mapInformation, TileCover tileCover)
+		{
+			_poolCount = 0;
+			_stack.Clear();
+			tileCover.Tiles.Clear();
+
+			_maxZoom = (int)Mathf.Min(Settings.MaximumZoomLevel, mapInformation.AbsoluteZoom);
+			var cam = Settings.Camera;
+			GeometryUtility.CalculateFrustumPlanes(cam, _planes);
+
+			var camPos = cam.transform.position;
+			var camForward = cam.transform.forward;
+			var maxDistSq = cam.farClipPlane * cam.farClipPlane;
+
+			// Expand the 4 side frustum planes (indices 0-3) outward for buffer tile pre-loading.
+			// Near (4) and far (5) planes are left unchanged.
+			if (Settings.FrustumBuffer > 0f)
+			{
+				for (int i = 0; i < 4; i++)
+					_planes[i].distance += Settings.FrustumBuffer;
+			}
+			var worldCenter = mapInformation.CenterMercator;
+			var scale = mapInformation.Scale;
+
+			// Bounds height for frustum culling: derived from observed terrain elevation.
+			// MaxElevation is in meters, divide by scale to get world units.
+			// Floor of 0.1 ensures tiles are never zero-height (invisible to frustum test).
+			var boundsHeight = Mathf.Max(mapInformation.Terrain.MaxElevation / scale, 0.1f);
+
+			// Camera height above the map plane (y=0)
+			var cameraHeight = camPos.y;
+
+			// zoomSplitDistance: the world-space distance at which a single maxZoom tile
+			// subtends half the screen height. Derived from the screen-fraction threshold:
+			//   tileSize / dist / (2 * tan(fov/2)) > 0.5  →  dist < tileSize / tan(fov/2)
+			// For a tile at zoom z: distToSplit = (1 << (maxZoom - z)) * zoomSplitDistance
+			var halfFovTan = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+			var maxZoomTileSize = Conversions.TileSizeInUnitySpace(_maxZoom, scale);
+			var zoomSplitDistance = maxZoomTileSize / halfFovTan;
+
+			// push root tile
+			var rootIdx = AllocNode();
+			_pool[rootIdx].Set(new UnwrappedTileId(0, 0, 0), worldCenter, scale, boundsHeight);
+			_stack.Push(rootIdx);
+
+			while (_stack.Count > 0)
+			{
+				var idx = _stack.Pop();
+				ref var node = ref _pool[idx];
+
+				if (node.Bounds.SqrDistance(camPos) > maxDistSq)
+					continue;
+
+				if (!GeometryUtility.TestPlanesAABB(_planes, node.Bounds))
+					continue;
+
+				var zoom = node.Id.Z;
+
+				if (zoom >= _maxZoom || !ShouldSplit(zoom, node.Bounds, camPos, camForward, cameraHeight, zoomSplitDistance))
+				{
+					tileCover.Tiles.Add(node.Id);
+					continue;
+				}
+
+				// subdivide into 4 children
+				for (int i = 0; i < 4; i++)
+				{
+					var childX = (node.Id.X << 1) + (i & 1);
+					var childY = (node.Id.Y << 1) + (i >> 1);
+					var childIdx = AllocNode();
+					_pool[childIdx].Set(
+						new UnwrappedTileId(zoom + 1, childX, childY),
+						worldCenter, scale, boundsHeight);
+					_stack.Push(childIdx);
+				}
+			}
+
+			return true;
+		}
+
+		protected bool ShouldSplit(int zoom, Bounds bounds, Vector3 camPos,
+			Vector3 camForward, float cameraHeight, float zoomSplitDistance)
+		{
+			if (zoom < Settings.MinimumZoomLevel)
+				return true;
+
+			// Find closest forward-projected distance across the 4 bottom-plane corners.
+			// On a flat map, the closest projected corner is always on the bottom plane.
+			var min = bounds.min;
+			var max = bounds.max;
+			var bottomY = min.y;
+			_corners[0] = new Vector3(min.x, bottomY, min.z);
+			_corners[1] = new Vector3(max.x, bottomY, min.z);
+			_corners[2] = new Vector3(min.x, bottomY, max.z);
+			_corners[3] = new Vector3(max.x, bottomY, max.z);
+
+			var closestDist = float.MaxValue;
+			for (int i = 0; i < 4; i++)
+			{
+				var offset = _corners[i] - camPos;
+				// Use camera height as vertical component (flat map, matching native SDK)
+				offset.y = cameraHeight;
+				var projDist = Vector3.Dot(offset, camForward);
+				if (projDist <= 0f)
+					return true; // corner behind camera plane — always split
+				if (projDist < closestDist)
+					closestDist = projDist;
+			}
+
+			// Exponential distance threshold: doubles for each zoom level below maxZoom
+			var distToSplit = (1 << (_maxZoom - zoom)) * zoomSplitDistance * Settings.SubdivisionBias;
+
+			// Acute angle compensation: reduce detail for tiles viewed at grazing angles
+			distToSplit *= DistToSplitScale(cameraHeight, closestDist);
+
+			return closestDist < distToSplit;
+		}
+
+		/// <summary>
+		/// Scales the split distance for tiles viewed at acute angles (high pitch / near horizon).
+		/// When the angle between the camera-to-tile ray and the tile plane drops below 45 degrees,
+		/// progressively increases the split distance using a geometric series, making it harder
+		/// for distant foreshortened tiles to subdivide.
+		/// Ported from native SDK tile_cover.cpp distToSplitScale (lines 263-285).
+		/// </summary>
+		private static float DistToSplitScale(float dz, float d)
+		{
+			const float kAcuteAngleThresholdSin = 0.707f; // sin(45 degrees)
+			const float kStretchTile = 1.1f;
+
+			if (d * kAcuteAngleThresholdSin < dz)
+				return 1f;
+
+			var r = d / dz;
+			var k = r - 1f / kAcuteAngleThresholdSin;
+			return r / (1f / kAcuteAngleThresholdSin +
+				(Mathf.Pow(kStretchTile, k + 1f) - 1f) / (kStretchTile - 1f) - 1f);
+		}
+
+		protected struct TileNode
+		{
+			public UnwrappedTileId Id;
+			public Bounds Bounds;
+
+			public void Set(UnwrappedTileId id, Vector2d worldCenter, float scale, float boundsHeight)
+			{
+				Id = id;
+				var rect = Conversions.TileBoundsInUnitySpace(id, worldCenter, scale);
+				var sizeX = (float)rect.Size.x;
+
+				Bounds = new Bounds(
+					new Vector3((float)rect.Center.x, boundsHeight * 0.5f, (float)rect.Center.y),
+					new Vector3(sizeX, boundsHeight, Mathf.Abs(sizeX)));
+			}
+		}
+	}
 }

@@ -20,7 +20,7 @@ namespace Mapbox.BaseModule.Unity
 		public UnityTileImageContainer ImageContainer;
 		public UnityTileVectorContainer VectorContainer;
 		
-		private string _tileScaleFieldNameID = "_TileScale";
+		private static readonly int TileScalePropertyId = Shader.PropertyToID("_TileScale");
 		
 		private MeshRenderer _meshRenderer;
 		public MeshRenderer MeshRenderer => _meshRenderer;
@@ -56,7 +56,7 @@ namespace Mapbox.BaseModule.Unity
 			gameObject.name = tileId.ToString();
 #endif
 			
-			Material.SetFloat(_tileScaleFieldNameID, TileScale);
+			Material.SetFloat(TileScalePropertyId, TileScale);
 		}
 		
 		public void ElevationUpdatedCallback()

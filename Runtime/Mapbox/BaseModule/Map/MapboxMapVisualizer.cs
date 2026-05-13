@@ -28,6 +28,9 @@ namespace Mapbox.BaseModule.Map
         private Coroutine _internalUpdateCoroutine;
         private bool _destroyed;
 
+        // Reusable scratch array to avoid per-frame allocation in InternalUpdateCoroutine
+        private readonly UnwrappedTileId[] _quadrants = new UnwrappedTileId[4];
+
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
             _unityContext = unityContext;
@@ -90,6 +93,21 @@ namespace Mapbox.BaseModule.Map
         {
             RemoveUnnecessaryTiles(tileCover);
 
+            // Protect filler children of temp tiles that are still loading.
+            // Without this, fillers get pooled one frame after creation (DelveInto only
+            // rescues them on the frame the temp tile is first added).
+            for (var i = TempTiles.Count - 1; i >= 0; i--)
+            {
+                var tempTile = TempTiles[i];
+                if (tempTile.Children != null && ActiveTiles.ContainsKey(tempTile.UnwrappedTileId))
+                {
+                    foreach (var child in tempTile.Children)
+                    {
+                        _toRemove.Remove(child.UnwrappedTileId);
+                    }
+                }
+            }
+
             foreach (var tileId in tileCover.Tiles)
             {
                 if (ActiveTiles.ContainsKey(tileId))
@@ -138,12 +156,12 @@ namespace Mapbox.BaseModule.Map
             {
                 _retainedTiles.Add(tile.Canonical);
             }
+
             foreach (var visualization in LayerModules)
             {
                 visualization.RetainTiles(_retainedTiles);
             }
         }
-
 
         /// <summary>
         /// Create the map in given tileCover area. Makes decision to load or unload tiles and handle temporary filler
@@ -177,19 +195,15 @@ namespace Mapbox.BaseModule.Map
                     
                     TempTiles.RemoveAt(index);
                     
-                    var quadrants = new UnwrappedTileId[4]
-                    {
-                        tilePair.UnwrappedTileId.Quadrant(0),
-                        tilePair.UnwrappedTileId.Quadrant(1),
-                        tilePair.UnwrappedTileId.Quadrant(2),
-                        tilePair.UnwrappedTileId.Quadrant(3),
-                    };
+                    _quadrants[0] = tilePair.UnwrappedTileId.Quadrant(0);
+                    _quadrants[1] = tilePair.UnwrappedTileId.Quadrant(1);
+                    _quadrants[2] = tilePair.UnwrappedTileId.Quadrant(2);
+                    _quadrants[3] = tilePair.UnwrappedTileId.Quadrant(3);
                     for (int i = 0; i < 4; i++)
                     {
-                        var quadrant = quadrants[i];
-                        if (ActiveTiles.TryGetValue(quadrant, out var unityMapTile))
+                        if (ActiveTiles.TryGetValue(_quadrants[i], out _))
                         {
-                            _toRemove.Add(quadrant);
+                            _toRemove.Add(_quadrants[i]);
                         }
                     }
                 }
@@ -222,6 +236,9 @@ namespace Mapbox.BaseModule.Map
         {
             foreach (var tileId in tileCover.Tiles)
             {
+                if (ActiveTiles.ContainsKey(tileId))
+                    continue;
+
                 UnityMapTile unityMapTile = null;
                 if (!CreateTileInstant(tileId, out unityMapTile)) //if we can't fully load the tile
                 {
@@ -287,7 +304,7 @@ namespace Mapbox.BaseModule.Map
             _toRemove.Clear();
             foreach (var tilePair in ActiveTiles)
             {
-                if (!tileCover.Tiles.Contains(tilePair.Key) && tilePair.Value.LoadingState != LoadingState.Filler)
+                if (!tileCover.Tiles.Contains(tilePair.Key))
                 {
                     _toRemove.Add(tilePair.Key);
                 }
@@ -297,7 +314,7 @@ namespace Mapbox.BaseModule.Map
 
         protected bool DelveInto(UnwrappedTileId tileId, List<UnityMapTile> activeChildren, int recursiveDepth = 3)
         {
-            var quadrantCheck = new bool[4] { false, false, false, false };
+            var quadrantCheck = new bool[4];
             var quadrants = new UnwrappedTileId[4]
             {
                 tileId.Quadrant(0),
@@ -321,7 +338,7 @@ namespace Mapbox.BaseModule.Map
                         }
                         unityMapTile.Children.Clear();
                     }
-                    
+
                     ShowTile(unityMapTile);
                     quadrantCheck[i] = true;
                 }
@@ -338,7 +355,6 @@ namespace Mapbox.BaseModule.Map
                 }
             }
 
-            //if (quadrantCheck.Any(x => x))
             if (quadrantCheck[0] || quadrantCheck[1] || quadrantCheck[2] || quadrantCheck[3])
             {
                 for (int i = 0; i < 4; i++)
@@ -446,6 +462,16 @@ namespace Mapbox.BaseModule.Map
                 if (!ActiveTiles.ContainsKey(unityMapTile.UnwrappedTileId))
                 {
                     ActiveTiles.Add(unityMapTile.UnwrappedTileId, unityMapTile);
+                }
+
+                var terrainData = unityMapTile.TerrainContainer?.TerrainData;
+                if (terrainData != null && terrainData.IsElevationDataReady)
+                {
+                    var terrain = _mapInformation.Terrain;
+                    if (terrainData.MaxElevation > terrain.MaxElevation)
+                        terrain.MaxElevation = terrainData.MaxElevation;
+                    if (terrainData.MinElevation < terrain.MinElevation)
+                        terrain.MinElevation = terrainData.MinElevation;
                 }
 
                 TileLoaded(unityMapTile);

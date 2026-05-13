@@ -117,6 +117,7 @@ namespace Mapbox.BaseModule.Map
         }
 
         public Func<CanonicalTileId, float, float, float> QueryElevation { get; set; }
+        public TerrainInfo Terrain { get; } = new TerrainInfo();
         public event Action<IMapInformation> SetView = (t) => {};
         public event Action<IMapInformation> ViewChanged = (t) => {};
         public event Action<IMapInformation> LatitudeLongitudeChanged = (t) => {};
