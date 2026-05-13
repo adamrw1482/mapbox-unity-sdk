@@ -369,7 +369,9 @@ namespace Mapbox.Example.Scripts.MapInput
 
 			if (CurrentTwoFingerGesture == TwoFingerGesture.Pinch)
 			{
-				zoomDelta = _pinchDeltaThisFrame / Screen.height * pinchSensitivity;
+				// Match the divisor guard used in UpdateInputState: raw Screen.height
+				// can be 0 (e.g. minimized window) and would produce Inf here.
+				zoomDelta = _pinchDeltaThisFrame / Mathf.Max(Screen.height, 1) * pinchSensitivity;
 				return true;
 			}
 
@@ -411,7 +413,7 @@ namespace Mapbox.Example.Scripts.MapInput
 		{
 			if (CurrentTwoFingerGesture == TwoFingerGesture.Tilt)
 			{
-				tiltDelta = _tiltAvgDeltaYThisFrame / Screen.height * tiltSensitivity;
+				tiltDelta = _tiltAvgDeltaYThisFrame / Mathf.Max(Screen.height, 1) * tiltSensitivity;
 				return true;
 			}
 			tiltDelta = 0f;

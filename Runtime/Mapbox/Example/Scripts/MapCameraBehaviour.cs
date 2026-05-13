@@ -53,6 +53,14 @@ namespace Mapbox.Example.Scripts.MapInput
 
         protected virtual void OnMapInitialized(MapboxMap map)
         {
+            // Defensive: if MapBehaviour.Initialized fires twice (re-init, swapped map
+            // asset), unsubscribe from the previous MapInformation before binding to
+            // the new one. Otherwise the prior subscriptions leak until OnDestroy.
+            if (IsInitialized && Map != null && Map.MapInformation != null)
+            {
+                Core?.Teardown(Map.MapInformation);
+            }
+
             Map = map;
             IsInitialized = true;
             Core.Initialize(Camera, map.MapInformation);

@@ -136,12 +136,17 @@ namespace Mapbox.ImageModule.Editor
 			return (baseLine + " Very coarse — terrain will look blocky and neighboring tiles may visibly mismatch at seams.", MessageType.Warning);
 		}
 
+		// Reused across CalcHelpBoxHeight calls. GetPropertyHeight runs multiple times
+		// per repaint while the inspector is open; allocating a fresh GUIContent each
+		// call shows up as steady GC churn even in idle Editor sessions.
+		private static readonly GUIContent _helpBoxContent = new GUIContent();
+
 		private static float CalcHelpBoxHeight(string message, float width)
 		{
-			var content = new GUIContent(message);
+			_helpBoxContent.text = message;
 			var style = EditorStyles.helpBox;
 			var textWidth = Mathf.Max(40f, width - 32f);
-			return Mathf.Max(EditorGUIUtility.singleLineHeight * 2f, style.CalcHeight(content, textWidth));
+			return Mathf.Max(EditorGUIUtility.singleLineHeight * 2f, style.CalcHeight(_helpBoxContent, textWidth));
 		}
 	}
 }
