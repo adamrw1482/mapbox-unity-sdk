@@ -162,7 +162,10 @@ namespace Mapbox.ImageModule.Terrain
             // Same materialization rationale: callers iterate this lazily downstream and
             // would otherwise read a mutated _dataIdScratch after another GetDataId call.
             var materialized = new List<CanonicalTileId>(GetDataId(tiles));
-            return materialized.Select(LoadTileData).Where(x => x != null);
+            // Explicit lambda (not method-group): LoadTileData's optional callback
+            // parameter makes the method-group conversion ambiguous between Select's
+            // two overloads (Func<T,R> vs Func<T,int,R>).
+            return materialized.Select(t => LoadTileData(t)).Where(x => x != null);
         }
         #endregion
         

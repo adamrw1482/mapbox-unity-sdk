@@ -2,12 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Mapbox.BaseModule.Data.DataFetchers;
 using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Unity;
 using Mapbox.BaseModule.Utilities;
 using UnityEngine;
+using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
 
 namespace Mapbox.BaseModule.Map
 {

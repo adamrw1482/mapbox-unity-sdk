@@ -26,13 +26,13 @@ namespace Mapbox.BaseModule.Data.DataFetchers
             _onDispose = null;
         }
 
-        internal void AddDisposeCallback(Action callback)
+        public void AddDisposeCallback(Action callback)
         {
             if (callback == null) return;
             _onDispose += callback;
         }
 
-        internal void RemoveDisposeCallback(Action callback)
+        public void RemoveDisposeCallback(Action callback)
         {
             if (callback == null) return;
             _onDispose -= callback;
