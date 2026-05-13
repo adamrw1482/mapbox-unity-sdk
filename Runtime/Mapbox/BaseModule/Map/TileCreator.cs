@@ -61,9 +61,11 @@ namespace Mapbox.BaseModule.Map
             {
                 // Always use sharedMaterial. Per-tile state goes through the tile's
                 // MaterialPropertyBlock (UnityTileTerrainContainer / UnityTileImageContainer
-                // mutate it), which lets URP's SRP Batcher merge tile draws into a single
-                // batch. The legacy _instanceMaterial flag is retained on the constructor
-                // for back-compat but no longer differentiates: per-tile state lives on the
+                // mutate it). The win is avoiding a Material clone per renderer — not SRP
+                // Batcher batching (SetPropertyBlock disqualifies a renderer from the SRP
+                // Batcher) and not GPU instancing (off in the current materials/shaders).
+                // The legacy _instanceMaterial flag is retained on the constructor for
+                // back-compat but no longer differentiates: per-tile state lives on the
                 // property block, not on a unique Material instance.
                 tile.MeshRenderer.sharedMaterial = TileMaterials[0];
                 tile.Material = tile.MeshRenderer.sharedMaterial;

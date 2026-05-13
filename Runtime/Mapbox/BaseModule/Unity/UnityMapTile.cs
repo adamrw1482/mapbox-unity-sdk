@@ -32,8 +32,13 @@ namespace Mapbox.BaseModule.Unity
 
 		// Per-tile state (height texture, scale-offset, elevation multiplier, etc.) is
 		// pushed via this MaterialPropertyBlock instead of a per-tile Material instance.
-		// One Material is shared across the entire tile pool (set in TileCreator), which
-		// lets URP's SRP Batcher merge the tile draws into a single batch.
+		// One Material is shared across the entire tile pool (set in TileCreator); the
+		// win is avoiding a Material clone per renderer (reading Renderer.material clones,
+		// SetPropertyBlock does not). This pattern is NOT SRP-Batcher-compatible — any
+		// SetPropertyBlock on a renderer excludes it from the SRP Batcher. It is also not
+		// GPU-instanced today (materials have m_EnableInstancingVariants:0 and the shader
+		// has no UNITY_INSTANCING_BUFFER block); see project_terrain_instancing for what
+		// a real batching rework would entail.
 		private MaterialPropertyBlock _propertyBlock;
 		public MaterialPropertyBlock PropertyBlock
 		{
