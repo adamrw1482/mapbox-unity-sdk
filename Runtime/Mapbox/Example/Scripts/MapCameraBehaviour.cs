@@ -30,6 +30,12 @@ namespace Mapbox.Example.Scripts.MapInput
             MapBehaviour.Initialized += OnMapInitialized;
         }
 
+        protected virtual void OnDestroy()
+        {
+            if (MapBehaviour != null)
+                MapBehaviour.Initialized -= OnMapInitialized;
+        }
+
         protected virtual void OnMapInitialized(MapboxMap map)
         {
             Map = map;

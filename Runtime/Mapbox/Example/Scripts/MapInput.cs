@@ -44,6 +44,13 @@ namespace Mapbox.Example.Scripts.MapInput
 		// Pinch state tracking
 		private float _previousPinchDistance;
 		private bool _pinchActive;
+		private int _previousTouchCount;
+
+		// True on the frame the active touch count drops (e.g. 2→1 when one finger
+		// lifts during a pinch). Cameras should treat this as a fresh drag start so
+		// _dragOrigin is reset to the surviving finger's position instead of the old
+		// touches[0] — without this, single-finger pan jumps after a pinch ends.
+		protected bool TouchCountDecreasedThisFrame { get; private set; }
 
 		public virtual void Initialize(Camera camera, IMapInformation mapInfo)
 		{
@@ -121,7 +128,10 @@ namespace Mapbox.Example.Scripts.MapInput
 		/// </summary>
 		protected void UpdateInputState()
 		{
-			if (GetTouchCount() < 2)
+			var touchCount = GetTouchCount();
+			TouchCountDecreasedThisFrame = touchCount < _previousTouchCount;
+			_previousTouchCount = touchCount;
+			if (touchCount < 2)
 				_pinchActive = false;
 		}
 
@@ -285,7 +295,10 @@ namespace Mapbox.Example.Scripts.MapInput
 				var scroll = Mouse.current.scroll.ReadValue();
 				if (Mathf.Abs(scroll.y) > 0)
 				{
-					zoomDelta = scroll.y / 120f;
+					// Raw scroll.y is ~120 per notch on Windows; legacy Input.GetAxis
+					// returns ~0.1 per notch. Divide by 1200 so both paths feed the
+					// same magnitude into ZoomSensitivity.
+					zoomDelta = scroll.y / 1200f;
 					return true;
 				}
 			}

@@ -109,7 +109,7 @@ namespace Mapbox.Example.Scripts.MapInput
             if (!GetPlaneIntersection(pointerPos, out cursorHit))
                 return _output;
 
-            if (GetPointerDown() || GetSecondaryDown())
+            if (GetPointerDown() || GetSecondaryDown() || TouchCountDecreasedThisFrame)
             {
                 _previousScreenPosition = pointerPos;
                 _dragOrigin = cursorHit;
@@ -165,15 +165,15 @@ namespace Mapbox.Example.Scripts.MapInput
                 _output.HasChanged = true;
             }
 
-            CenterLatitudeLongitude = Conversions.WebMercatorToLatLon(newMercatorCenter);
-            CenterLatitudeLongitude = new LatitudeLongitude(
-                Mathf.Clamp((float)CenterLatitudeLongitude.Latitude, -MaxMercatorLatitude, MaxMercatorLatitude),
-                CenterLatitudeLongitude.Longitude);
             _dragOrigin = cursorHit;
             _previousScreenPosition = pointerPos;
 
             if (_output.HasChanged)
             {
+                var latLng = Conversions.WebMercatorToLatLon(newMercatorCenter);
+                CenterLatitudeLongitude = new LatitudeLongitude(
+                    System.Math.Clamp(latLng.Latitude, -(double)MaxMercatorLatitude, MaxMercatorLatitude),
+                    latLng.Longitude);
                 SetCamPositionByMapInfo();
                 _output.Center = CenterLatitudeLongitude;
                 _output.Zoom = ZoomValue;

@@ -62,7 +62,7 @@ namespace Mapbox.Example.Scripts.MapInput
             if (!GetPlaneIntersection(pointerPos, out cursorHit))
                 return _output;
 
-            if (GetPointerDown() || GetSecondaryDown())
+            if (GetPointerDown() || GetSecondaryDown() || TouchCountDecreasedThisFrame)
             {
                 _previousScreenPosition = pointerPos;
                 _dragOrigin = cursorHit;
