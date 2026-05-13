@@ -97,6 +97,14 @@ namespace Mapbox.Example.Scripts.MapInput
             SetCamPositionByMapInfo();
             start.SetView += SetCamera;
         }
+
+        public override void Teardown(IMapInformation mapInfo)
+        {
+            // Detach the SetView subscription wired in Initialize. IMapInformation can
+            // outlive this camera (DontDestroyOnLoad / scene reload), so without the
+            // detach the closure roots us and _camera Transform indefinitely.
+            if (mapInfo != null) mapInfo.SetView -= SetCamera;
+        }
         
         private const float MaxMercatorLatitude = 85.06f;
 

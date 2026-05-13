@@ -41,6 +41,14 @@ namespace Mapbox.Example.Scripts.MapInput
         {
             if (MapBehaviour != null)
                 MapBehaviour.Initialized -= OnMapInitialized;
+
+            // Tear down the camera core's IMapInformation subscriptions. MapInformation
+            // can outlive the behaviour (DontDestroyOnLoad / scene reload); without the
+            // detach, the camera core and its captured _camera Transform stay rooted.
+            if (IsInitialized && Map != null)
+            {
+                Core?.Teardown(Map.MapInformation);
+            }
         }
 
         protected virtual void OnMapInitialized(MapboxMap map)

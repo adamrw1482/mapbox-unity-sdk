@@ -132,13 +132,15 @@ namespace Mapbox.UnityMapService.TileProviders
 			var scale = mapInformation.Scale;
 
 			// Bounds extent for frustum culling: derived from observed terrain elevation.
-			// Min/Max are in meters; divide by scale to get world units. Negative Min
-			// (Death Valley, Dead Sea) shifts the AABB bottom below Y=0; clamping the
-			// bottom at 0 made those tiles fall outside the AABB and frustum-cull.
+			// Min/Max are in meters; divide by scale to get world units. Bottom and top
+			// follow the observed range directly — clamping the bottom to 0 pessimized
+			// culling for elevated-only terrain (Himalayan/Andean tiles with Min ≥ +500m)
+			// by doubling the AABB volume below the actual surface. Negative Min (Death
+			// Valley, Dead Sea) is handled naturally by letting the bottom go negative.
 			// Floor on the total height ensures tiles are never zero-height (invisible).
 			var maxWorld = mapInformation.Terrain.MaxElevation / scale;
 			var minWorld = mapInformation.Terrain.MinElevation / scale;
-			var boundsBottom = Mathf.Min(0f, minWorld);
+			var boundsBottom = minWorld;
 			var boundsHeight = Mathf.Max(maxWorld - boundsBottom, 0.1f);
 
 			// Camera height above the map plane (y=0)
@@ -192,6 +194,13 @@ namespace Mapbox.UnityMapService.TileProviders
 			return true;
 		}
 
+		// Cap for the projDist<=0 "always split" early-exit. Without a cap, a single
+		// behind-camera corner (admissible after FrustumBuffer expansion) forces 4-way
+		// subdivision recursively up to _maxZoom — pathologically expensive on tilted
+		// views where many tiles are partially behind the near plane. 18 is generous
+		// enough for any reasonable detail level.
+		private const int AlwaysSplitSafeCap = 18;
+
 		protected bool ShouldSplit(int zoom, Bounds bounds, Vector3 camPos,
 			Vector3 camForward, float cameraHeight, float zoomSplitDistance)
 		{
@@ -220,7 +229,13 @@ namespace Mapbox.UnityMapService.TileProviders
 				offset.y = 0f;
 				var projDist = Vector3.Dot(offset, camForward);
 				if (projDist <= 0f)
-					return true; // corner behind camera plane — always split
+				{
+					// Corner behind camera plane — split for better fidelity on the
+					// partly-visible portion, but cap so we don't recurse all the way
+					// to _maxZoom (the FrustumBuffer expansion admits behind-camera
+					// tiles, which would otherwise feed an endless split loop).
+					return zoom < AlwaysSplitSafeCap;
+				}
 				if (projDist < closestDist)
 					closestDist = projDist;
 			}
@@ -245,11 +260,16 @@ namespace Mapbox.UnityMapService.TileProviders
 		{
 			const float kAcuteAngleThresholdSin = 0.707f; // sin(45 degrees)
 			const float kStretchTile = 1.1f;
+			const float DzFloor = 0.0001f;
 
-			// Floor dz at a tiny epsilon. Without this, a camera exactly at ground level
-			// (dz=0) makes r = d/0 → Inf/NaN, the resulting scale fails comparisons,
-			// and the tile pins to its coarsest LOD forever.
-			if (dz < 0.0001f) dz = 0.0001f;
+			// Camera at (or extremely close to) ground level. Clamping dz to a tiny
+			// epsilon and then computing r = d/dz makes Pow(1.1, k+1) saturate to Inf
+			// and the function return ~0, which collapses distToSplit to 0 — the tile
+			// pins to MinimumZoomLevel instead of subdividing. Street-level walking-sim
+			// cameras hit this. Return 1.0 (no acute-angle compensation) so the caller's
+			// normal split distance applies.
+			if (dz < DzFloor)
+				return 1f;
 
 			if (d * kAcuteAngleThresholdSin < dz)
 				return 1f;

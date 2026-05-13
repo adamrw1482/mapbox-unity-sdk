@@ -50,6 +50,12 @@ namespace Mapbox.BaseModule.Data.DataFetchers
         /// </summary>
         public override void Dispose()
         {
+            // Explicit idempotency guard. Today the ElevationValues null-check below
+            // also prevents a double Return-to-pool, but the AsyncExtract late-callback
+            // can reassign ElevationValues after Dispose (its IsDisposed check returns
+            // the buffer to the pool, but a subsequent second Dispose without this guard
+            // would still see IsElevationDataReady etc. flicker). Cheap defensive bail.
+            if (IsDisposed) return;
             if (ElevationValues != null)
             {
                 ElevationArrayPool.Return(ElevationValues);
@@ -94,11 +100,16 @@ namespace Mapbox.BaseModule.Data.DataFetchers
         
         public float QueryHeightData(Vector2 point)
         {
+            // Mirror the 3-arg overload's guard: shader-only mode (ExtractCpuElevationData=false)
+            // leaves ElevationValues null and _cachedWidth=0 — ReadElevation would index a
+            // null array with sectionWidth=-1 and NRE.
+            if (!(ElevationValues?.Length > 0)) return 0;
             return ReadElevation(point.x, point.y, new Vector4(1, 1, 0, 0));
         }
-        
+
         public float QueryHeightData(float x, float y)
         {
+            if (!(ElevationValues?.Length > 0)) return 0;
             return ReadElevation(x, y, new Vector4(1, 1, 0, 0));
         }
 

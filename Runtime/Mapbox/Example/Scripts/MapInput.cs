@@ -45,6 +45,11 @@ namespace Mapbox.Example.Scripts.MapInput
 		private float _previousPinchDistance;
 		private bool _pinchActive;
 		private int _previousTouchCount;
+		// Track the (touchId, touchId) of the pair we're measuring. EnhancedTouch.
+		// activeTouches reorders on add/remove, so 2→3→2 transitions can leave us
+		// comparing distance against a different physical pair. Reseed on change.
+		private int _previousTouch0Id = int.MinValue;
+		private int _previousTouch1Id = int.MinValue;
 
 		// True on the frame the active touch count drops (e.g. 2→1 when one finger
 		// lifts during a pinch). Cameras should treat this as a fresh drag start so
@@ -75,6 +80,14 @@ namespace Mapbox.Example.Scripts.MapInput
 				UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
 #endif
 		}
+
+		/// <summary>
+		/// Called from the owning behaviour's OnDestroy. Override to unsubscribe from
+		/// <see cref="IMapInformation"/> events you wired in <see cref="Initialize"/> —
+		/// IMapInformation can outlive the camera (DontDestroyOnLoad / scene reload),
+		/// and event closures otherwise root the destroyed camera + its Camera Transform.
+		/// </summary>
+		public virtual void Teardown(IMapInformation mapInfo) { }
 
 		public abstract CameraOutput UpdateCamera(IMapInformation mapInfo);
 
@@ -156,14 +169,17 @@ namespace Mapbox.Example.Scripts.MapInput
 			if (touchCount < 2)
 			{
 				_pinchActive = false;
+				_previousTouch0Id = int.MinValue;
+				_previousTouch1Id = int.MinValue;
 				return;
 			}
 
-			// Read both touches' positions and Y-deltas, then pick a single gesture for
-			// this frame. Doing this once here (not redundantly inside each detector)
-			// keeps the decision symmetric and prevents stale-state races.
+			// Read both touches' positions, Y-deltas, and stable ids. Doing this once
+			// here (not redundantly inside each detector) keeps the decision symmetric
+			// and prevents stale-state races.
 			Vector2 touch0Pos, touch1Pos;
 			float touch0DeltaY, touch1DeltaY;
+			int t0Id, t1Id;
 #if MAPBOX_NEW_INPUT_SYSTEM
 			var t0 = Touch.activeTouches[0];
 			var t1 = Touch.activeTouches[1];
@@ -171,6 +187,8 @@ namespace Mapbox.Example.Scripts.MapInput
 			touch1Pos = t1.screenPosition;
 			touch0DeltaY = t0.delta.y;
 			touch1DeltaY = t1.delta.y;
+			t0Id = t0.touchId;
+			t1Id = t1.touchId;
 #else
 			var t0 = Input.GetTouch(0);
 			var t1 = Input.GetTouch(1);
@@ -178,15 +196,22 @@ namespace Mapbox.Example.Scripts.MapInput
 			touch1Pos = t1.position;
 			touch0DeltaY = t0.deltaPosition.y;
 			touch1DeltaY = t1.deltaPosition.y;
+			t0Id = t0.fingerId;
+			t1Id = t1.fingerId;
 #endif
 			var currentDistance = Vector2.Distance(touch0Pos, touch1Pos);
 
-			if (!_pinchActive)
+			// Reseed when the pair changes (first two-finger frame OR a 2→3→2 / finger-swap
+			// transition that shifted which physical touches occupy slots [0..1]). Comparing
+			// distance against a different pair would spike a frame of phantom pinch.
+			bool pairChanged = !_pinchActive ||
+			                   t0Id != _previousTouch0Id || t1Id != _previousTouch1Id;
+			if (pairChanged)
 			{
-				// First frame of two-finger contact: just seed the previous distance.
-				// No gesture decision until next frame produces a real delta.
 				_pinchActive = true;
 				_previousPinchDistance = currentDistance;
+				_previousTouch0Id = t0Id;
+				_previousTouch1Id = t1Id;
 				return;
 			}
 
@@ -198,12 +223,21 @@ namespace Mapbox.Example.Scripts.MapInput
 			var tiltMag = Mathf.Abs(avgDeltaY);
 			var bothFingersSameDirection = touch0DeltaY * touch1DeltaY > 0f;
 
-			if (pinchMag > tiltMag && pinchMag > 0.01f)
+			// Normalize both magnitudes to Screen.height so the thresholds are DPI-independent.
+			// MinFrac ≈ 1 pixel on a 1080-height screen. Pinch wins ties (pinchFrac >= tiltFrac)
+			// to avoid the "None" frame the prior strict-> on both sides produced when the
+			// gestures registered identical magnitudes (common on near-pure vertical drags).
+			var screenH = Mathf.Max(Screen.height, 1);
+			var pinchFrac = pinchMag / screenH;
+			var tiltFrac = tiltMag / screenH;
+			const float MinFrac = 1f / 1080f;
+
+			if (pinchFrac > MinFrac && pinchFrac >= tiltFrac)
 			{
 				CurrentTwoFingerGesture = TwoFingerGesture.Pinch;
 				_pinchDeltaThisFrame = pinchDelta;
 			}
-			else if (bothFingersSameDirection && tiltMag >= 1f && tiltMag > pinchMag)
+			else if (bothFingersSameDirection && tiltFrac > MinFrac)
 			{
 				CurrentTwoFingerGesture = TwoFingerGesture.Tilt;
 				_tiltAvgDeltaYThisFrame = avgDeltaY;

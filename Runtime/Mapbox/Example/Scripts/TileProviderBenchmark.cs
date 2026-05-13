@@ -8,6 +8,9 @@ using Mapbox.BaseModule.Map;
 using Mapbox.BaseModule.Utilities;
 using Mapbox.Example.Scripts.Map;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
 
 namespace Mapbox.Example.Scripts
 {
@@ -96,11 +99,46 @@ namespace Mapbox.Example.Scripts
 			StartCoroutine(_mapBehaviour.Initialize());
 		}
 
+		// Reads either the legacy Input.GetKeyDown or the new Input System equivalent
+		// depending on which input backend is active in this project. UnityEngine.Input
+		// throws under "Input System Package (New)"-only, so the legacy call cannot run
+		// unconditionally.
+		private static bool StartStopPressed(KeyCode key)
+		{
+#if ENABLE_LEGACY_INPUT_MANAGER
+			if (Input.GetKeyDown(key)) return true;
+#endif
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+			if (Keyboard.current != null)
+			{
+				var nikey = KeyCodeToKey(key);
+				if (nikey != Key.None && Keyboard.current[nikey].wasPressedThisFrame) return true;
+			}
+#endif
+			return false;
+		}
+
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+		private static Key KeyCodeToKey(KeyCode kc)
+		{
+			switch (kc)
+			{
+				case KeyCode.F5: return Key.F5;
+				case KeyCode.F6: return Key.F6;
+				case KeyCode.F7: return Key.F7;
+				case KeyCode.F8: return Key.F8;
+				case KeyCode.Space: return Key.Space;
+				case KeyCode.Return: return Key.Enter;
+				default: return Key.None;
+			}
+		}
+#endif
+
 		private void Update()
 		{
-			if (Input.GetKeyDown(StartKey) && !_isRunning && _isMapReady)
+			if (StartStopPressed(StartKey) && !_isRunning && _isMapReady)
 				StartRun();
-			if (Input.GetKeyDown(StopKey) && _isRunning)
+			if (StartStopPressed(StopKey) && _isRunning)
 				StopRun();
 
 			if (!_isRunning || !_isMapReady) return;

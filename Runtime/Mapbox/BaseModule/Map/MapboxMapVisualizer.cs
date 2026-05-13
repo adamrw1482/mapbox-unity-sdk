@@ -158,11 +158,15 @@ namespace Mapbox.BaseModule.Map
                     foreach (var child in tempTile.Children)
                     {
                         _toRemove.Remove(child.UnwrappedTileId);
-                        // Also invalidate any in-flight pending-pool entry that
-                        // snapshotted this child's prior generation. Without this, the
-                        // _toRemove rescue is silently bypassed by the next FlushPendingPool
-                        // tick (child queued earlier, before becoming a filler).
-                        child.Generation++;
+                        // Invalidate any in-flight pending-pool entry that snapshotted this
+                        // child's prior generation — but only for children that are still in
+                        // Filler state. Bumping unconditionally would also invalidate a
+                        // pending entry queued for a different (legitimate) reason such as
+                        // parent-finished child-pool.
+                        if (child.LoadingState == LoadingState.Filler)
+                        {
+                            child.Generation++;
+                        }
                     }
                 }
             }
@@ -545,11 +549,9 @@ namespace Mapbox.BaseModule.Map
             // GetTile() for a different id.
             tile.Generation++;
 
-            // Snapshot whether this tile is currently holding either bounds value.
-            // Recycle() clears TerrainData below, so we have to check first.
-            // Skip the trigger when both endpoints are 0 — that's a flat tile that didn't
-            // actually contribute to the global bounds (would force unnecessary recomputes
-            // every time a sea-level tile is pooled).
+            // Snapshot whether this tile is currently holding either bounds value, OR
+            // is the last contributor in ActiveTiles (so the empty-fallback path needs
+            // to run). Recycle() clears TerrainData below, so we check first.
             var terrain = _mapInformation.Terrain;
             var terrainData = tile.TerrainContainer?.TerrainData;
             bool contributedMax = terrainData != null && terrainData.IsElevationDataReady &&
@@ -558,6 +560,12 @@ namespace Mapbox.BaseModule.Map
             bool contributedMin = terrainData != null && terrainData.IsElevationDataReady &&
                 terrainData.MinElevation != 0f &&
                 Mathf.Approximately(terrainData.MinElevation, terrain.MinElevation);
+            // Also dirty when this is the last tile in ActiveTiles: an all-flat session
+            // (every loaded tile had Min=Max=0) wouldn't trip the non-zero checks above,
+            // so the empty-fallback in RecomputeTerrainBounds (reset to TerrainInfo
+            // defaults) would never run when the map empties out.
+            bool wasLastActive = terrainData != null && ActiveTiles.Count == 1 &&
+                ActiveTiles.ContainsKey(tile.UnwrappedTileId);
 
             TileUnloading(tile);
             ActiveTiles.Remove(tile.UnwrappedTileId);
@@ -575,7 +583,7 @@ namespace Mapbox.BaseModule.Map
                 tile.Children.Clear();
             }
 
-            if (contributedMax || contributedMin)
+            if (contributedMax || contributedMin || wasLastActive)
             {
                 _terrainBoundsDirty = true;
             }
@@ -596,9 +604,11 @@ namespace Mapbox.BaseModule.Map
                 if (ReferenceEquals(_pendingElevationWatches[i].data, data)) return;
             }
             Action handler = null;
+            Action onDispose = null;
             handler = () =>
             {
                 data.ElevationValuesUpdated -= handler;
+                data.RemoveDisposeCallback(onDispose);
                 for (int i = _pendingElevationWatches.Count - 1; i >= 0; i--)
                 {
                     if (ReferenceEquals(_pendingElevationWatches[i].data, data) &&
@@ -610,8 +620,26 @@ namespace Mapbox.BaseModule.Map
                 }
                 _terrainBoundsDirty = true;
             };
+            // Also detach on dispose: TerrainData.Dispose doesn't fire ElevationValuesUpdated,
+            // so without this hook the watch entry would stay in the list (rooting both
+            // data and the closure) until the visualizer's own OnDestroy.
+            onDispose = () =>
+            {
+                data.ElevationValuesUpdated -= handler;
+                data.RemoveDisposeCallback(onDispose);
+                for (int i = _pendingElevationWatches.Count - 1; i >= 0; i--)
+                {
+                    if (ReferenceEquals(_pendingElevationWatches[i].data, data) &&
+                        ReferenceEquals(_pendingElevationWatches[i].handler, handler))
+                    {
+                        _pendingElevationWatches.RemoveAt(i);
+                        break;
+                    }
+                }
+            };
             _pendingElevationWatches.Add((data, handler));
             data.ElevationValuesUpdated += handler;
+            data.AddDisposeCallback(onDispose);
         }
 
         private void RecomputeTerrainBounds()

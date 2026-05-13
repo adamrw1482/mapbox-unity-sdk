@@ -315,12 +315,18 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				// no-ops if the tile has since been recycled onto different data, so a late
 				// async readback does not stomp a freshly-reassigned tile. We also track
 				// the subscription in _pendingRebuilds so OnDestroy can detach pending
-				// closures whose data is disposed before the event fires.
+				// closures whose data is disposed before the event fires, AND attach a
+				// dispose-callback so eviction self-detaches (TerrainData.Dispose doesn't
+				// raise ElevationValuesUpdated, so without this hook the closure would
+				// stay attached until the next visualizer teardown — pendings grow
+				// O(failed-decodes) under bursty zoom).
 				Action rebuild = null;
+				Action onDispose = null;
 				(TerrainData data, UnityMapTile tile, Action rebuild) entry = (data, tile, null);
 				rebuild = () =>
 				{
 					data.ElevationValuesUpdated -= rebuild;
+					data.RemoveDisposeCallback(onDispose);
 					_pendingRebuilds.Remove(entry);
 					if (tile == null || tile.TerrainContainer == null || tile.TerrainContainer.TerrainData != data)
 					{
@@ -328,9 +334,16 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 					}
 					BuildAndAssignCollider(tile);
 				};
+				onDispose = () =>
+				{
+					data.ElevationValuesUpdated -= rebuild;
+					data.RemoveDisposeCallback(onDispose);
+					_pendingRebuilds.Remove(entry);
+				};
 				entry.rebuild = rebuild;
 				_pendingRebuilds.Add(entry);
 				data.ElevationValuesUpdated += rebuild;
+				data.AddDisposeCallback(onDispose);
 			}
 		}
 
@@ -450,9 +463,13 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				mesh.MarkDynamic();
 			}
 
-			// Grid resolution matches the render mesh so the collision surface aligns with
-			// the visible terrain. If the user picks a coarser SimplificationFactor, the
-			// collider follows.
+			// Grid resolution matches the render mesh's INTERIOR vertex grid so the
+			// collision surface aligns with the visible terrain over the tile area. In
+			// skirt mode the render mesh adds 2 extra verts per axis (xrat = -0.01,
+			// 1.01) just outside the tile boundary; the collider intentionally omits
+			// these — there's no real geometry at the skirt and physics queries are not
+			// expected outside the tile. If the user picks a coarser SimplificationFactor,
+			// the collider follows.
 			var sampleCount = _elevationOptions.modificationOptions.sampleCount;
 			var side = sampleCount + 1;
 			var size = _elevationOptions.TileMeshSize;

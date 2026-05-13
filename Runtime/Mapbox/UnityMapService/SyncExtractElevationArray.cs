@@ -35,10 +35,22 @@ namespace Mapbox.UnityMapService
 
 		public void ExtractHeightData(Texture2D texture, TerrainData terrainData)
 		{
+			// Even the sync path can be called on a disposed TerrainData from cache-fetch
+			// race paths. Skip + don't rent if already disposed; otherwise we'd
+			// SetElevationValues on a dead object and leak the rented buffer.
+			if (terrainData == null || terrainData.IsDisposed)
+			{
+				return;
+			}
 			var rgbData = texture.GetRawTextureData<byte>();
 			var width = texture.width;
 			var heightData = ElevationArrayPool.Rent(width * width);
 			RunDecodeJob(rgbData, width, heightData, out var min, out var max);
+			if (terrainData.IsDisposed)
+			{
+				ElevationArrayPool.Return(heightData);
+				return;
+			}
 			terrainData.SetElevationValues(heightData, min, max);
 		}
 

@@ -87,7 +87,22 @@ namespace Mapbox.ImageModule.Editor
 		public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
 		{
 			var attr = (SimplificationFactorAttribute)attribute;
-			var (message, _) = BuildMessage(property.intValue, attr.VertexBase);
+			EnsurePresetsCached(attr);
+			// Mirror OnGUI's branch so the help-box height matches the actual rendered
+			// message. The legacy-value warning is longer than the preset description,
+			// and using the preset string for height while painting the legacy string
+			// caused the HelpBox to clip and overlap the next inspector row.
+			var current = property.intValue;
+			var inPresets = System.Array.IndexOf(_cachedFactors, current) >= 0;
+			string message;
+			if (!inPresets)
+			{
+				message = $"Legacy value {current} is not a preset. Pick a preset above to migrate; the value is otherwise left untouched.";
+			}
+			else
+			{
+				(message, _) = BuildMessage(current, attr.VertexBase);
+			}
 			return EditorGUIUtility.singleLineHeight + Spacing + CalcHelpBoxHeight(message, EditorGUIUtility.currentViewWidth - 40f);
 		}
 

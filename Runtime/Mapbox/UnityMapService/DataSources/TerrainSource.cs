@@ -136,12 +136,19 @@ namespace Mapbox.UnityMapService.DataSources
             // decode). Previously this path used Action<float[]> + the 1-arg SetElevationValues,
             // which left Min/Max at 0 — meaning RecomputeTerrainBounds never widened the
             // shared TerrainInfo for any tile loaded through LoadTileCoroutine.
+            //
+            // Subscribe to BOTH ElevationValuesUpdated and the dispose multicast: the async
+            // GPU readback no-ops on disposed data and never raises ElevationValuesUpdated,
+            // so without the dispose hook the coroutine would yield forever and pin the
+            // TerrainData. Rapid pan + cache eviction during initial load is the trigger.
             var finished = false;
             Action onDone = () => finished = true;
             data.ElevationValuesUpdated += onDone;
+            data.AddDisposeCallback(onDone);
             _elevationDataExtractionStrategy.ExtractHeightData(data.Texture, data);
             while (!finished) yield return null;
             data.ElevationValuesUpdated -= onDone;
+            data.RemoveDisposeCallback(onDone);
         }
         
         protected override void TextureReceivedFromFile(TerrainData cacheItem)

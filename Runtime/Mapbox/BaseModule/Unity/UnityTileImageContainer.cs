@@ -82,7 +82,15 @@ namespace Mapbox.BaseModule.Unity
 
         public void OnDestroy()
         {
-            //anything to finalize here?
+            // Symmetric detach to mirror UnityTileTerrainContainer's fix: the multicast
+            // _onDispose callback we added at SetImageData must be removed here, otherwise
+            // a future RasterData eviction fires the closure into a destroyed tile and
+            // cascades through OnDataDisposed → OnTileBroken → PoolTile on a dead tile.
+            if (ImageData != null)
+            {
+                ImageData.RemoveDisposeCallback(_onDispose);
+                ImageData = null;
+            }
         }
     }
 }
