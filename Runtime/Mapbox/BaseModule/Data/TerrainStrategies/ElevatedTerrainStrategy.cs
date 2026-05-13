@@ -57,7 +57,11 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		private NativeArray<int> _colliderTrianglesNative;
 		private int _colliderNativeSampleCount = -1;
 		private NativeArray<float> _elevationNative;
-		private float[] _elevationNativeMirror;
+		// Keyed by the TerrainData reference rather than the float[] reference: ElevationArrayPool
+		// recycles float[] buffers, so the same array reference can hold different data across
+		// dispose+re-rent cycles. TerrainData instances aren't recycled the same way, so reference
+		// equality on the data wrapper is a safe cache key.
+		private TerrainData _elevationNativeMirror;
 
 		// Shared flat render mesh used by every tile in shader mode. All render tiles have
 		// byte-identical CPU vertex data in that mode (the per-tile _HeightTexture_ST
@@ -93,13 +97,22 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				: _elevationOptions.modificationOptions.sampleCount + 1;
 			_skirtSize = elOptions.sideWallOptions.wallHeight;
 			_colliderOptions = elOptions.colliderOptions;
-			
+
 			_newVertexList = new List<Vector3>(_requiredVertexCount);
 			_newNormalList = new List<Vector3>(_requiredVertexCount);
 			_newUvList = new List<Vector2>(_requiredVertexCount);
-			
+
 			_baseMesh = CreateBaseMesh(_elevationOptions.TileMeshSize, _sideVertexCount);
 			_requiredVertexCount = _baseMesh.Vertices.Length;
+
+			// Free the previous shared mesh on re-init — otherwise a second Initialize
+			// orphans it. OnDestroy alone isn't enough since re-init can happen without a
+			// preceding destroy (settings changes, editor reloads).
+			if (_sharedFlatMesh != null)
+			{
+				UnityEngine.Object.Destroy(_sharedFlatMesh);
+				_sharedFlatMesh = null;
+			}
 
 			// Build the shader-mode shared render mesh from the base data once. Every
 			// shader-mode tile's MeshFilter will point at this single instance.
@@ -275,6 +288,7 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		/// </summary>
 		private MeshCollider GetOrCreateCollider(UnityMapTile tile)
 		{
+			MeshCollider collider;
 			if (_colliderOptions.useDedicatedColliderLayer)
 			{
 				var childTransform = tile.transform.Find(ColliderChildName);
@@ -290,22 +304,25 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				}
 				childGo.layer = _colliderOptions.colliderLayerId;
 
-				var childCollider = childGo.GetComponent<MeshCollider>();
-				if (childCollider == null)
+				collider = childGo.GetComponent<MeshCollider>();
+				if (collider == null)
 				{
-					childCollider = childGo.AddComponent<MeshCollider>();
-					childCollider.cookingOptions = TerrainColliderCookingOptions;
+					collider = childGo.AddComponent<MeshCollider>();
 				}
-				return childCollider;
 			}
-
-			var meshCollider = tile.GetComponent<MeshCollider>();
-			if (meshCollider == null)
+			else
 			{
-				meshCollider = tile.gameObject.AddComponent<MeshCollider>();
-				meshCollider.cookingOptions = TerrainColliderCookingOptions;
+				collider = tile.GetComponent<MeshCollider>();
+				if (collider == null)
+				{
+					collider = tile.gameObject.AddComponent<MeshCollider>();
+				}
 			}
-			return meshCollider;
+			// Reassign every call: if the collider's cookingOptions diverges from what
+			// BakeColliderJob uses, PhysX discards the async-cooked cache and re-cooks
+			// synchronously on sharedMesh assignment — silently defeating the async path.
+			collider.cookingOptions = TerrainColliderCookingOptions;
+			return collider;
 		}
 
 		/// <summary>
@@ -339,12 +356,13 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			// render tiles that sample the same data. Triangles are regenerated only when
 			// sampleCount changes — see EnsureColliderBuffers.
 			var container = tile.TerrainContainer;
-			var elevationValues = container.TerrainData.ElevationValues;
+			var terrainData = container.TerrainData;
+			var elevationValues = terrainData.ElevationValues;
 			var dataWidth = (int)Mathf.Sqrt(elevationValues.Length);
 			var scaleOffset = container.TerrainTextureScaleOffset;
 
 			EnsureColliderBuffers(sampleCount);
-			EnsureElevationNative(elevationValues);
+			EnsureElevationNative(terrainData);
 
 			new BuildColliderVerticesJob
 			{
@@ -440,12 +458,13 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		/// <summary>
 		/// Mirrors the current data tile's managed <c>ElevationValues</c> into the
 		/// strategy's persistent <see cref="_elevationNative"/>. Reuses the existing
-		/// NativeArray when the source reference is unchanged, so the 16 render tiles that
-		/// share a data tile pay the ~256 KB copy only once.
+		/// NativeArray when the source <see cref="TerrainData"/> reference is unchanged,
+		/// so the 16 render tiles that share a data tile pay the ~256 KB copy only once.
 		/// </summary>
-		private void EnsureElevationNative(float[] source)
+		private void EnsureElevationNative(TerrainData terrainData)
 		{
-			if (ReferenceEquals(source, _elevationNativeMirror) && _elevationNative.IsCreated && _elevationNative.Length == source.Length)
+			var source = terrainData.ElevationValues;
+			if (ReferenceEquals(terrainData, _elevationNativeMirror) && _elevationNative.IsCreated && _elevationNative.Length == source.Length)
 			{
 				return;
 			}
@@ -458,7 +477,7 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 				_elevationNative = new NativeArray<float>(source.Length, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 			}
 			_elevationNative.CopyFrom(source);
-			_elevationNativeMirror = source;
+			_elevationNativeMirror = terrainData;
 		}
 
 		/// <summary>
@@ -554,7 +573,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			}
 			handle.Complete();
 
-			if (meshCollider == null)
+			// Either side can be destroyed while we waited: UnityMapTile.OnDestroy can take
+			// the meshCollider with the GameObject, and a parallel bake completion that
+			// landed first can have Destroy()'d our mesh as its "previous" (line below).
+			if (meshCollider == null || mesh == null)
 			{
 				if (mesh != null)
 				{

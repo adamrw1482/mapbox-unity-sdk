@@ -115,9 +115,29 @@ namespace Mapbox.ImageModule.Editor
 			"MapboxComponentsModuleScript"
 		};
 
+		// Cached scene-scan result, invalidated whenever the hierarchy changes. Without this,
+		// every Inspector OnGUI repaint runs FindObjectsByType<MonoBehaviour> across the
+		// whole active scene — visibly stalls when many tiles are alive.
+		private static bool _sceneScanValid;
+		private static bool _sceneScanResult;
+		private static string _sceneScanDetectedTypeName;
+		private static bool _hierarchyHookInstalled;
+
 		private static bool SceneHasFeaturesNeedingCpuElevation(out string detectedTypeName)
 		{
-			detectedTypeName = null;
+			if (!_hierarchyHookInstalled)
+			{
+				EditorApplication.hierarchyChanged += () => _sceneScanValid = false;
+				_hierarchyHookInstalled = true;
+			}
+			if (_sceneScanValid)
+			{
+				detectedTypeName = _sceneScanDetectedTypeName;
+				return _sceneScanResult;
+			}
+
+			_sceneScanDetectedTypeName = null;
+			_sceneScanResult = false;
 			var all = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 			foreach (var mb in all)
 			{
@@ -127,12 +147,16 @@ namespace Mapbox.ImageModule.Editor
 				{
 					if (name == WatchedTypeNames[i])
 					{
-						detectedTypeName = name;
-						return true;
+						_sceneScanDetectedTypeName = name;
+						_sceneScanResult = true;
+						goto done;
 					}
 				}
 			}
-			return false;
+			done:
+			_sceneScanValid = true;
+			detectedTypeName = _sceneScanDetectedTypeName;
+			return _sceneScanResult;
 		}
 	}
 }

@@ -20,11 +20,33 @@ namespace Mapbox.ImageModule.Editor
 		// between collapses via integer division. Each entry halves the grid resolution.
 		private static readonly int[] PresetFactors = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
+		// Cached preset+label arrays per attribute. OnGUI runs every repaint; without this
+		// the LINQ chain allocates fresh arrays continuously while the Inspector is open.
+		private int[] _cachedFactors;
+		private GUIContent[] _cachedLabels;
+		private int _cachedMin = -1;
+		private int _cachedMax = -1;
+		private int _cachedVertexBase = -1;
+
+		private void EnsurePresetsCached(SimplificationFactorAttribute attr)
+		{
+			if (_cachedFactors != null && _cachedMin == attr.Min && _cachedMax == attr.Max && _cachedVertexBase == attr.VertexBase)
+			{
+				return;
+			}
+			_cachedFactors = PresetFactors.Where(f => f >= attr.Min && f <= attr.Max).ToArray();
+			_cachedLabels = _cachedFactors.Select(f => new GUIContent(BuildLabel(f, attr.VertexBase))).ToArray();
+			_cachedMin = attr.Min;
+			_cachedMax = attr.Max;
+			_cachedVertexBase = attr.VertexBase;
+		}
+
 		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
 		{
 			var attr = (SimplificationFactorAttribute)attribute;
-			var factors = PresetFactors.Where(f => f >= attr.Min && f <= attr.Max).ToArray();
-			var labels = factors.Select(f => new GUIContent(BuildLabel(f, attr.VertexBase))).ToArray();
+			EnsurePresetsCached(attr);
+			var factors = _cachedFactors;
+			var labels = _cachedLabels;
 
 			// Snap legacy non-preset values to the nearest preset so the dropdown always
 			// matches a concrete entry.

@@ -213,6 +213,15 @@ namespace Mapbox.ImageModule.Terrain
             return 0;
         }
         
+        /// <summary>
+        /// Maps a set of render tile ids to the distinct data tile ids they sample.
+        /// </summary>
+        /// <remarks>
+        /// The returned enumerable is a reusable per-instance scratch set — the caller
+        /// MUST finish iterating before invoking <see cref="GetDataId(IEnumerable{CanonicalTileId})"/>
+        /// again (the next call clears the same set). Do not retain a reference past the
+        /// loop body.
+        /// </remarks>
         public IEnumerable<CanonicalTileId> GetDataId(IEnumerable<CanonicalTileId> tileIdList)
         {
             // With the data-zoom offset of 2, up to 16 render tile ids collapse to the
