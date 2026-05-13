@@ -22,18 +22,29 @@ namespace Mapbox.ImageModule.Terrain
     /// settings, and hands each tile through a <see cref="TerrainStrategy"/> that produces
     /// render + optional collider meshes.
     /// </summary>
-    public class TerrainLayerModule : ITerrainLayerModule
+    public class TerrainLayerModule : ITerrainLayerModule, ITileLifecycleListener
     {
         private TerrainLayerModuleSettings _settings;
         private Source<TerrainData> _rasterSource;
         private HashSet<CanonicalTileId> _retainedTerrainTiles;
         private TerrainStrategy _terrainStrategy;
+        // Owns the Min/MaxElevation bookkeeping that used to live in MapboxMapVisualizer.
+        // Constructed in AttachToVisualizer once the visualizer is available, disposed in
+        // OnDestroy. The visualizer never references this directly.
+        private TerrainBoundsTracker _boundsTracker;
         // One-shot guard so QueryElevation doesn't spam the console on every call when the
         // user genuinely disabled CPU extraction.
         private bool _elevationDisabledWarningLogged;
         // Reused across GetDataId(IEnumerable) calls to avoid allocating a fresh HashSet
         // plus iterator chain from Where/Select/Distinct on every tile-cover update.
         private readonly HashSet<CanonicalTileId> _dataIdScratch = new HashSet<CanonicalTileId>();
+
+        public void AttachToVisualizer(MapboxMapVisualizer visualizer)
+        {
+            // Visualizer is now available — start tracking terrain bounds from tile events.
+            // Disposed in OnDestroy.
+            _boundsTracker = new TerrainBoundsTracker(visualizer.MapInformation, visualizer);
+        }
         
         public TerrainLayerModule(Source<TerrainData> source, TerrainLayerModuleSettings settings) : base()
         {
@@ -136,6 +147,8 @@ namespace Mapbox.ImageModule.Terrain
                 
         public void OnDestroy()
         {
+            _boundsTracker?.Dispose();
+            _boundsTracker = null;
             _rasterSource.OnDestroy();
             _terrainStrategy?.OnDestroy();
         }
