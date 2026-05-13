@@ -90,8 +90,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		// Tracks deferred-rebuild closures so OnDestroy can unsubscribe them. Without this
 		// list, if a TerrainData is disposed before ElevationValuesUpdated fires, the
 		// closure stays attached to the event and roots both tile + data via capture.
-		private readonly List<(TerrainData data, Action rebuild)> _pendingRebuilds =
-			new List<(TerrainData, Action)>();
+		// Keyed by (data, tile) so RegisterCollider's temp→final re-invocation can
+		// de-dup against an already-pending entry.
+		private readonly List<(TerrainData data, UnityMapTile tile, Action rebuild)> _pendingRebuilds =
+			new List<(TerrainData, UnityMapTile, Action)>();
 		
 		public override int RequiredVertexCount
 		{
@@ -297,13 +299,25 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			}
 			else
 			{
+				// De-dup: temp→final transitions re-call RegisterTile with the same
+				// (tile, data). Without this check we'd add a second closure + a second
+				// async bake, doubling work for every transition.
+				for (int i = 0; i < _pendingRebuilds.Count; i++)
+				{
+					if (ReferenceEquals(_pendingRebuilds[i].data, data) &&
+					    ReferenceEquals(_pendingRebuilds[i].tile, tile))
+					{
+						return;
+					}
+				}
+
 				// Defer until values arrive. The callback self-unsubscribes on fire and
 				// no-ops if the tile has since been recycled onto different data, so a late
 				// async readback does not stomp a freshly-reassigned tile. We also track
 				// the subscription in _pendingRebuilds so OnDestroy can detach pending
 				// closures whose data is disposed before the event fires.
 				Action rebuild = null;
-				(TerrainData data, Action rebuild) entry = (data, null);
+				(TerrainData data, UnityMapTile tile, Action rebuild) entry = (data, tile, null);
 				rebuild = () =>
 				{
 					data.ElevationValuesUpdated -= rebuild;
@@ -329,8 +343,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 
 		// Name of the dedicated child GameObject that holds the MeshCollider when
 		// useDedicatedColliderLayer is enabled. Keyed by name so we can locate + reuse it
-		// across pool cycles without maintaining a per-tile dictionary.
-		private const string ColliderChildName = "TerrainCollider";
+		// across pool cycles without maintaining a per-tile dictionary. Distinct from
+		// TerrainColliderMeshName so the GO name and the Mesh name don't collide
+		// (they were both "TerrainCollider" — same string used for two different purposes).
+		private const string ColliderChildName = "TerrainColliderChild";
 
 		// Removes _lastColliderBuild entries whose MeshCollider key has been destroyed
 		// (GameObject teardown, scene unload). Unity's overloaded == returns true for
@@ -643,6 +659,8 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 		/// worker thread. The cooking options must match what the MeshCollider is
 		/// configured with, otherwise PhysX discards the cached data and re-cooks on
 		/// assignment.
+		/// Intentionally NOT [BurstCompile]: the entire body is a single P/Invoke into
+		/// PhysX, so Burst-compiling adds AOT cost with no measurable benefit.
 		/// </summary>
 		private struct BakeColliderJob : IJob
 		{

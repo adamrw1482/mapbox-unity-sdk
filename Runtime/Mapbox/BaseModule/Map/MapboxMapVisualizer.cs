@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Mapbox.BaseModule.Data.DataFetchers;
 using Mapbox.BaseModule.Data.Interfaces;
 using Mapbox.BaseModule.Data.Tiles;
 using Mapbox.BaseModule.Unity;
@@ -157,6 +158,11 @@ namespace Mapbox.BaseModule.Map
                     foreach (var child in tempTile.Children)
                     {
                         _toRemove.Remove(child.UnwrappedTileId);
+                        // Also invalidate any in-flight pending-pool entry that
+                        // snapshotted this child's prior generation. Without this, the
+                        // _toRemove rescue is silently bypassed by the next FlushPendingPool
+                        // tick (child queued earlier, before becoming a filler).
+                        child.Generation++;
                     }
                 }
             }
@@ -230,6 +236,15 @@ namespace Mapbox.BaseModule.Map
         /// </summary>
         public virtual void InternalUpdateCoroutine()
         {
+            // Drain the terrain-bounds dirty flag once per tick. Recompute is O(ActiveTiles)
+            // so doing it here (and not on every PoolTile / CreateTile / async-decode event)
+            // turns what was O(N²) for a Load into a single O(N) pass per frame.
+            if (_terrainBoundsDirty)
+            {
+                RecomputeTerrainBounds();
+                _terrainBoundsDirty = false;
+            }
+
             // Flush tiles deferred from the previous tick. Holding the children active for
             // one extra frame after the parent's ShowTile lets the parent finish rendering
             // before the children deactivate, which avoids a one-frame transparent gap on
@@ -327,6 +342,22 @@ namespace Mapbox.BaseModule.Map
                 Runnable.Instance.StopCoroutine(_internalUpdateCoroutine);
                 _internalUpdateCoroutine = null;
             }
+
+            // Detach any pending async-decode subscriptions so the closures don't keep
+            // shared TerrainData rooted past the visualizer's lifetime.
+            for (int i = 0; i < _pendingElevationWatches.Count; i++)
+            {
+                var (data, handler) = _pendingElevationWatches[i];
+                if (data != null && handler != null)
+                {
+                    data.ElevationValuesUpdated -= handler;
+                }
+            }
+            _pendingElevationWatches.Clear();
+
+            // Flush any deferred pool entries so each pending tile gets its Recycle()
+            // (returns elevation arrays to the pool, restores shared meshes, etc).
+            FlushPendingPool();
 
             foreach (var layerModule in LayerModules)
             {
@@ -497,6 +528,13 @@ namespace Mapbox.BaseModule.Map
             _mapInformation.PositionObjectFor(unityTile.gameObject, unityTile.CanonicalTileId);
         }
 
+        // Set whenever an event that could shift Terrain.Min/Max occurs (tile pooled
+        // while holding a boundary value, async decode arriving on an already-finished
+        // tile, etc). InternalUpdateCoroutine drains the flag once per tick by running
+        // RecomputeTerrainBounds — avoids the O(N²) cost of recursive PoolTile each
+        // calling Recompute itself.
+        private bool _terrainBoundsDirty;
+
         protected void PoolTile(UnityMapTile tile)
         {
             if (tile.LoadingState == LoadingState.None)
@@ -509,11 +547,17 @@ namespace Mapbox.BaseModule.Map
 
             // Snapshot whether this tile is currently holding either bounds value.
             // Recycle() clears TerrainData below, so we have to check first.
+            // Skip the trigger when both endpoints are 0 — that's a flat tile that didn't
+            // actually contribute to the global bounds (would force unnecessary recomputes
+            // every time a sea-level tile is pooled).
             var terrain = _mapInformation.Terrain;
             var terrainData = tile.TerrainContainer?.TerrainData;
-            bool contributedBound = terrainData != null && terrainData.IsElevationDataReady &&
-                (Mathf.Approximately(terrainData.MaxElevation, terrain.MaxElevation) ||
-                 Mathf.Approximately(terrainData.MinElevation, terrain.MinElevation));
+            bool contributedMax = terrainData != null && terrainData.IsElevationDataReady &&
+                terrainData.MaxElevation != 0f &&
+                Mathf.Approximately(terrainData.MaxElevation, terrain.MaxElevation);
+            bool contributedMin = terrainData != null && terrainData.IsElevationDataReady &&
+                terrainData.MinElevation != 0f &&
+                Mathf.Approximately(terrainData.MinElevation, terrain.MinElevation);
 
             TileUnloading(tile);
             ActiveTiles.Remove(tile.UnwrappedTileId);
@@ -531,10 +575,43 @@ namespace Mapbox.BaseModule.Map
                 tile.Children.Clear();
             }
 
-            if (contributedBound)
+            if (contributedMax || contributedMin)
             {
-                RecomputeTerrainBounds();
+                _terrainBoundsDirty = true;
             }
+        }
+
+        // Tracks the one-shot ElevationValuesUpdated subscriptions we've attached for
+        // shader-mode tiles whose CPU decode hasn't arrived yet. Stored by (data,
+        // handler) so OnDestroy can detach if the data is disposed before the event fires.
+        private readonly List<(TerrainData data, Action handler)> _pendingElevationWatches =
+            new List<(TerrainData, Action)>();
+
+        private void WatchForAsyncElevationDecode(TerrainData data)
+        {
+            // De-dup: shared TerrainData is referenced by up to 16 render tiles. One
+            // watch per data is enough — the dirty flag triggers a single recompute.
+            for (int i = 0; i < _pendingElevationWatches.Count; i++)
+            {
+                if (ReferenceEquals(_pendingElevationWatches[i].data, data)) return;
+            }
+            Action handler = null;
+            handler = () =>
+            {
+                data.ElevationValuesUpdated -= handler;
+                for (int i = _pendingElevationWatches.Count - 1; i >= 0; i--)
+                {
+                    if (ReferenceEquals(_pendingElevationWatches[i].data, data) &&
+                        ReferenceEquals(_pendingElevationWatches[i].handler, handler))
+                    {
+                        _pendingElevationWatches.RemoveAt(i);
+                        break;
+                    }
+                }
+                _terrainBoundsDirty = true;
+            };
+            _pendingElevationWatches.Add((data, handler));
+            data.ElevationValuesUpdated += handler;
         }
 
         private void RecomputeTerrainBounds()
@@ -591,6 +668,11 @@ namespace Mapbox.BaseModule.Map
             {
                 tile.Recycle();
                 tile.LoadingState = LoadingState.None;
+                // Mirror PoolTile's bump so any pending-pool entry that snapshotted
+                // this tile's pre-failure generation is invalidated when the next
+                // flush runs. The failure path is otherwise a silent bypass of the
+                // re-borrow protection enforced everywhere else.
+                tile.Generation++;
                 _tileCreator.PutTile(tile);
             }
 
@@ -627,13 +709,22 @@ namespace Mapbox.BaseModule.Map
                 }
 
                 var terrainData = unityMapTile.TerrainContainer?.TerrainData;
-                if (terrainData != null && terrainData.IsElevationDataReady)
+                if (terrainData != null)
                 {
-                    // Recompute from ActiveTiles rather than widening against the existing
-                    // Min/Max: the prior accumulate-only path left MinElevation pinned at
-                    // its initial 0 whenever every loaded tile was at or above sea level,
-                    // since (positive < 0) never fires.
-                    RecomputeTerrainBounds();
+                    if (terrainData.IsElevationDataReady)
+                    {
+                        // Data already decoded — mark bounds dirty for the next coroutine
+                        // tick. Deferring avoids the O(N²) cost of recomputing inside
+                        // every CreateTile within a single Load.
+                        _terrainBoundsDirty = true;
+                    }
+                    else
+                    {
+                        // Shader-mode tiles are "finished" once the texture is ready, but
+                        // the CPU decode (and therefore Min/MaxElevation) arrives async
+                        // later. Hook a one-shot widening so the bounds catch up.
+                        WatchForAsyncElevationDecode(terrainData);
+                    }
                 }
 
                 TileLoaded(unityMapTile);

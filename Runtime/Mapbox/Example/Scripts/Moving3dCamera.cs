@@ -73,8 +73,13 @@ namespace Mapbox.Example.Scripts.MapInput
                 if (!GetPlaneIntersection(pointerPos, out var newPoint))
                     return _output;
                 Vector3 pos = newPoint - _dragOrigin;
-                _targetPosition -= new Vector3(pos.x, 0, pos.z);
-                _output.HasChanged = true;
+                // Skip the redraw when the held pointer didn't actually move (touch Stationary,
+                // mouse-held-still). HasChanged=true here would trigger a full ChangeView+Load.
+                if (pos.x != 0f || pos.z != 0f)
+                {
+                    _targetPosition -= new Vector3(pos.x, 0, pos.z);
+                    _output.HasChanged = true;
+                }
             }
             else if (GetSecondaryHeld())
             {

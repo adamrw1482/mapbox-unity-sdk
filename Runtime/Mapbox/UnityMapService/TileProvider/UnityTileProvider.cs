@@ -131,10 +131,15 @@ namespace Mapbox.UnityMapService.TileProviders
 			var worldCenter = mapInformation.CenterMercator;
 			var scale = mapInformation.Scale;
 
-			// Bounds height for frustum culling: derived from observed terrain elevation.
-			// MaxElevation is in meters, divide by scale to get world units.
-			// Floor of 0.1 ensures tiles are never zero-height (invisible to frustum test).
-			var boundsHeight = Mathf.Max(mapInformation.Terrain.MaxElevation / scale, 0.1f);
+			// Bounds extent for frustum culling: derived from observed terrain elevation.
+			// Min/Max are in meters; divide by scale to get world units. Negative Min
+			// (Death Valley, Dead Sea) shifts the AABB bottom below Y=0; clamping the
+			// bottom at 0 made those tiles fall outside the AABB and frustum-cull.
+			// Floor on the total height ensures tiles are never zero-height (invisible).
+			var maxWorld = mapInformation.Terrain.MaxElevation / scale;
+			var minWorld = mapInformation.Terrain.MinElevation / scale;
+			var boundsBottom = Mathf.Min(0f, minWorld);
+			var boundsHeight = Mathf.Max(maxWorld - boundsBottom, 0.1f);
 
 			// Camera height above the map plane (y=0)
 			var cameraHeight = camPos.y;
@@ -149,7 +154,7 @@ namespace Mapbox.UnityMapService.TileProviders
 
 			// push root tile
 			var rootIdx = AllocNode();
-			_pool[rootIdx].Set(new UnwrappedTileId(0, 0, 0), worldCenter, scale, boundsHeight);
+			_pool[rootIdx].Set(new UnwrappedTileId(0, 0, 0), worldCenter, scale, boundsBottom, boundsHeight);
 			_stack.Push(rootIdx);
 
 			while (_stack.Count > 0)
@@ -179,7 +184,7 @@ namespace Mapbox.UnityMapService.TileProviders
 					var childIdx = AllocNode();
 					_pool[childIdx].Set(
 						new UnwrappedTileId(zoom + 1, childX, childY),
-						worldCenter, scale, boundsHeight);
+						worldCenter, scale, boundsBottom, boundsHeight);
 					_stack.Push(childIdx);
 				}
 			}
@@ -241,6 +246,11 @@ namespace Mapbox.UnityMapService.TileProviders
 			const float kAcuteAngleThresholdSin = 0.707f; // sin(45 degrees)
 			const float kStretchTile = 1.1f;
 
+			// Floor dz at a tiny epsilon. Without this, a camera exactly at ground level
+			// (dz=0) makes r = d/0 → Inf/NaN, the resulting scale fails comparisons,
+			// and the tile pins to its coarsest LOD forever.
+			if (dz < 0.0001f) dz = 0.0001f;
+
 			if (d * kAcuteAngleThresholdSin < dz)
 				return 1f;
 
@@ -255,14 +265,18 @@ namespace Mapbox.UnityMapService.TileProviders
 			public UnwrappedTileId Id;
 			public Bounds Bounds;
 
-			public void Set(UnwrappedTileId id, Vector2d worldCenter, float scale, float boundsHeight)
+			public void Set(UnwrappedTileId id, Vector2d worldCenter, float scale, float boundsBottom, float boundsHeight)
 			{
 				Id = id;
 				var rect = Conversions.TileBoundsInUnitySpace(id, worldCenter, scale);
 				var sizeX = (float)rect.Size.x;
 
+				// AABB extends from Y=boundsBottom up to boundsBottom+boundsHeight, so the
+				// center sits halfway between. Lets Death-Valley-like tiles whose surface
+				// is below Y=0 still pass the frustum test.
+				var centerY = boundsBottom + boundsHeight * 0.5f;
 				Bounds = new Bounds(
-					new Vector3((float)rect.Center.x, boundsHeight * 0.5f, (float)rect.Center.y),
+					new Vector3((float)rect.Center.x, centerY, (float)rect.Center.y),
 					new Vector3(sizeX, boundsHeight, Mathf.Abs(sizeX)));
 			}
 		}

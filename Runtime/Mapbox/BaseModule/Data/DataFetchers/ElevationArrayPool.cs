@@ -23,6 +23,20 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 
 		private static readonly Dictionary<int, Stack<float[]>> _pools = new Dictionary<int, Stack<float[]>>();
 
+		// Editor play-mode stop leaves static state untouched, so the pool would keep
+		// the previous session's buffers referenced. Reset on subsystem registration
+		// (fires before scene load on play-mode entry).
+#if UNITY_EDITOR
+		[UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+		private static void ResetForPlayMode()
+		{
+			lock (_pools)
+			{
+				_pools.Clear();
+			}
+		}
+#endif
+
 		/// <summary>
 		/// Returns a <c>float[]</c> of exactly <paramref name="size"/> entries, either from
 		/// the pool or freshly allocated. Contents are undefined; the caller is expected to

@@ -13,6 +13,8 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - `CustomTMSTile` constructor now takes two additional parameters (`invertY`, `isMapboxService`). The legacy 4-arg constructor (`urlFormat`, `tileId`, `tilesetId`, `useNonReadableTexture`) is preserved as an overload defaulting to `invertY: true, isMapboxService: false` — external subclasses keep compiling. New code should use the 6-arg form.
 - `CustomSource.CreateTile` now always returns a `CustomTMSTile` when `UrlFormat` is set, regardless of `InvertY`. Previously `InvertY=false` returned a plain `RasterTile`. If you relied on the plain-raster path with a non-empty `UrlFormat`, set `UrlFormat = ""` to keep that behavior — empty `UrlFormat` falls back to plain `RasterTile`.
 - `MapboxTileData.SetDisposeCallback` was replaced with `AddDisposeCallback` / `RemoveDisposeCallback` (multicast). This is an `internal` API; only relevant if you have access to it via reflection or an internal-visible-to dependency.
+- `CustomTerrainLayerModuleScript` now passes the user-configured `Settings.DataSettings` (cache size, retina flag, non-readable textures, data-zoom clamp) through to `CustomTerrainSource`. Previously a throwaway `ImageSourceSettings` was used and the Inspector values had no runtime effect.
+- `TileProviderBenchmark`: the Unity Recorder video-capture path has been removed. The benchmark still collects per-frame tile statistics and writes them to JSON; if you need video capture, install `com.unity.recorder` separately and wire it up in your own scene script.
 
 #### Changes
 - Added new documentation.

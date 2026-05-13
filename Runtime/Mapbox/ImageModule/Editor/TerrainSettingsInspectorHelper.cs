@@ -47,16 +47,16 @@ namespace Mapbox.ImageModule.Editor
 			{
 				if (child.name == ExtractFieldName && forcedOn)
 				{
-					// Persist the forced state into the serialized value so runtime code that
-					// reads ExtractCpuElevationData sees the effective configuration (and so
-					// TerrainLayerModule.Initialize doesn't log an override warning).
-					if (!child.boolValue)
-					{
-						child.boolValue = true;
-					}
+					// Display-only override. We do NOT write child.boolValue = true here:
+					// the runtime evaluates `TerrainLayerModuleSettings.NeedsCpuElevation`
+					// (an OR over the forcing flags) directly, so the persisted value
+					// stays as the user set it. Writing during OnGUI would silently dirty
+					// every asset/scene on inspection.
 					using (new EditorGUI.DisabledScope(true))
 					{
-						EditorGUILayout.PropertyField(child);
+						EditorGUI.showMixedValue = false;
+						EditorGUILayout.Toggle(new GUIContent(child.displayName, child.tooltip), true);
+						EditorGUI.showMixedValue = child.hasMultipleDifferentValues;
 					}
 					EditorGUILayout.HelpBox(
 						$"Extraction is force-enabled by {reason}. CPU elevation will be decoded regardless of this checkbox.",

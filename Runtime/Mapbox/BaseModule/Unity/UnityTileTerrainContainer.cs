@@ -204,6 +204,11 @@ namespace Mapbox.BaseModule.Unity
             if (TerrainData != null)
             {
                 TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
+                // Symmetric detach: previously only the ElevationValuesUpdated handler was
+                // removed, but the multicast dispose callback stayed wired. On a later
+                // eviction of shared TerrainData, that delegate would fire into a destroyed
+                // tile — exactly the class of bug the multicast change was meant to fix.
+                TerrainData.RemoveDisposeCallback(_onDisposeCallback);
                 TerrainData = null;
             }
         }

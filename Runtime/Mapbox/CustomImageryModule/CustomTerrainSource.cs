@@ -20,6 +20,13 @@ namespace Mapbox.CustomImageryModule
 
         protected override RasterTile CreateTile(CanonicalTileId tileId, string tilesetId)
         {
+            // Empty UrlFormat: fall back to plain RasterTile so the base path's URL
+            // construction is used. Without this, CustomTMSTile.Initialize would call
+            // string.Format(null, …) and throw. Mirrors the same fallback in CustomSource.
+            if (string.IsNullOrEmpty(_customSourceSettings.UrlFormat))
+            {
+                return new RasterTile(tileId, tilesetId, true);
+            }
             return new CustomTMSTile(
                 _customSourceSettings.UrlFormat,
                 tileId, tilesetId, true,

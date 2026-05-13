@@ -125,8 +125,14 @@ namespace Mapbox.Example.Scripts.MapInput
             {
                 var oldCursorLatLng = Conversions.LatitudeLongitudeToWebMercator(mapInformation.ConvertPositionToLatLng(_rotationSettings.MapRoot.InverseTransformPoint(_dragOrigin)));
                 var newCursorLatLng = Conversions.LatitudeLongitudeToWebMercator(mapInformation.ConvertPositionToLatLng(_rotationSettings.MapRoot.InverseTransformPoint(cursorHit)));
-                newMercatorCenter = mapInformation.CenterMercator - (newCursorLatLng - oldCursorLatLng);
-                _output.HasChanged = true;
+                var mercatorDelta = newCursorLatLng - oldCursorLatLng;
+                // Skip the redraw when the cursor hit didn't actually move (Stationary
+                // touch, mouse-held-still). Avoids per-frame ChangeView round-trips.
+                if (mercatorDelta.x != 0 || mercatorDelta.y != 0)
+                {
+                    newMercatorCenter = mapInformation.CenterMercator - mercatorDelta;
+                    _output.HasChanged = true;
+                }
             }
             else if (GetSecondaryHeld() && _rotationSettings.Enabled)
             {

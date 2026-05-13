@@ -10,6 +10,11 @@ namespace Mapbox.BaseModule.Data.DataFetchers
         [HideInInspector] public float[] ElevationValues;
         public bool IsElevationDataReady = false;
 
+        // Flipped to true by Dispose(). Async readback paths can complete after the
+        // owning TerrainData has been evicted; they check this flag before assigning
+        // and return the rented buffer to the pool instead of leaking it.
+        public bool IsDisposed { get; private set; }
+
         /// <summary>
         /// Fires whenever <see cref="SetElevationValues(float[])"/> or
         /// <see cref="SetElevationValues(float[],float,float)"/> completes. Multiple
@@ -51,19 +56,26 @@ namespace Mapbox.BaseModule.Data.DataFetchers
                 ElevationValues = null;
             }
             IsElevationDataReady = false;
+            IsDisposed = true;
             base.Dispose();
         }
+
+        // Cached side length of the square heightmap (sqrt(Length)). Computed once
+        // on Set to avoid per-call Mathf.Sqrt in QueryHeightData / ReadElevation.
+        private int _cachedWidth;
 
         public void SetElevationValues(float[] elevationArray)
         {
             ElevationValues = elevationArray;
+            _cachedWidth = elevationArray != null ? (int)Mathf.Sqrt(elevationArray.Length) : 0;
             IsElevationDataReady = true;
             ElevationValuesUpdated?.Invoke();
         }
-        
+
         public void SetElevationValues(float[] elevationArray, float min, float max)
         {
             ElevationValues = elevationArray;
+            _cachedWidth = elevationArray != null ? (int)Mathf.Sqrt(elevationArray.Length) : 0;
             IsElevationDataReady = true;
             MinElevation = min;
             MaxElevation = max;
@@ -92,7 +104,7 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 
         private float ReadElevation(float x, float y, Vector4 terrainTextureScaleOffset)
         {
-            var width = (int) Mathf.Sqrt(ElevationValues.Length);
+            var width = _cachedWidth;
             var sectionWidth = width * terrainTextureScaleOffset.x - 1f;
             var xx = terrainTextureScaleOffset.z * width + Mathf.Clamp01(x) * sectionWidth;
             var yy = terrainTextureScaleOffset.w * width + Mathf.Clamp01(y) * sectionWidth;

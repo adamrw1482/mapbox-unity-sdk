@@ -41,10 +41,27 @@ namespace Mapbox.UnityMapService
 		{
 			AsyncGPUReadback.Request(texture, 0, (t) =>
 			{
+				// AsyncGPUReadback fires on the main thread, but possibly after the
+				// owning TerrainData was disposed (cache eviction during fetch).
+				// Guard before renting from the pool: assigning to disposed data would
+				// leak the rented buffer and could corrupt a future Rent if the same
+				// TerrainData later gets re-used.
+				if (terrainData == null || terrainData.IsDisposed)
+				{
+					return;
+				}
 				var width = t.width;
 				var data = t.GetData<Color32>();
 				var heightData = ElevationArrayPool.Rent(width * width);
 				RunDecodeJob(data, width, heightData, out var min, out var max);
+				// Re-check after the (potentially long) decode: dispose may have arrived
+				// in the interim. Return the buffer rather than assigning into the dead
+				// data object.
+				if (terrainData.IsDisposed)
+				{
+					ElevationArrayPool.Return(heightData);
+					return;
+				}
 				terrainData.SetElevationValues(heightData, min, max);
 			});
 		}

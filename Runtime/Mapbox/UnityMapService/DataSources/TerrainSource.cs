@@ -132,13 +132,16 @@ namespace Mapbox.UnityMapService.DataSources
         
         protected IEnumerator ExtractElevationValues(TerrainData data)
         {
+            // Use the TerrainData overload (sets MinElevation/MaxElevation as part of the
+            // decode). Previously this path used Action<float[]> + the 1-arg SetElevationValues,
+            // which left Min/Max at 0 — meaning RecomputeTerrainBounds never widened the
+            // shared TerrainInfo for any tile loaded through LoadTileCoroutine.
             var finished = false;
-            _elevationDataExtractionStrategy.ExtractHeightData(data.Texture, (elevationArray) =>
-            {
-                data.SetElevationValues(elevationArray);
-                finished = true;
-            });
+            Action onDone = () => finished = true;
+            data.ElevationValuesUpdated += onDone;
+            _elevationDataExtractionStrategy.ExtractHeightData(data.Texture, data);
             while (!finished) yield return null;
+            data.ElevationValuesUpdated -= onDone;
         }
         
         protected override void TextureReceivedFromFile(TerrainData cacheItem)

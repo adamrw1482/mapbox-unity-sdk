@@ -58,7 +58,9 @@ namespace Mapbox.ImageModule.Editor
 			// (which Unity then records as a deliberate, undoable change).
 			var fieldRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 			EditorGUI.BeginChangeCheck();
+			EditorGUI.showMixedValue = property.hasMultipleDifferentValues;
 			var newValue = EditorGUI.IntPopup(fieldRect, label, current, labels, factors);
+			EditorGUI.showMixedValue = false;
 			if (EditorGUI.EndChangeCheck())
 			{
 				property.intValue = newValue;
@@ -117,22 +119,6 @@ namespace Mapbox.ImageModule.Editor
 				return (baseLine + " Lower-density geometry — fine terrain details will be lost.", MessageType.Info);
 			}
 			return (baseLine + " Very coarse — terrain will look blocky and neighboring tiles may visibly mismatch at seams.", MessageType.Warning);
-		}
-
-		private static int NearestPreset(int[] presets, int value)
-		{
-			var best = presets[0];
-			var bestDiff = Mathf.Abs(best - value);
-			for (int i = 1; i < presets.Length; i++)
-			{
-				var diff = Mathf.Abs(presets[i] - value);
-				if (diff < bestDiff)
-				{
-					bestDiff = diff;
-					best = presets[i];
-				}
-			}
-			return best;
 		}
 
 		private static float CalcHelpBoxHeight(string message, float width)
