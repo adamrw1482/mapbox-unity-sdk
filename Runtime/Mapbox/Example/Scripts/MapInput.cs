@@ -52,6 +52,21 @@ namespace Mapbox.Example.Scripts.MapInput
 		// touches[0] — without this, single-finger pan jumps after a pinch ends.
 		protected bool TouchCountDecreasedThisFrame { get; private set; }
 
+		public enum TwoFingerGesture
+		{
+			None,
+			Pinch,
+			Tilt
+		}
+
+		// Per-frame two-finger gesture decision. Computed once in UpdateInputState so
+		// pinch and tilt detectors read consistent state and exactly one of them can
+		// fire per frame — without this, both helpers update _previousPinchDistance
+		// independently and tilt's pinch-comparison sees stale (post-update) state.
+		protected TwoFingerGesture CurrentTwoFingerGesture { get; private set; }
+		private float _pinchDeltaThisFrame;
+		private float _tiltAvgDeltaYThisFrame;
+
 		public virtual void Initialize(Camera camera, IMapInformation mapInfo)
 		{
 			_camera = camera ? camera : Camera.main;
@@ -131,8 +146,68 @@ namespace Mapbox.Example.Scripts.MapInput
 			var touchCount = GetTouchCount();
 			TouchCountDecreasedThisFrame = touchCount < _previousTouchCount;
 			_previousTouchCount = touchCount;
+
+			// Reset gesture state every frame; only re-arm if a valid two-finger
+			// pinch/tilt gesture is currently detected.
+			CurrentTwoFingerGesture = TwoFingerGesture.None;
+			_pinchDeltaThisFrame = 0f;
+			_tiltAvgDeltaYThisFrame = 0f;
+
 			if (touchCount < 2)
+			{
 				_pinchActive = false;
+				return;
+			}
+
+			// Read both touches' positions and Y-deltas, then pick a single gesture for
+			// this frame. Doing this once here (not redundantly inside each detector)
+			// keeps the decision symmetric and prevents stale-state races.
+			Vector2 touch0Pos, touch1Pos;
+			float touch0DeltaY, touch1DeltaY;
+#if MAPBOX_NEW_INPUT_SYSTEM
+			var t0 = Touch.activeTouches[0];
+			var t1 = Touch.activeTouches[1];
+			touch0Pos = t0.screenPosition;
+			touch1Pos = t1.screenPosition;
+			touch0DeltaY = t0.delta.y;
+			touch1DeltaY = t1.delta.y;
+#else
+			var t0 = Input.GetTouch(0);
+			var t1 = Input.GetTouch(1);
+			touch0Pos = t0.position;
+			touch1Pos = t1.position;
+			touch0DeltaY = t0.deltaPosition.y;
+			touch1DeltaY = t1.deltaPosition.y;
+#endif
+			var currentDistance = Vector2.Distance(touch0Pos, touch1Pos);
+
+			if (!_pinchActive)
+			{
+				// First frame of two-finger contact: just seed the previous distance.
+				// No gesture decision until next frame produces a real delta.
+				_pinchActive = true;
+				_previousPinchDistance = currentDistance;
+				return;
+			}
+
+			var pinchDelta = currentDistance - _previousPinchDistance;
+			_previousPinchDistance = currentDistance;
+
+			var pinchMag = Mathf.Abs(pinchDelta);
+			var avgDeltaY = (touch0DeltaY + touch1DeltaY) / 2f;
+			var tiltMag = Mathf.Abs(avgDeltaY);
+			var bothFingersSameDirection = touch0DeltaY * touch1DeltaY > 0f;
+
+			if (pinchMag > tiltMag && pinchMag > 0.01f)
+			{
+				CurrentTwoFingerGesture = TwoFingerGesture.Pinch;
+				_pinchDeltaThisFrame = pinchDelta;
+			}
+			else if (bothFingersSameDirection && tiltMag >= 1f && tiltMag > pinchMag)
+			{
+				CurrentTwoFingerGesture = TwoFingerGesture.Tilt;
+				_tiltAvgDeltaYThisFrame = avgDeltaY;
+			}
 		}
 
 		/// <summary>
@@ -250,46 +325,27 @@ namespace Mapbox.Example.Scripts.MapInput
 		}
 
 		/// <summary>
-		/// Detects pinch-to-zoom (two fingers) or mouse scroll wheel.
-		/// Returns true if zoom input is active, with the delta as a zoom level change.
-		/// Positive = zoom in, negative = zoom out.
-		/// When two fingers are active, only returns true if pinch is the dominant gesture (vs tilt).
+		/// Returns true if zoom input was detected this frame (pinch or mouse scroll).
+		/// Pinch/tilt mutual-exclusion is enforced in <see cref="UpdateInputState"/> —
+		/// this helper just reads the cached decision and emits the scaled delta.
 		/// </summary>
 		protected bool GetPinchZoomDelta(out float zoomDelta, float pinchSensitivity = 5f)
 		{
 			zoomDelta = 0f;
 
-#if MAPBOX_NEW_INPUT_SYSTEM
-			var touchCount = Touch.activeTouches.Count;
-			if (touchCount >= 2)
+			if (CurrentTwoFingerGesture == TwoFingerGesture.Pinch)
 			{
-				var touch0 = Touch.activeTouches[0];
-				var touch1 = Touch.activeTouches[1];
-				var currentDistance = Vector2.Distance(touch0.screenPosition, touch1.screenPosition);
+				zoomDelta = _pinchDeltaThisFrame / Screen.height * pinchSensitivity;
+				return true;
+			}
 
-				if (!_pinchActive)
-				{
-					_pinchActive = true;
-					_previousPinchDistance = currentDistance;
-					return false;
-				}
-
-				var pinchDelta = currentDistance - _previousPinchDistance;
-				_previousPinchDistance = currentDistance;
-
-				var avgDeltaY = (touch0.delta.y + touch1.delta.y) / 2f;
-				var pinchMagnitude = Mathf.Abs(pinchDelta);
-				var tiltMagnitude = Mathf.Abs(avgDeltaY);
-
-				if (pinchMagnitude > tiltMagnitude && pinchMagnitude > 0.01f)
-				{
-					zoomDelta = pinchDelta / Screen.height * pinchSensitivity;
-					return true;
-				}
-
+			// Mouse scroll fallback only when no two-finger gesture is active.
+			if (GetTouchCount() >= 2)
+			{
 				return false;
 			}
 
+#if MAPBOX_NEW_INPUT_SYSTEM
 			if (Mouse.current != null)
 			{
 				var scroll = Mouse.current.scroll.ReadValue();
@@ -302,111 +358,30 @@ namespace Mapbox.Example.Scripts.MapInput
 					return true;
 				}
 			}
-
-			return false;
 #else
-			if (Input.touchCount >= 2)
-			{
-				var touch0 = Input.GetTouch(0);
-				var touch1 = Input.GetTouch(1);
-				var currentDistance = Vector2.Distance(touch0.position, touch1.position);
-
-				if (!_pinchActive)
-				{
-					_pinchActive = true;
-					_previousPinchDistance = currentDistance;
-					return false;
-				}
-
-				var pinchDelta = currentDistance - _previousPinchDistance;
-				_previousPinchDistance = currentDistance;
-
-				// Compare pinch magnitude vs tilt magnitude to pick the dominant gesture
-				var avgDeltaY = (touch0.deltaPosition.y + touch1.deltaPosition.y) / 2f;
-				var pinchMagnitude = Mathf.Abs(pinchDelta);
-				var tiltMagnitude = Mathf.Abs(avgDeltaY);
-
-				if (pinchMagnitude > tiltMagnitude && pinchMagnitude > 0.01f)
-				{
-					zoomDelta = pinchDelta / Screen.height * pinchSensitivity;
-					return true;
-				}
-
-				return false;
-			}
-
 			if (Input.mouseScrollDelta.magnitude > 0)
 			{
 				zoomDelta = Input.GetAxis("Mouse ScrollWheel");
 				return true;
 			}
-
-			return false;
 #endif
+			return false;
 		}
 
 		/// <summary>
-		/// Detects two-finger vertical drag for pitch/tilt control.
-		/// Both fingers moving in the same vertical direction = tilt.
-		/// Only returns true if tilt is the dominant gesture (vs pinch).
+		/// Returns true if a two-finger vertical-tilt gesture was detected this frame.
+		/// Pinch/tilt mutual-exclusion is enforced in <see cref="UpdateInputState"/> —
+		/// this helper just reads the cached decision and emits the scaled delta.
 		/// </summary>
 		protected bool GetTwoFingerTiltDelta(out float tiltDelta, float tiltSensitivity = 0.5f)
 		{
+			if (CurrentTwoFingerGesture == TwoFingerGesture.Tilt)
+			{
+				tiltDelta = _tiltAvgDeltaYThisFrame / Screen.height * tiltSensitivity;
+				return true;
+			}
 			tiltDelta = 0f;
-
-#if MAPBOX_NEW_INPUT_SYSTEM
-			if (Touch.activeTouches.Count < 2)
-				return false;
-
-			var touch0 = Touch.activeTouches[0];
-			var touch1 = Touch.activeTouches[1];
-
-			var deltaY0 = touch0.delta.y;
-			var deltaY1 = touch1.delta.y;
-
-			if (deltaY0 * deltaY1 <= 0)
-				return false;
-
-			var avgDeltaY = (deltaY0 + deltaY1) / 2f;
-			if (Mathf.Abs(avgDeltaY) < 1f)
-				return false;
-
-			var currentDistance = Vector2.Distance(touch0.screenPosition, touch1.screenPosition);
-			var pinchDelta = _pinchActive ? Mathf.Abs(currentDistance - _previousPinchDistance) : 0f;
-
-			if (Mathf.Abs(avgDeltaY) <= pinchDelta)
-				return false;
-
-			tiltDelta = avgDeltaY / Screen.height * tiltSensitivity;
-			return true;
-#else
-			if (Input.touchCount < 2)
-				return false;
-
-			var touch0 = Input.GetTouch(0);
-			var touch1 = Input.GetTouch(1);
-
-			var deltaY0 = touch0.deltaPosition.y;
-			var deltaY1 = touch1.deltaPosition.y;
-
-			// Both fingers must move in the same vertical direction
-			if (deltaY0 * deltaY1 <= 0)
-				return false;
-
-			var avgDeltaY = (deltaY0 + deltaY1) / 2f;
-			if (Mathf.Abs(avgDeltaY) < 1f)
-				return false;
-
-			// Compare tilt magnitude vs pinch magnitude to pick the dominant gesture
-			var currentDistance = Vector2.Distance(touch0.position, touch1.position);
-			var pinchDelta = _pinchActive ? Mathf.Abs(currentDistance - _previousPinchDistance) : 0f;
-
-			if (Mathf.Abs(avgDeltaY) <= pinchDelta)
-				return false;
-
-			tiltDelta = avgDeltaY / Screen.height * tiltSensitivity;
-			return true;
-#endif
+			return false;
 		}
 
 		/// <summary>

@@ -20,7 +20,10 @@ namespace Mapbox.UnityMapService
 		{
 			var rgbData = texture.GetRawTextureData<byte>();
 			var width = texture.width;
-			var heightData = ElevationArrayPool.Rent(width * width);
+			// Fresh allocation, not pool-rented: this overload hands the buffer to
+			// external code with no return contract. Pool-renting here would drain
+			// the pool over the session as callers never call Return.
+			var heightData = new float[width * width];
 			RunDecodeJob(rgbData, width, heightData, out _, out _);
 			callback?.Invoke(heightData);
 		}

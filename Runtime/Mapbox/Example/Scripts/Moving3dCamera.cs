@@ -144,9 +144,21 @@ namespace Mapbox.Example.Scripts.MapInput
             var preDistance = CalculateCameraDistance(mapInformation, ZoomValue);
             var camDistanceToMouse = Vector3.Distance(_camera.transform.position, position);
             ZoomValue = postZoom;
-            var postDistance = CalculateCameraDistance(mapInformation, postZoom);
-            var newCamDistanceToMouse = camDistanceToMouse * (postDistance / preDistance);
             CameraDistance = CalculateCameraDistance(mapInformation, ZoomValue);
+
+            // Guard against div-by-zero: top-down orthographic, first-frame state, or
+            // a camera curve that evaluates to 0 at this zoom can make either divisor
+            // 0 and propagate NaN into _targetPosition. Fall back to a straight target
+            // snap when the cursor-zoom math has nothing meaningful to interpolate.
+            const float MinDistance = 0.0001f;
+            if (preDistance <= MinDistance || camDistanceToMouse <= MinDistance)
+            {
+                _targetPosition = postZoomTarget;
+                return;
+            }
+
+            var postDistance = CameraDistance;
+            var newCamDistanceToMouse = camDistanceToMouse * (postDistance / preDistance);
             _targetPosition = Vector3.LerpUnclamped(postZoomTarget, postZoomPos, (camDistanceToMouse - newCamDistanceToMouse) / camDistanceToMouse);
         }
 

@@ -83,6 +83,11 @@ namespace Mapbox.UnityMapService.TileProviders
 
 			if (Settings.Camera == null) Settings.Camera = Camera.main;
 
+			if (Settings.MinimumZoomLevel > Settings.MaximumZoomLevel)
+			{
+				Debug.LogWarning($"UnityTileProvider: MinimumZoomLevel ({Settings.MinimumZoomLevel}) is greater than MaximumZoomLevel ({Settings.MaximumZoomLevel}). Tiles will be force-split until the absolute zoom cap. Check the Inspector configuration.");
+			}
+
 			_pool = new TileNode[256];
 			_stack = new Stack<int>(256);
 		}

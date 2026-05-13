@@ -54,22 +54,19 @@ namespace Mapbox.BaseModule.Unity
         /// <param name="state">Marks the tile container as temporary (using a parent's data while its own loads) or final.</param>
         public void SetTerrainData(TerrainData terrainData, bool useShaderElevation, TileContainerState state = TileContainerState.Final)
         {
-            // Callers must pass a non-null terrainData; the rest of this method
-            // dereferences unconditionally. Bail fast in DEBUG builds so the contract
-            // is obvious if a future caller violates it.
-            if (terrainData == null)
-            {
-                Debug.LogError("UnityTileTerrainContainer.SetTerrainData called with null TerrainData; ignoring.");
-                return;
-            }
-
-            // Detach from the previous TerrainData (if any) before swapping. Without this,
-            // a reassignment leaks our subscription on the old data and causes spurious
-            // bounds updates if that data is shared with other tiles.
+            // Detach from the previous TerrainData unconditionally — null-callers
+            // (deliberately or accidentally clearing the slot) would otherwise leak
+            // the prior subscriptions on the shared TerrainData.
             if (TerrainData != null)
             {
                 TerrainData.ElevationValuesUpdated -= OnElevationValuesUpdated;
                 TerrainData.RemoveDisposeCallback(_onDisposeCallback);
+            }
+
+            if (terrainData == null)
+            {
+                TerrainData = null;
+                return;
             }
 
             State = state;

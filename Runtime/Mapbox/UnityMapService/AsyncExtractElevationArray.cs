@@ -23,7 +23,10 @@ namespace Mapbox.UnityMapService
 			{
 				var width = t.width;
 				var data = t.GetData<Color32>();
-				var heightData = ElevationArrayPool.Rent(width * width);
+				// Fresh allocation, not pool-rented: this overload hands the buffer to
+				// external code with no return contract. Pool-renting here would drain
+				// the pool over the session as callers never call Return.
+				var heightData = new float[width * width];
 				RunDecodeJob(data, width, heightData, out _, out _);
 				callback?.Invoke(heightData);
 			});

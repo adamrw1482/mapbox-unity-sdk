@@ -1,10 +1,17 @@
 ## CHANGELOG
 
-### v3.0.7
+### v3.1.0
+
+Minor-version bump per semver: this release contains source-breaking API changes (listed below) alongside the v3.0.7 feature work. The 3.0.7 designation was previously used in development; published 3.0.7 builds, if any, are superseded by 3.1.0.
+
+#### New dependencies
+- Added `com.unity.burst@1.8.12`. The terrain-RGB elevation decoder and the collider vertex-fill jobs are now Burst-compiled. First-time domain reload pays a one-shot AOT compile cost; runtime decoding is significantly faster.
 
 #### Breaking changes
 - `IMapInformation` gained a new member: `TerrainInfo Terrain { get; }`. Any project that ships its own `IMapInformation` implementation will need to add this property — return an instance of `TerrainInfo` (defaults are fine for a non-terrain map). The built-in `MapInformation` already implements it.
+- `TerrainData.ElevationValuesUpdated` is now declared `public event Action` (was a plain `public Action` field). External code can subscribe with `+=` / unsubscribe with `-=` as before, but **direct assignment (`= myCallback`) and direct invocation (`ElevationValuesUpdated()`) no longer compile**. Migrate to `+=` for subscription. The previous single-setter `SetElevationChangedCallback` (which silently wiped other subscribers) has been removed.
 - `CustomTMSTile` constructor now takes two additional parameters (`invertY`, `isMapboxService`). The legacy 4-arg constructor (`urlFormat`, `tileId`, `tilesetId`, `useNonReadableTexture`) is preserved as an overload defaulting to `invertY: true, isMapboxService: false` — external subclasses keep compiling. New code should use the 6-arg form.
+- `CustomSource.CreateTile` now always returns a `CustomTMSTile` when `UrlFormat` is set, regardless of `InvertY`. Previously `InvertY=false` returned a plain `RasterTile`. If you relied on the plain-raster path with a non-empty `UrlFormat`, set `UrlFormat = ""` to keep that behavior — empty `UrlFormat` falls back to plain `RasterTile`.
 - `MapboxTileData.SetDisposeCallback` was replaced with `AddDisposeCallback` / `RemoveDisposeCallback` (multicast). This is an `internal` API; only relevant if you have access to it via reflection or an internal-visible-to dependency.
 
 #### Changes
@@ -12,10 +19,23 @@
 - Added a new demo scene demonstrating how to use POI information.
 - Introduced new inspector scripts to improve editor UI/UX.
 - Reorganized and cleaned up the Mapbox context menu used for creating Mapbox ScriptableObjects.
+- New camera system (`MapCameraBehaviour<T>`, `SlippyMapCameraBehaviour`, `Moving3dCameraBehaviour`) with touch input, two-finger pinch/tilt, and optional Input System package support. See `Documentation~/CameraSystem.md`.
+- Tile-provider LOD overhaul: forward-projected distance, acute-angle compensation, frustum buffer, and reusable scratch arrays. Tile counts at high pitch are 40–60% lower vs the prior screen-fraction split.
+- Terrain rendering: Burst-compiled decode, async PhysX collider bake, shared-flat-mesh + MaterialPropertyBlock per-tile state (saves Material allocations), bilinear height sampling.
+- `TerrainInfo` exposes observed Min/Max elevation on `IMapInformation.Terrain`; tile-provider AABBs use it.
 
 #### Fixes
 - Fixed an issue where vector layer range limits were not applied correctly during data processing.
 - Fixed incorrect limit validation and bounds checking in the `LatitudeLongitude` struct.
+- Fixed deferred-pool re-borrow race in `MapboxMapVisualizer` (generation counter).
+- Fixed multicast dispose notification — shared `TerrainData` now notifies all consumers on eviction.
+- Fixed CPU-elevation mesh leak via `.mesh` clone path.
+- Fixed `_sharedFlatMesh` clear regression on shader→CPU transition.
+- Fixed terrain bounds remaining pinned at 0 when all loaded tiles were at/above sea level.
+- Fixed iOS tile flicker on zoom out (child-pool deferred by one frame after parent show).
+- Fixed `Moving3dCamera.Zoom()` NaN when `preDistance` or camera→cursor distance is 0.
+- Fixed pinch/tilt mutual exclusion (decision now made once per frame in `UpdateInputState`).
+- Fixed pan jump after pinch-to-single-finger transition (re-seed drag origin on touch-count decrease).
 
 ### v3.0.6
 

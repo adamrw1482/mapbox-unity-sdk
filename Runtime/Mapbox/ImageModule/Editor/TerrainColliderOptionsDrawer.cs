@@ -68,8 +68,8 @@ namespace Mapbox.ImageModule.Editor
 			}
 
 			var colliderLayer = property.FindPropertyRelative("colliderLayerId");
-			// foldout + addCollider + asyncBake + useDedicated + colliderLayer
-			return line + spacing + line + spacing + line + spacing + line + spacing + line + spacing + EditorGUI.GetPropertyHeight(colliderLayer, true);
+			// foldout + addCollider + asyncBake + useDedicated + colliderLayer = 4 line-rows + 1 var-row
+			return line + spacing + line + spacing + line + spacing + line + spacing + EditorGUI.GetPropertyHeight(colliderLayer, true);
 		}
 	}
 }

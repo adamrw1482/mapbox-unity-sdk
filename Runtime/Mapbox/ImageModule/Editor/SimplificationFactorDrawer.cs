@@ -43,27 +43,43 @@ namespace Mapbox.ImageModule.Editor
 
 		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
 		{
+			label = EditorGUI.BeginProperty(position, label, property);
+
 			var attr = (SimplificationFactorAttribute)attribute;
 			EnsurePresetsCached(attr);
 			var factors = _cachedFactors;
 			var labels = _cachedLabels;
 
-			// Snap legacy non-preset values to the nearest preset so the dropdown always
-			// matches a concrete entry.
 			var current = property.intValue;
-			if (System.Array.IndexOf(factors, current) < 0)
+			var inPresets = System.Array.IndexOf(factors, current) >= 0;
+			// Don't write through SerializedProperty during paint just because the
+			// value isn't in the preset list — that silently dirties every legacy
+			// asset on first open. Show a warning and let the user pick a preset
+			// (which Unity then records as a deliberate, undoable change).
+			var fieldRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
+			EditorGUI.BeginChangeCheck();
+			var newValue = EditorGUI.IntPopup(fieldRect, label, current, labels, factors);
+			if (EditorGUI.EndChangeCheck())
 			{
-				property.intValue = NearestPreset(factors, current);
-				current = property.intValue;
+				property.intValue = newValue;
 			}
 
-			var fieldRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
-			property.intValue = EditorGUI.IntPopup(fieldRect, label, current, labels, factors);
-
-			var (message, severity) = BuildMessage(property.intValue, attr.VertexBase);
+			string message;
+			MessageType severity;
+			if (!inPresets)
+			{
+				message = $"Legacy value {current} is not a preset. Pick a preset above to migrate; the value is otherwise left untouched.";
+				severity = MessageType.Warning;
+			}
+			else
+			{
+				(message, severity) = BuildMessage(property.intValue, attr.VertexBase);
+			}
 			var helpHeight = CalcHelpBoxHeight(message, position.width);
 			var helpRect = new Rect(position.x, fieldRect.yMax + Spacing, position.width, helpHeight);
 			EditorGUI.HelpBox(helpRect, message, severity);
+
+			EditorGUI.EndProperty();
 		}
 
 		public override float GetPropertyHeight(SerializedProperty property, GUIContent label)

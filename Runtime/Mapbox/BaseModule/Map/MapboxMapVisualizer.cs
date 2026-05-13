@@ -16,6 +16,11 @@ namespace Mapbox.BaseModule.Map
     [Serializable]
     public class MapboxMapVisualizer : IMapVisualizer
     {
+        // Upper bound of the Mercator tile pyramid. Used by DelveInto and any other
+        // recursion that needs an absolute hard cap independent of user-configurable
+        // MaximumZoomLevel settings (which represent LOD intent, not pyramid depth).
+        public const int MaxMercatorZoom = 22;
+
         public List<ILayerModule> LayerModules;
         public Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles { get; private set; }
         public List<UnityMapTile> TempTiles { get; private set; }
@@ -426,7 +431,7 @@ namespace Mapbox.BaseModule.Map
                         frame.Found |= 1 << slot;
                         _delveStack[frameIdx] = frame;
                     }
-                    else if (frame.Depth > 0 && frame.TileId.Z < 22)
+                    else if (frame.Depth > 0 && frame.TileId.Z < MaxMercatorZoom)
                     {
                         // Save the advanced NextChild before pushing the child frame —
                         // we'll resume this slot's evaluation after the child finishes.
@@ -554,8 +559,11 @@ namespace Mapbox.BaseModule.Map
                     if (td.MinElevation < min) min = td.MinElevation;
                 }
             }
-            terrain.MaxElevation = any ? max : 0f;
-            terrain.MinElevation = any ? min : 0f;
+            // When no tile is contributing, fall back to TerrainInfo's conservative
+            // defaults rather than 0 — a flat AABB would frustum-cull plausible
+            // mountains on the next frame before any sample arrives.
+            terrain.MaxElevation = any ? max : TerrainInfo.DefaultMaxElevation;
+            terrain.MinElevation = any ? min : TerrainInfo.DefaultMinElevation;
         }
 
         protected void CreateTempTile(UnwrappedTileId tileId, out UnityMapTile tile)
