@@ -101,7 +101,7 @@ namespace Mapbox.BaseModule.Map
             {
                 if (module is ITileLifecycleListener listener)
                 {
-                    listener.AttachToVisualizer(this);
+                    listener.AttachToMapVisualizer(this);
                 }
             }
 

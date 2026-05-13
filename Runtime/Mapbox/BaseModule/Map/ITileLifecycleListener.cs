@@ -6,13 +6,13 @@ namespace Mapbox.BaseModule.Map
     /// to <c>TileLoaded</c> / <c>TileUnloading</c> events for bookkeeping that depends on
     /// tile lifecycle).
     ///
-    /// <see cref="MapboxMapVisualizer.Initialize"/> calls <see cref="AttachToVisualizer"/>
+    /// <see cref="MapboxMapVisualizer.Initialize"/> calls <see cref="AttachToMapVisualizer"/>
     /// on every layer module that implements this interface, after the modules are added
     /// but before their own <c>Initialize</c> runs. Modules that don't need the
     /// visualizer reference simply don't implement this interface.
     /// </summary>
     public interface ITileLifecycleListener
     {
-        void AttachToVisualizer(MapboxMapVisualizer visualizer);
+        void AttachToMapVisualizer(MapboxMapVisualizer visualizer);
     }
 }

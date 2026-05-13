@@ -29,8 +29,8 @@ namespace Mapbox.ImageModule.Terrain
         private HashSet<CanonicalTileId> _retainedTerrainTiles;
         private TerrainStrategy _terrainStrategy;
         // Owns the Min/MaxElevation bookkeeping that used to live in MapboxMapVisualizer.
-        // Constructed in AttachToVisualizer once the visualizer is available, disposed in
-        // OnDestroy. The visualizer never references this directly.
+        // Constructed in AttachToMapVisualizer once the visualizer is available, disposed
+        // in OnDestroy. The visualizer never references this directly.
         private TerrainBoundsTracker _boundsTracker;
         // One-shot guard so QueryElevation doesn't spam the console on every call when the
         // user genuinely disabled CPU extraction.
@@ -39,7 +39,7 @@ namespace Mapbox.ImageModule.Terrain
         // plus iterator chain from Where/Select/Distinct on every tile-cover update.
         private readonly HashSet<CanonicalTileId> _dataIdScratch = new HashSet<CanonicalTileId>();
 
-        public void AttachToVisualizer(MapboxMapVisualizer visualizer)
+        public void AttachToMapVisualizer(MapboxMapVisualizer visualizer)
         {
             // Visualizer is now available — start tracking terrain bounds from tile events.
             // Disposed in OnDestroy.
