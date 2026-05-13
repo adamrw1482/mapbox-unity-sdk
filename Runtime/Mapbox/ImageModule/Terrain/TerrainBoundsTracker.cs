@@ -30,8 +30,7 @@ namespace Mapbox.ImageModule.Terrain
 	/// </summary>
 	internal sealed class TerrainBoundsTracker : IDisposable
 	{
-		private readonly IMapInformation _mapInfo;
-		private readonly MapboxMapVisualizer _visualizer;
+		private readonly ITileLifecycleSource _source;
 
 		// One-shot widening subscriptions for shader-mode tiles whose CPU decode
 		// hasn't arrived yet. Stored by (data, handler) so Dispose can detach the
@@ -44,12 +43,11 @@ namespace Mapbox.ImageModule.Terrain
 		private bool _disposed;
 		private Coroutine _drainCoroutine;
 
-		public TerrainBoundsTracker(IMapInformation mapInfo, MapboxMapVisualizer visualizer)
+		public TerrainBoundsTracker(ITileLifecycleSource source)
 		{
-			_mapInfo = mapInfo;
-			_visualizer = visualizer;
-			_visualizer.TileLoaded += OnTileLoaded;
-			_visualizer.TileUnloading += OnTileUnloading;
+			_source = source;
+			_source.TileLoaded += OnTileLoaded;
+			_source.TileUnloading += OnTileUnloading;
 			if (Runnable.Instance != null)
 			{
 				_drainCoroutine = Runnable.Instance.StartCoroutine(DrainLoop());
@@ -61,10 +59,10 @@ namespace Mapbox.ImageModule.Terrain
 			if (_disposed) return;
 			_disposed = true;
 
-			if (_visualizer != null)
+			if (_source != null)
 			{
-				_visualizer.TileLoaded -= OnTileLoaded;
-				_visualizer.TileUnloading -= OnTileUnloading;
+				_source.TileLoaded -= OnTileLoaded;
+				_source.TileUnloading -= OnTileUnloading;
 			}
 
 			// Detach pending watches. Both closures dropped — the dispose callback
@@ -126,7 +124,7 @@ namespace Mapbox.ImageModule.Terrain
 			// (called by PoolTile after this event fires) clears TerrainData, so we have to
 			// check up front. Skip when both endpoints are 0 — the tile is flat and didn't
 			// actually contribute, so a recompute would just produce the same values.
-			var terrain = _mapInfo.Terrain;
+			var terrain = _source.MapInformation.Terrain;
 			var terrainData = tile.TerrainContainer?.TerrainData;
 			bool contributedMax = terrainData != null && terrainData.IsElevationDataReady &&
 				terrainData.MaxElevation != 0f &&
@@ -140,8 +138,9 @@ namespace Mapbox.ImageModule.Terrain
 			// so the empty-fallback (reset to TerrainInfo defaults) would never run
 			// when the map empties out. ActiveTiles.Count == 1 here because TileUnloading
 			// fires before the visualizer's ActiveTiles.Remove.
-			bool wasLastActive = terrainData != null && _visualizer.ActiveTiles.Count == 1 &&
-				_visualizer.ActiveTiles.ContainsKey(tile.UnwrappedTileId);
+			var activeTiles = _source.ActiveTiles;
+			bool wasLastActive = terrainData != null && activeTiles.Count == 1 &&
+				activeTiles.ContainsKey(tile.UnwrappedTileId);
 
 			if (contributedMax || contributedMin || wasLastActive)
 			{
@@ -197,11 +196,11 @@ namespace Mapbox.ImageModule.Terrain
 
 		private void Recompute()
 		{
-			var terrain = _mapInfo.Terrain;
+			var terrain = _source.MapInformation.Terrain;
 			float max = 0f;
 			float min = 0f;
 			bool any = false;
-			foreach (var kv in _visualizer.ActiveTiles)
+			foreach (var kv in _source.ActiveTiles)
 			{
 				var td = kv.Value.TerrainContainer?.TerrainData;
 				if (td == null || !td.IsElevationDataReady) continue;

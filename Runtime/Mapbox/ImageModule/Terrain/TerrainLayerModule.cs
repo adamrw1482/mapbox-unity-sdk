@@ -22,7 +22,7 @@ namespace Mapbox.ImageModule.Terrain
     /// settings, and hands each tile through a <see cref="TerrainStrategy"/> that produces
     /// render + optional collider meshes.
     /// </summary>
-    public class TerrainLayerModule : ITerrainLayerModule, ITileLifecycleListener
+    public class TerrainLayerModule : ITerrainLayerModule, ITileLifecycleObserver
     {
         private TerrainLayerModuleSettings _settings;
         private Source<TerrainData> _rasterSource;
@@ -39,11 +39,11 @@ namespace Mapbox.ImageModule.Terrain
         // plus iterator chain from Where/Select/Distinct on every tile-cover update.
         private readonly HashSet<CanonicalTileId> _dataIdScratch = new HashSet<CanonicalTileId>();
 
-        public void AttachToMapVisualizer(MapboxMapVisualizer visualizer)
+        public void AttachToMapVisualizer(ITileLifecycleSource source)
         {
-            // Visualizer is now available — start tracking terrain bounds from tile events.
+            // Source is now available — start tracking terrain bounds from tile events.
             // Disposed in OnDestroy.
-            _boundsTracker = new TerrainBoundsTracker(visualizer.MapInformation, visualizer);
+            _boundsTracker = new TerrainBoundsTracker(source);
         }
         
         public TerrainLayerModule(Source<TerrainData> source, TerrainLayerModuleSettings settings) : base()

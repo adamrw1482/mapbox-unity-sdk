@@ -14,7 +14,7 @@ namespace Mapbox.BaseModule.Map
     /// The primary object responsible for preparing the data and generating the visuals of the map.
     /// </summary>
     [Serializable]
-    public class MapboxMapVisualizer : IMapVisualizer
+    public class MapboxMapVisualizer : IMapVisualizer, ITileLifecycleSource
     {
         // Upper bound of the Mercator tile pyramid. Used by DelveInto and any other
         // recursion that needs an absolute hard cap independent of user-configurable
@@ -24,9 +24,13 @@ namespace Mapbox.BaseModule.Map
         public List<ILayerModule> LayerModules;
         public Dictionary<UnwrappedTileId, UnityMapTile> ActiveTiles { get; private set; }
         public List<UnityMapTile> TempTiles { get; private set; }
-        // Exposed for ITileLifecycleListener implementations that need access to the
-        // shared map state (e.g. terrain bounds tracker reads/writes Terrain.Min/Max).
         public IMapInformation MapInformation => _mapInformation;
+
+        // Explicit interface impl narrows ActiveTiles to IReadOnlyDictionary for the
+        // ITileLifecycleSource contract while internal code keeps the mutable Dictionary
+        // it needs for Add/Remove.
+        IReadOnlyDictionary<UnwrappedTileId, UnityMapTile> ITileLifecycleSource.ActiveTiles => ActiveTiles;
+
         protected UnityContext _unityContext;
         protected IMapInformation _mapInformation;
         protected ITileCreator _tileCreator;
@@ -94,14 +98,14 @@ namespace Mapbox.BaseModule.Map
                 yield return _tileCreator.Initialize(terrainStrategy);
             }
 
-            // Give layer modules a chance to wire bookkeeping that needs the visualizer
-            // reference (terrain bounds tracker, etc) BEFORE their own Initialize runs —
-            // so any subscriptions are in place when the first tiles start loading.
+            // Give layer modules a chance to wire bookkeeping that observes tile lifecycle
+            // (terrain bounds tracker, etc) BEFORE their own Initialize runs — so any
+            // subscriptions are in place when the first tiles start loading.
             foreach (var module in LayerModules)
             {
-                if (module is ITileLifecycleListener listener)
+                if (module is ITileLifecycleObserver observer)
                 {
-                    listener.AttachToMapVisualizer(this);
+                    observer.AttachToMapVisualizer(this);
                 }
             }
 
