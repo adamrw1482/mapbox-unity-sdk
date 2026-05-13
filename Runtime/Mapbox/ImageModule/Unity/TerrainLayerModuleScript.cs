@@ -46,7 +46,6 @@ namespace Mapbox.Example.Scripts.ModuleBehaviours
 					Settings);
 
 			mapInformation.QueryElevation = module.QueryElevation;
-			mapInformation.Terrain.IsEnabled = true;
 			ModuleImplementation = module;
 			return ModuleImplementation;
 		}

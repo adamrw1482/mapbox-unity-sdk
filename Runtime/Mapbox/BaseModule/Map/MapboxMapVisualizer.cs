@@ -31,6 +31,10 @@ namespace Mapbox.BaseModule.Map
         // Reusable scratch array to avoid per-frame allocation in InternalUpdateCoroutine
         private readonly UnwrappedTileId[] _quadrants = new UnwrappedTileId[4];
 
+        // Tiles deferred for pooling on the next coroutine tick.
+        // Pooling a child the same frame the parent first becomes visible flickers on iOS.
+        private readonly List<UnityMapTile> _pendingPool = new List<UnityMapTile>();
+
         public MapboxMapVisualizer(IMapInformation mapInformation, UnityContext unityContext, ITileCreator tileCreator)
         {
             _unityContext = unityContext;
@@ -124,12 +128,16 @@ namespace Mapbox.BaseModule.Map
                     }
                     else
                     {
-                        var activeChildren = new List<UnityMapTile>();
-                        var coveredByQuadrants = DelveInto(tileId, activeChildren, recursiveDepth: 1);
                         CreateTempTile(tileId, out unityMapTile);
+                        // Reuse the tile's own Children list across pool/reuse cycles instead of
+                        // allocating one per cache miss. PoolTile clears it on return.
+                        if (unityMapTile.Children == null)
+                            unityMapTile.Children = new List<UnityMapTile>();
+                        else
+                            unityMapTile.Children.Clear();
+                        var coveredByQuadrants = DelveInto(tileId, unityMapTile.Children, recursiveDepth: 1);
                         ActiveTiles.Add(tileId, unityMapTile);
                         TempTiles.Add(unityMapTile);
-                        unityMapTile.Children = activeChildren;
                         if (!coveredByQuadrants)
                         {
                             ShowTile(unityMapTile);
@@ -169,6 +177,16 @@ namespace Mapbox.BaseModule.Map
         /// </summary>
         public virtual void InternalUpdateCoroutine()
         {
+            // Flush tiles deferred from the previous tick. Holding the children active for
+            // one extra frame after the parent's ShowTile lets the parent finish rendering
+            // before the children deactivate, which avoids a one-frame transparent gap on
+            // iOS (see project_ios_tile_flicker note).
+            for (var i = 0; i < _pendingPool.Count; i++)
+            {
+                PoolTile(_pendingPool[i]);
+            }
+            _pendingPool.Clear();
+
             //finish temp tiles from tempTiles list
             _toRemove.Clear();
             for (var index = TempTiles.Count - 1; index >= 0; index--)
@@ -179,22 +197,19 @@ namespace Mapbox.BaseModule.Map
                     TempTiles.RemoveAt(index);
                     continue;
                 }
-                
+
                 if (tilePair.LoadingState == LoadingState.Temporary && CreateTile(tilePair))
                 {
                     ShowTile(tilePair);
-                    
+
                     if (tilePair.Children != null && tilePair.Children.Count > 0)
                     {
-                        foreach (var child in tilePair.Children)
-                        {
-                            PoolTile(child);
-                        }
+                        _pendingPool.AddRange(tilePair.Children);
                         tilePair.Children.Clear();
                     }
-                    
+
                     TempTiles.RemoveAt(index);
-                    
+
                     _quadrants[0] = tilePair.UnwrappedTileId.Quadrant(0);
                     _quadrants[1] = tilePair.UnwrappedTileId.Quadrant(1);
                     _quadrants[2] = tilePair.UnwrappedTileId.Quadrant(2);
@@ -218,7 +233,7 @@ namespace Mapbox.BaseModule.Map
                         TempTiles.Remove(tile);
                     }
 
-                    PoolTile(tile);
+                    _pendingPool.Add(tile);
                 }
             }
         }
@@ -301,6 +316,10 @@ namespace Mapbox.BaseModule.Map
 
         private void RemoveUnnecessaryTiles(TileCover tileCover)
         {
+            // Fillers used to be exempt from removal here, but that caused orphaned filler
+            // z-fighting when their logical parent transitioned out of TempTile state. They
+            // are now eligible for pooling; visual continuity is preserved by the temp-tile
+            // filler protection pass in Load() above.
             _toRemove.Clear();
             foreach (var tilePair in ActiveTiles)
             {
@@ -387,6 +406,14 @@ namespace Mapbox.BaseModule.Map
             if (tile.LoadingState == LoadingState.None)
                 return;
 
+            // Snapshot whether this tile is currently holding either bounds value.
+            // Recycle() clears TerrainData below, so we have to check first.
+            var terrain = _mapInformation.Terrain;
+            var terrainData = tile.TerrainContainer?.TerrainData;
+            bool contributedBound = terrainData != null && terrainData.IsElevationDataReady &&
+                (Mathf.Approximately(terrainData.MaxElevation, terrain.MaxElevation) ||
+                 Mathf.Approximately(terrainData.MinElevation, terrain.MinElevation));
+
             TileUnloading(tile);
             ActiveTiles.Remove(tile.UnwrappedTileId);
             tile.Recycle();
@@ -402,6 +429,37 @@ namespace Mapbox.BaseModule.Map
 
                 tile.Children.Clear();
             }
+
+            if (contributedBound)
+            {
+                RecomputeTerrainBounds();
+            }
+        }
+
+        private void RecomputeTerrainBounds()
+        {
+            var terrain = _mapInformation.Terrain;
+            float max = 0f;
+            float min = 0f;
+            bool any = false;
+            foreach (var kv in ActiveTiles)
+            {
+                var td = kv.Value.TerrainContainer?.TerrainData;
+                if (td == null || !td.IsElevationDataReady) continue;
+                if (!any)
+                {
+                    max = td.MaxElevation;
+                    min = td.MinElevation;
+                    any = true;
+                }
+                else
+                {
+                    if (td.MaxElevation > max) max = td.MaxElevation;
+                    if (td.MinElevation < min) min = td.MinElevation;
+                }
+            }
+            terrain.MaxElevation = any ? max : 0f;
+            terrain.MinElevation = any ? min : 0f;
         }
 
         protected void CreateTempTile(UnwrappedTileId tileId, out UnityMapTile tile)

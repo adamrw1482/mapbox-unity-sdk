@@ -46,12 +46,15 @@ namespace Mapbox.UnityMapService.TileProviders
 		public float SubdivisionBias = 1.0f;
 
 		/// <summary>
-		/// Expands the 4 side frustum planes outward by this distance (world units).
+		/// Expands the 4 side frustum planes outward by this distance, in Unity world units.
 		/// Pre-loads tiles just outside the screen edges to prevent pop-in during camera pans.
 		/// Higher values give smoother panning but load more off-screen tiles.
-		/// Does not affect near/far planes. Typical range 0-50. Set to 0 to disable.
+		/// Does not affect near/far planes.
+		/// Tile size varies with <c>mapInformation.Scale</c>: a tile is ~1 unit at scale 1,
+		/// ~100 units at scale 0.01. Pick a value relative to your scene's current tile size
+		/// (e.g. ~25% of a tile width for a one-tile-wide buffer). Set to 0 to disable.
 		/// </summary>
-		[Tooltip("Pre-loads tiles beyond screen edges to reduce pop-in during panning. Higher = smoother but more tiles loaded. Typical range 0-50. Default 0.")]
+		[Tooltip("Pre-loads tiles beyond screen edges to reduce pop-in during panning. Value is in Unity world units — scale relative to the tile size at your map's current Scale. Set to 0 to disable.")]
 		public float FrustumBuffer = 0f;
 
 		public UnityTileProviderSettings(Camera cam, float minZoom = 2, float maxZoom = 22)
@@ -196,8 +199,12 @@ namespace Mapbox.UnityMapService.TileProviders
 			for (int i = 0; i < 4; i++)
 			{
 				var offset = _corners[i] - camPos;
-				// Use camera height as vertical component (flat map, matching native SDK)
-				offset.y = cameraHeight;
+				// Project onto the ground plane: native SDK overrides this to +cameraHeight,
+				// which in its tile-coord system stays geometrically consistent. Unity world
+				// units flip the sign of the vertical dot-product contribution and trigger the
+				// projDist<=0 early-exit (always-split) for downward-pitched cameras, so we
+				// zero out the vertical and use ground-plane forward distance instead.
+				offset.y = 0f;
 				var projDist = Vector3.Dot(offset, camForward);
 				if (projDist <= 0f)
 					return true; // corner behind camera plane — always split
