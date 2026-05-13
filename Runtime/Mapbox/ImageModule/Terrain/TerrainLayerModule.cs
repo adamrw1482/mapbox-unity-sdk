@@ -41,8 +41,9 @@ namespace Mapbox.ImageModule.Terrain
 
         public void AttachToMapVisualizer(ITileLifecycleSource source)
         {
-            // Source is now available — start tracking terrain bounds from tile events.
-            // Disposed in OnDestroy.
+            // Idempotent: if a tracker is already running (re-init scenarios), keep it.
+            // Constructing a second one would leak the first (coroutine + subscriptions).
+            if (_boundsTracker != null) return;
             _boundsTracker = new TerrainBoundsTracker(source);
         }
         

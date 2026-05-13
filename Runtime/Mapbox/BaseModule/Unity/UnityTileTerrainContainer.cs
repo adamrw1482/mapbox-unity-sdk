@@ -70,10 +70,6 @@ namespace Mapbox.BaseModule.Unity
             }
 
             State = state;
-            if (terrainData.Texture == null || terrainData.TileId.Z == 0)
-            {
-                Debug.Log("no texture?");
-            }
             TerrainData = terrainData;
             // Add (don't replace) — multiple render tiles share one TerrainData.
             TerrainData.AddDisposeCallback(_onDisposeCallback);
@@ -116,11 +112,9 @@ namespace Mapbox.BaseModule.Unity
 
         public void OnElevationValuesUpdated()
         {
-            if (TerrainData == null)
-            {
-                Debug.Log("TerrainData is null, missing a isRecycled check?");
-                return;
-            }
+            // Multicast dispose callback can fire on a container whose TerrainData was
+            // already cleared (concurrent eviction during readback). Bail silently.
+            if (TerrainData == null) return;
             TerrainData.IsElevationDataReady = true;
             ElevationValuesUpdated();
         }

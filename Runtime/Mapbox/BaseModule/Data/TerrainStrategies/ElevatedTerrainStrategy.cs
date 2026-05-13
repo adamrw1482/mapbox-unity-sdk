@@ -734,7 +734,10 @@ namespace Mapbox.ImageModule.Terrain.TerrainStrategies
 			// uniquely-owned per-tile mesh in RegisterTile above.
 			var mesh = tile.MeshFilter.sharedMesh;
 			var vertices = mesh.vertices;
-			var sampleCount = (int)Mathf.Sqrt(mesh.vertexCount);
+			// Per-axis vertex count is cached from Initialize. Was previously derived via
+			// Mathf.Sqrt(mesh.vertexCount), which is exact for our square grid but wasteful
+			// and gave the local an off-axis name (it's _sideVertexCount, not sampleCount).
+			var sampleCount = _sideVertexCount;
 			for (int i = 0; i < vertices.Length; i++)
 			{
 				var x = i % sampleCount;

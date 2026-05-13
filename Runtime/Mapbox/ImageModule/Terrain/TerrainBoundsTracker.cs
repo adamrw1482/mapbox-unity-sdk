@@ -52,6 +52,12 @@ namespace Mapbox.ImageModule.Terrain
 			{
 				_drainCoroutine = Runnable.Instance.StartCoroutine(DrainLoop());
 			}
+			else
+			{
+				// Should never happen in normal play (Runnable is a global singleton).
+				// Fail loud so it's obvious if the construction order ever changes.
+				Debug.LogWarning("TerrainBoundsTracker: Runnable.Instance is null at construction; bounds recompute coroutine not started. Terrain.Min/MaxElevation will not update.");
+			}
 		}
 
 		public void Dispose()
@@ -126,20 +132,25 @@ namespace Mapbox.ImageModule.Terrain
 			// actually contribute, so a recompute would just produce the same values.
 			var terrain = _source.MapInformation.Terrain;
 			var terrainData = tile.TerrainContainer?.TerrainData;
+			// Exact equality: terrain.MaxElevation was assigned directly from some tile's
+			// MaxElevation in the previous Recompute, so `==` matches when this tile is
+			// that contributor. Mathf.Approximately's magnitude-scaled tolerance would
+			// also accept near-matches from sibling tiles, triggering redundant recomputes.
 			bool contributedMax = terrainData != null && terrainData.IsElevationDataReady &&
 				terrainData.MaxElevation != 0f &&
-				Mathf.Approximately(terrainData.MaxElevation, terrain.MaxElevation);
+				terrainData.MaxElevation == terrain.MaxElevation;
 			bool contributedMin = terrainData != null && terrainData.IsElevationDataReady &&
 				terrainData.MinElevation != 0f &&
-				Mathf.Approximately(terrainData.MinElevation, terrain.MinElevation);
+				terrainData.MinElevation == terrain.MinElevation;
 
 			// Also dirty when this is the last tile being pooled — an all-flat session
-			// (every loaded tile had Min=Max=0) wouldn't trip the non-zero checks above,
-			// so the empty-fallback (reset to TerrainInfo defaults) would never run
-			// when the map empties out. ActiveTiles.Count == 1 here because TileUnloading
-			// fires before the visualizer's ActiveTiles.Remove.
+			// (every loaded tile had Min=Max=0, or no terrain data at all) wouldn't trip
+			// the non-zero checks above, so the empty-fallback (reset to TerrainInfo
+			// defaults) would never run when the map empties out. ActiveTiles.Count == 1
+			// here because TileUnloading fires before the visualizer's ActiveTiles.Remove.
+			// No terrainData requirement: shader-only tiles count too.
 			var activeTiles = _source.ActiveTiles;
-			bool wasLastActive = terrainData != null && activeTiles.Count == 1 &&
+			bool wasLastActive = activeTiles.Count == 1 &&
 				activeTiles.ContainsKey(tile.UnwrappedTileId);
 
 			if (contributedMax || contributedMin || wasLastActive)
