@@ -228,7 +228,8 @@ CONSTRAINT tileAssignmentConstraint UNIQUE (tileId, mapId)
 			}
 			catch (Exception ex)
 			{
-				Debug.LogErrorFormat("Error inserting {0} {1} {2} ", tilesetName, tileId, ex);
+				var extended = (ex is SQLiteException) ? SQLite3.ExtendedErrCode(_sqlite.Handle).ToString() : "n/a";
+				Debug.LogErrorFormat("Error inserting {0} {1} (extended={2}) {3} ", tilesetName, tileId, extended, ex);
 			}
 
 			// update counter only when new tile gets inserted

@@ -209,6 +209,7 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - Fixed vector layer range limits not being applied correctly during data processing.
 - Fixed incorrect limit validation and bounds checking in the `LatitudeLongitude` struct.
 - Fixed `MapInformation.Initialize` not resetting `Terrain.Min/MaxElevation` to defaults — previous run's values could bleed into a fresh session.
+- Fixed Android IL2CPP player builds with **Medium** or **High** Managed Stripping Level silently dropping every SQLite tile cache insert with a `ConstraintForeignKey` error. Sqlite-net populates row values via reflection (`PropertyInfo.SetValue`), but IL2CPP stripped the auto-property accessor methods (`set_id`, `set_name`, etc.) on the cache's model classes — `SetValue` then became a silent no-op, every read returned `id = 0`, and downstream `tiles` inserts failed the foreign key on `tile_set`. The four SQLite model classes (`tiles`, `tilesets`, `offlineMaps`, `tile2offline`) and every one of their persisted properties now carry `[UnityEngine.Scripting.Preserve]`, and the same types are declared in `Plugins/link.xml` as a secondary safety net. Map rendering was unaffected (memory cache covered it) but the SQLite disk cache wasn't actually persisting on Android with non-Minimal stripping. Additionally, the `Error inserting …` log line now includes SQLite's extended error code (`ConstraintUnique` / `ConstraintForeignKey` / `ConstraintNotNull` / etc.) so future cache-side failures are diagnosable from the first line.
 
 #### Known limitations
 
