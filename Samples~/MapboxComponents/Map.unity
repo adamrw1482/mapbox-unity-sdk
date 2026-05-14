@@ -540,7 +540,8 @@ MonoBehaviour:
     MapRoot: {fileID: 1316629400}
     BaseTileRoot: {fileID: 1808235830}
     RuntimeGenerationRoot: {fileID: 0}
-  _tileCreatorBehaviour: {fileID: 1316629407}
+  _tileCreatorBehaviour: {fileID: 0}
+  _defaultTileMaterial: {fileID: 2100000, guid: aaf04558f9b104d2ebc4e1c86464fc1c, type: 2}
   TileProvider: {fileID: 0}
   DataFetcher: {fileID: 0}
   CacheManager: {fileID: 0}

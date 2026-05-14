@@ -11,6 +11,7 @@ namespace Mapbox.Example.Editor
         private SerializedProperty _unityContextProp;
 
         private SerializedProperty _tileCreatorProp;
+        private SerializedProperty _defaultTileMaterialProp;
         private SerializedProperty _tileProviderProp;
         private SerializedProperty _dataFetcherProp;
         private SerializedProperty _cacheManagerProp;
@@ -28,6 +29,7 @@ namespace Mapbox.Example.Editor
             _unityContextProp  = serializedObject.FindProperty("UnityContext");
 
             _tileCreatorProp   = serializedObject.FindProperty("_tileCreatorBehaviour");
+            _defaultTileMaterialProp = serializedObject.FindProperty("_defaultTileMaterial");
             _tileProviderProp  = serializedObject.FindProperty("TileProvider");
             _dataFetcherProp   = serializedObject.FindProperty("DataFetcher");
             _cacheManagerProp  = serializedObject.FindProperty("CacheManager");
@@ -95,6 +97,7 @@ namespace Mapbox.Example.Editor
                 if (!_overrideModulesFold)
                 {
                     EditorGUILayout.PropertyField(_initializeOnStart, new GUIContent("Initialize On Start"));
+                    EditorGUILayout.PropertyField(_defaultTileMaterialProp, new GUIContent("Default Tile Material"));
                 }
             }
 
