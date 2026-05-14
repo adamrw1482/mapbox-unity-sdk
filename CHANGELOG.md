@@ -85,6 +85,7 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - Async PhysX collider bake (when `asyncBakeCollider = true`): `Physics.BakeMesh` runs on a worker thread; `Mesh.sharedMesh` assignment happens one frame later when the cooked-data cache is ready. Main-thread cost is near-zero.
 - Shader-mode tiles share a single flat render mesh (`TerrainSharedFlat`) across the entire tile pool. Per-tile state (`_HeightTexture_ST`, `_TileScale`, etc.) goes via `MaterialPropertyBlock` instead of per-tile `Material` instances — saves `Material` clone allocations across pool churn.
 - Bilinear elevation sampling in `TerrainData.QueryHeightData`, the collider vertex job, and the shader bilinear subgraph. Replaces the prior nearest-neighbor `(int)xx` truncation that produced visible stepping when render-tile mesh vertices sampled a denser sub-region than the data tile's effective resolution.
+- `ElevatedTerrainShader.shadergraph` and `MapboxTerrainBilinearSampling.shadersubgraph` were restructured during the bilinear-sampling and normal-banding work (ridge-band fix uses a 2-texel offset, per Option A in the prior investigation). Lighting and displacement look correct on eye-test against the example scenes. If a project ships custom shader variants derived from these graphs, re-verify after upgrading.
 - `TerrainInfo` exposes observed `MinElevation` / `MaxElevation` (in meters) on `IMapInformation.Terrain`. Updated automatically as terrain tiles load/unload. The tile-provider's AABB and `UnityMapTile.SetFallbackMeshBounds` consume this to size the frustum-cull volume.
 - Conservative bounds fallback (`UnityMapTile.SetFallbackMeshBounds`, 10000m) applied immediately on terrain-data attach so shader-displaced geometry doesn't get culled before real Min/Max arrive — or permanently, when CPU extraction is disabled.
 - Per-tile `MeshCollider` configurable via `TerrainColliderOptions` (in `ElevationLayerProperties`). Supports placing the collider on a dedicated child GameObject + Unity Layer.
@@ -195,6 +196,7 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - Fixed `TerrainColliderOptionsDrawer.GetPropertyHeight` returning one extra `line + spacing` (cosmetic gap at the bottom of the foldout).
 - Fixed `TerrainSettingsInspectorHelper` writing `child.boolValue = true` during `OnGUI` — silently dirtied every inspected asset. Now display-only (runtime evaluates `NeedsCpuElevation` directly).
 - Fixed `TerrainSettingsInspectorHelper.SceneHasFeaturesNeedingCpuElevation` running `FindObjectsByType<MonoBehaviour>` on every Inspector repaint. Cached and invalidated on `EditorApplication.hierarchyChanged`.
+- Fixed `Runtime/Mapbox/VectorModule/ComponentSystem/Editor/` missing an asmdef — editor scripts (`BuildingLayerVisualizerObjectEditor`, `ExtrusionOptionsDrawer`, `MapboxComponentsModuleScriptEditor`) were being folded into the runtime `MapboxComponentSystem` assembly, pulling `UnityEditor` references into player builds. New `MapboxComponentSystem.Editor.asmdef` (Editor-only, references the runtime asm + `MapboxBaseModule`) keeps them out.
 
 **Other:**
 
