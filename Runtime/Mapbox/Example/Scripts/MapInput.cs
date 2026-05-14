@@ -86,7 +86,13 @@ namespace Mapbox.Example.Scripts.MapInput
 
 		#region Value Clamping
 
-		protected static float ClampZoom(float zoom, float min = 0f, float max = 22f)
+		// Absolute Mercator pyramid max. Mirrors MapboxMapVisualizer.MaxMercatorZoom
+		// (`int 22`) — kept here as a float const because C# default-parameter values
+		// must be compile-time constants of the parameter's exact type. If the pyramid
+		// cap ever changes, update both this and MapboxMapVisualizer.MaxMercatorZoom.
+		public const float MaxClampZoom = 22f;
+
+		protected static float ClampZoom(float zoom, float min = 0f, float max = MaxClampZoom)
 		{
 			return Mathf.Clamp(zoom, min, max);
 		}
