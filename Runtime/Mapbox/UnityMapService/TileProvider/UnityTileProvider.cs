@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Mapbox.UnityMapService.TileProviders
 {
 	[Serializable]
-	public class UnityTileProviderSettings
+	public class UnityTileProviderSettings : ISerializationCallbackReceiver
 	{
 		/// <summary>
 		/// Camera used for frustum culling and LOD calculations.
@@ -40,10 +40,13 @@ namespace Mapbox.UnityMapService.TileProviders
 		/// Controls how aggressively tiles subdivide with distance.
 		/// Higher values produce more tiles with finer detail at distance but cost more to render.
 		/// Lower values improve performance with coarser detail at distance.
-		/// Values below 0.5 may cause visible quality loss. Default 1.0.
+		/// Values at or below 0 collapse the split-distance to zero and render only the
+		/// MinimumZoomLevel tile — kept guarded in OnAfterDeserialize for legacy scenes
+		/// saved before this field existed (Unity deserializes missing fields as default(T)
+		/// and does NOT run the C# field initializer in that case).
 		/// </summary>
-		[Tooltip("Tile detail vs. performance. Higher = more detail at distance, lower = better performance. Below 0.5 may reduce quality. Default 1.0.")]
-		public float SubdivisionBias = 1.0f;
+		[Tooltip("Tile detail vs. performance. Higher = more detail at distance, lower = better performance. Below 0.3 may reduce quality. Default 0.6.")]
+		public float SubdivisionBias = 0.6f;
 
 		/// <summary>
 		/// Expands the 4 side frustum planes outward by this distance, in Unity world units.
@@ -62,6 +65,16 @@ namespace Mapbox.UnityMapService.TileProviders
 			Camera = cam;
 			MinimumZoomLevel = minZoom;
 			MaximumZoomLevel = maxZoom;
+		}
+
+		public void OnBeforeSerialize() { }
+
+		public void OnAfterDeserialize()
+		{
+			// Migrate legacy scenes saved before SubdivisionBias existed (Unity assigns
+			// default(float) = 0 in that case, collapsing distToSplit and forcing only
+			// the MinimumZoomLevel tile to render).
+			if (SubdivisionBias <= 0f) SubdivisionBias = 0.6f;
 		}
 	}
 

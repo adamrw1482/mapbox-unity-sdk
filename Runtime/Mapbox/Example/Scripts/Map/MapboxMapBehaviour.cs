@@ -122,7 +122,22 @@ namespace Mapbox.Example.Scripts.Map
             }
             else
             {
-                var defaultMapboxTerrainMaterial = new Material(Shader.Find(Constants.Map.DefaultTerrainShaderName));
+                // Fallback when no TileCreatorBehaviour is assigned on the GameObject.
+                // In a build, Shader.Find only resolves shaders that are referenced by a
+                // shipped Material asset or listed in Project Settings → Graphics → Always
+                // Included Shaders. The Mapbox terrain shader is neither by default, so
+                // this code path silently produced a magenta tile material. Fail loudly
+                // with an actionable error instead.
+                var shader = Shader.Find(Constants.Map.DefaultTerrainShaderName);
+                if (shader == null)
+                {
+                    throw new InvalidOperationException(
+                        $"MapboxMapBehaviour on '{name}' has no TileCreator assigned and could not locate the default shader " +
+                        $"'{Constants.Map.DefaultTerrainShaderName}' at runtime. " +
+                        "Assign a TileCreatorBehaviour component with a configured Material, or add the Mapbox terrain shader to " +
+                        "Project Settings → Graphics → Always Included Shaders so it ships in player builds.");
+                }
+                var defaultMapboxTerrainMaterial = new Material(shader);
                 tileCreator = new TileCreator(unityContext, new[] { defaultMapboxTerrainMaterial });
             }
             return new MapboxMapVisualizer(mapInfo, unityContext, tileCreator);
