@@ -1,9 +1,11 @@
-##Mapbox Unity SDK 3.0 Quickstart guide
+## Mapbox Unity SDK 3.1.0 Quickstart guide
+
+For a complete overview of the package — supported Unity versions, build platforms, dependencies, and module breakdown — see [`Documentation~/Overview.md`](Documentation~/Overview.md). For release notes see [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Installing the Package
 
-1. **Get the Mapbox Unity SDK v3.0**  
-   - Clone the Mapbox Unity SDK v3.0 branch to local.
+1. **Get the Mapbox Unity SDK v3.1.0**
+   - Clone the Mapbox Unity SDK repository to local.
 
 2. **Open Unity Package Manager (UPM)**  
    - Open your Unity project and navigate to the Unity Package Manager.
@@ -48,8 +50,8 @@
 
 The integration process depends heavily on your project setup and how you intend to use the map. Below are steps to help you get started with a location-based game setup:
 
-1. **Import the Location-Based Game Sample**  
-   - Navigate to `Samples/Mapbox Unity SDK/3.0.0/Location Based Game`.
+1. **Import the Location-Based Game Sample**
+   - Open the Package Manager, select the Mapbox Unity SDK, go to the **Samples** tab, and hit **Import** next to **LocationBasedGame**.
 
 2. **Use the `LocationBasedMap` Prefab**  
    - Add the `LocationBasedMap` prefab to any scene, and it should work.  

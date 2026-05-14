@@ -211,14 +211,6 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - Fixed `MapInformation.Initialize` not resetting `Terrain.Min/MaxElevation` to defaults — previous run's values could bleed into a fresh session.
 - Fixed Android IL2CPP player builds with **Medium** or **High** Managed Stripping Level silently dropping every SQLite tile cache insert with a `ConstraintForeignKey` error. Sqlite-net populates row values via reflection (`PropertyInfo.SetValue`), but IL2CPP stripped the auto-property accessor methods (`set_id`, `set_name`, etc.) on the cache's model classes — `SetValue` then became a silent no-op, every read returned `id = 0`, and downstream `tiles` inserts failed the foreign key on `tile_set`. The four SQLite model classes (`tiles`, `tilesets`, `offlineMaps`, `tile2offline`) and every one of their persisted properties now carry `[UnityEngine.Scripting.Preserve]`, and the same types are declared in `Plugins/link.xml` as a secondary safety net. Map rendering was unaffected (memory cache covered it) but the SQLite disk cache wasn't actually persisting on Android with non-Minimal stripping. Additionally, the `Error inserting …` log line now includes SQLite's extended error code (`ConstraintUnique` / `ConstraintForeignKey` / `ConstraintNotNull` / etc.) so future cache-side failures are diagnosable from the first line.
 
-#### Known limitations
-
-- **Touch path can't be tested in the Unity Editor.** The mouse/touch handler split is compile-time on build target (`(UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR`). To debug touch logic without a device, temporarily remove the `&& !UNITY_EDITOR` clause in `MapInput.cs` and use Unity Remote.
-- **Touch rotate is not supported.** Mouse-only via right-click drag. Documented in `Documentation~/CameraSystem.md`. A two-finger twist gesture is not implemented.
-- **`asyncBakeCollider = true` has not been platform-validated on iOS/Android.** The PhysX bake runs on a worker thread; no explicit upload-completion barrier between `Mesh.SetVertices`/`SetIndices` and the worker. Recommended: Frame Debugger pass on a target device before relying on async-bake in production.
-- **Shader graph shrinkage is unverified visually.** `ElevatedTerrainShader.shadergraph` and `MapboxTerrainBilinearSampling.shadersubgraph` were reduced by ~280 / ~242 lines respectively. A `Normalize` was removed downstream of the gradient — if not load-bearing, fine; if load-bearing, lighting magnitude scales with slope length. Side-by-side visual diff recommended.
-- **GPU instancing for terrain is not enabled.** The shared-flat-mesh + MPB pattern saves per-tile `Material` clone allocations but does *not* enable SRP Batcher batching (MPB disqualifies a renderer) and instancing variants are off in the materials. Terrain draws are still N separate draws. See `MEMORY.md` → `project_terrain_instancing` for the future-work plan.
-
 ### v3.0.6
 
 #### Fixes
