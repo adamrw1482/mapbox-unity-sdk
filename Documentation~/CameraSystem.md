@@ -118,3 +118,39 @@ If neither camera mode fits your needs, you can create your own by writing a cla
 Your custom camera class needs to implement one method — `UpdateCamera` — where you handle input and return camera state (center, zoom, pitch, bearing, scale). The base class provides ready-made helpers for input detection, coordinate conversion, and value clamping.
 
 The behaviour wrapper handles initialization and communicating changes to the map automatically. A minimal custom camera behaviour only needs a few lines of code beyond the camera logic itself.
+
+---
+
+## AR / MR setups
+
+As of v3.1.0, the SDK supports parenting the map under an external transform — an `ARAnchor`, an XR rig, or any rotated/translated parent — and having the entire map (terrain tiles, buildings, roads, areas) compose correctly with that parent transform. This makes it possible to place the map on a real-world surface in AR, anchor it to a tracked plane, or rotate the whole map as a unit.
+
+### What works
+
+- **Translating `MapRoot`** in world space — the whole map moves as a unit.
+- **Rotating `MapRoot`** around any axis — terrain and vector content follow.
+- **Parenting `MapRoot`** under an `ARAnchor`, an `XROrigin` child, or any custom rig — the parent's translation and rotation propagate.
+
+All of this works because tile placement and vector-content placement are done in **local space** relative to `MapRoot`, and runtime-created roots use `SetParent(parent, worldPositionStays: false)` so they don't pin themselves to world coordinates.
+
+### What doesn't work (yet)
+
+- **Non-unit `MapRoot.localScale`.** The quadtree LOD math (`UnityTileProvider.ShouldSplit`) reads the camera's world-space position and compares against tile bounds derived from `MapInformation.Scale`. Scaling `MapRoot` doesn't propagate to that math, so the LOD will pick zoom levels appropriate for the unscaled tile size, not the visible one.
+
+  **Use `MapInformation.Scale` to drive map size instead.** A `Scale` of 1000 means each Web Mercator unit is rendered as 1000 Unity units. For a tabletop-size diorama, set `Scale` to a small value (e.g. 0.01) — the LOD math will follow. For an animated tabletop → world-size transition, the `DynamicScalingMapInformation` class drives `Scale` from an animation curve indexed by zoom.
+
+### Recommended setup
+
+For AR/MR apps you generally want:
+
+1. **Replace the built-in camera behaviours.** `SlippyMapCameraBehaviour` and `Moving3dCameraBehaviour` both write directly to `Camera.transform` every frame (and in *Rotate The Map* mode, `SlippyMapCamera` writes to `MapRoot.rotation`). In an AR/MR setup ARKit/ARCore is already driving the camera transform; you don't want the SDK fighting it. Remove these components from the scene.
+
+2. **Write a thin custom `MapCameraBehaviour<T>`** that does the inverse: instead of moving the camera based on input, it reads the AR-tracked camera's pose and pushes the relevant state into `MapboxMap.ChangeView(...)`. You typically only need to push `Center` (lat/lon) and `Scale` — pitch and bearing can stay at their initial values since the AR camera handles its own orientation.
+
+3. **Let the quadtree LOD see the AR camera.** `UnityTileProvider.Settings.Camera` can be set explicitly via the `UnityTileProviderBehaviour` inspector. Point it at your AR camera. The tile cover will frustum-cull against the AR camera's actual view.
+
+4. **Animate scale, not transform.** For a "diorama grows to world size" effect, lerp `MapInformation.Scale` over time. The visualizer reacts to `WorldScaleChanged` and re-lays-out tiles without re-fetching as long as zoom is held constant. Pre-warm the cache for the destination zoom range if you cross zoom boundaries during the animation.
+
+### Limitations
+
+This is the first release with AR-style parent transforms supported architecturally. It hasn't been validated against a full ARKit / ARCore sample, and it has not been profiled on AR-class devices. Treat it as **early access**: the bones are in place, but expect to do your own integration work and report rough edges.

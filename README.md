@@ -1,6 +1,6 @@
 # Mapbox Unity SDK
 
-Map rendering, location services, directions, geocoding, and 3D landmark features for Unity. Distributed as a Unity Package Manager (UPM) package.
+Map rendering, location services, directions, and geocoding for Unity. Distributed as a Unity Package Manager (UPM) package.
 
 | | |
 | --- | --- |
@@ -35,8 +35,8 @@ Only **iOS** and **Android** are supported build targets. Use the Unity Editor (
 | --- | --- | --- |
 | **iOS** | Supported | XCFrameworks under `Runtime/Mapbox/BaseModule/Plugins/iOS/`. ARM64. IL2CPP. |
 | **Android** | Supported | Native libs under `Runtime/Mapbox/BaseModule/Plugins/sqlite/Android/libs/` for `arm64-v8a`, `armeabi-v7a`, `x86`. Project-side configuration required — see [Building for Android](#building-for-android). |
-| **Unity Editor (Play mode)** | Supported on Windows / macOS for development. |
-| **All other platforms** | Not supported. |
+| **Unity Editor (Play mode)** | Supported on Windows / macOS for development. | Not a shipping target. |
+| **All other platforms** | Not supported. | Standalone, WebGL, console, VisionOS, etc. |
 
 ## Dependencies
 
@@ -189,25 +189,34 @@ Editor-only counterparts exist for several modules (e.g. `MapboxBaseModule.Edito
 
 ## Documentation
 
-In-package documentation lives under `Documentation~/`:
+In-package documentation lives under `Documentation~/`. Grouped by what you're trying to do:
 
-| Doc | Topic |
-| --- | --- |
-| [`Migration-3.0-to-3.1.md`](Documentation~/Migration-3.0-to-3.1.md) | Upgrade guide from v3.0 to v3.1. Read this first if you're upgrading. |
-| [`GettingStartedWithMapboxMapObject.md`](Documentation~/GettingStartedWithMapboxMapObject.md) | First-time setup, the `MapboxMap` object, place-a-pin recipe. |
-| [`AccessingTheMapObject.md`](Documentation~/AccessingTheMapObject.md) | Getting a reference to the map at runtime. |
-| [`WorkingWithMapObject.md`](Documentation~/WorkingWithMapObject.md) | Runtime API. |
-| [`WorkingWithModules.md`](Documentation~/WorkingWithModules.md) | Module composition pattern with architecture diagrams. |
-| [`ChangingMapLocation.md`](Documentation~/ChangingMapLocation.md) | Moving the map to a new lat/lon. |
-| [`ChangeImageryStyleOnRuntime.md`](Documentation~/ChangeImageryStyleOnRuntime.md) | Switching tile styles at runtime. |
-| [`CameraSystem.md`](Documentation~/CameraSystem.md) | Camera behaviours, touch / mouse input, Input System soft-dep. |
-| [`CoordinateConversions.md`](Documentation~/CoordinateConversions.md) | lat/lon ↔ Mercator ↔ Unity world space. |
-| [`VectorLayerModule.md`](Documentation~/VectorLayerModule.md) | Building / road / area visualizers, modifier stacks. |
-| [`ComponentsModule.md`](Documentation~/ComponentsModule.md) | Component-based vector pipeline. |
-| [`WorkingWithPois.md`](Documentation~/WorkingWithPois.md) | Point-of-interest features. |
-| [`UsingDirectionsApi.md`](Documentation~/UsingDirectionsApi.md) | Directions API wrapper. |
-| [`UsingGeocodingApi.md`](Documentation~/UsingGeocodingApi.md) | Geocoding API wrapper. |
-| [`UsingMapMatchingApi.md`](Documentation~/UsingMapMatchingApi.md) | Map Matching API wrapper. |
+**Upgrading from a previous version**
+- [`Migration-3.0-to-3.1.md`](Documentation~/Migration-3.0-to-3.1.md) — step-by-step upgrade from v3.0 to v3.1. Read this first if you're upgrading.
+
+**Getting started**
+- [`GettingStartedWithMapboxMapObject.md`](Documentation~/GettingStartedWithMapboxMapObject.md) — first-time setup, the `MapboxMap` object, and a place-a-pin-at-lat/lon recipe.
+- [`AccessingTheMapObject.md`](Documentation~/AccessingTheMapObject.md) — getting a reference to the map at runtime.
+- [`WorkingWithMapObject.md`](Documentation~/WorkingWithMapObject.md) — runtime API.
+
+**Map composition**
+- [`WorkingWithModules.md`](Documentation~/WorkingWithModules.md) — module composition pattern, architecture diagrams.
+- [`ChangingMapLocation.md`](Documentation~/ChangingMapLocation.md) — moving the map to a new lat/lon.
+- [`ChangeImageryStyleOnRuntime.md`](Documentation~/ChangeImageryStyleOnRuntime.md) — switching tile styles at runtime.
+- [`CoordinateConversions.md`](Documentation~/CoordinateConversions.md) — lat/lon ↔ Mercator ↔ Unity world space.
+
+**Camera, input, and AR/MR**
+- [`CameraSystem.md`](Documentation~/CameraSystem.md) — camera behaviours, touch / mouse input, Input System soft-dep, AR/MR parent-transform guidance.
+
+**Vector content**
+- [`VectorLayerModule.md`](Documentation~/VectorLayerModule.md) — building / road / area visualizers, modifier stacks.
+- [`ComponentsModule.md`](Documentation~/ComponentsModule.md) — high-performance component-based vector pipeline.
+- [`WorkingWithPois.md`](Documentation~/WorkingWithPois.md) — point-of-interest features.
+
+**APIs**
+- [`UsingDirectionsApi.md`](Documentation~/UsingDirectionsApi.md) — Directions API wrapper.
+- [`UsingGeocodingApi.md`](Documentation~/UsingGeocodingApi.md) — Geocoding API wrapper.
+- [`UsingMapMatchingApi.md`](Documentation~/UsingMapMatchingApi.md) — Map Matching API wrapper.
 
 ---
 
