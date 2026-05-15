@@ -76,7 +76,11 @@ namespace Mapbox.BaseModuleTests
         Assert.AreEqual(buffer.Length, Compression.Decompress(buffer).Length); // EditMode on OSX
 #elif UNITY_EDITOR && (UNITY_IOS || UNITY_ANDROID) // PlayMode tests in Editor
         Debug.Log("EditMode tests in Editor");
-		Assert.Less(buffer.Length, Compression.Decompress(buffer).Length);
+		// LessOrEqual (not Less) so the test passes whether the response arrives
+		// gzipped (decompression makes it strictly larger) or already
+		// transparently decompressed by UnityWebRequest / the server (in which
+		// case decompression is a no-op and the sizes match).
+		Assert.LessOrEqual(buffer.Length, Compression.Decompress(buffer).Length);
 #elif !UNITY_EDITOR && (UNITY_EDITOR_OSX || UNITY_IOS || UNITY_ANDROID) // PlayMode tests on device
 		Debug.Log("PlayMode tests on device");
 		Assert.AreEqual(buffer.Length, Compression.Decompress(buffer).Length);

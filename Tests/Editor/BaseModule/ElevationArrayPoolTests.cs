@@ -51,38 +51,44 @@ namespace Mapbox.BaseModuleTests
         public void Pool_CapsAtMaxPerSizeDepth_DroppingExcessToGC()
         {
             // MaxPerSizeDepth is 32 (private const). Push 40 distinct buffers of the
-            // same size and confirm the pool gave us back at most 32 distinct buffers
-            // by reference identity. The remaining 8 must have been dropped.
+            // same size and confirm at most 32 distinct buffers (by reference identity)
+            // can ever be rented back. The remaining 8 must have been dropped to GC.
             const int size = 1005;
             const int pushCount = 40;
 
-            var pushed = new float[pushCount][];
+            var pushedSet = new System.Collections.Generic.HashSet<float[]>(ReferenceEqualityComparer.Instance);
             for (int i = 0; i < pushCount; i++)
             {
-                pushed[i] = new float[size];
-                ElevationArrayPool.Return(pushed[i]);
+                var arr = new float[size];
+                pushedSet.Add(arr);
+                ElevationArrayPool.Return(arr);
             }
 
-            int reusedCount = 0;
-            for (int i = 0; i < pushCount; i++)
+            // Drain the pool: keep renting until we get something that isn't in the
+            // original pushed set (i.e. a freshly allocated array, meaning the pool
+            // was empty for this size). Count distinct pushed buffers seen.
+            var seen = new System.Collections.Generic.HashSet<float[]>(ReferenceEqualityComparer.Instance);
+            while (true)
             {
                 var rented = ElevationArrayPool.Rent(size);
-                // Cleanup as we go so we don't leak into the next test.
-                ElevationArrayPool.Return(rented);
-
-                for (int j = 0; j < pushCount; j++)
+                if (!pushedSet.Contains(rented))
                 {
-                    if (ReferenceEquals(rented, pushed[j]))
-                    {
-                        reusedCount++;
-                        break;
-                    }
+                    break; // freshly allocated → pool is drained
                 }
+                seen.Add(rented);
             }
 
-            // Up to 32 of the pushed buffers should survive; the rest were dropped.
-            Assert.LessOrEqual(reusedCount, 32, "Pool retained more buffers than its documented cap.");
-            Assert.Greater(reusedCount, 0, "Pool should have retained at least one buffer for reuse.");
+            Assert.LessOrEqual(seen.Count, 32, "Pool retained more buffers than its documented cap.");
+            Assert.Greater(seen.Count, 0, "Pool should have retained at least one buffer for reuse.");
+        }
+
+        // Reference-equality comparer for HashSet<float[]> — default equality
+        // compares contents element-wise, which isn't what we want.
+        private sealed class ReferenceEqualityComparer : System.Collections.Generic.IEqualityComparer<float[]>
+        {
+            public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
+            public bool Equals(float[] x, float[] y) => ReferenceEquals(x, y);
+            public int GetHashCode(float[] obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
     }
 }
