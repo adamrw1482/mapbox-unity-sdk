@@ -143,9 +143,13 @@ Verify the settings landed: in **Project Settings → Player → Publish Setting
 
 ### Step 2 — Managed Stripping Level
 
-The SDK is compatible with any **Managed Stripping Level** in Player Settings (Disabled, Minimal, Low, Medium, High). The SQLite cache's model classes carry `[UnityEngine.Scripting.Preserve]` plus a backup `Plugins/link.xml` declaration to ensure reflection-based row mapping survives stripping.
+In Player Settings → Android → Other Settings → Optimization → **Managed Stripping Level**:
 
-If you observe `Error inserting … (extended=ConstraintForeignKey)` in logcat, drop the stripping level to **Minimal** as a workaround and file an issue — the preserve-attribute combination should have prevented it.
+- **Disabled / Minimal / Low** — the primary tested target. Recommended for shipping.
+- **Medium** — briefly tested in v3.1.0 and appears to work. The SQLite cache's model classes carry `[UnityEngine.Scripting.Preserve]` plus a backup `Plugins/link.xml` declaration so reflection-based row mapping survives stripping. We haven't exercised every code path under Medium; report anything that misbehaves.
+- **High** — not tested. Likely works given the `[Preserve]` coverage, but no guarantees. If you need High in production, validate on your specific build before committing.
+
+If you observe `Error inserting … (extended=ConstraintForeignKey)` in logcat at any stripping level, drop to **Minimal / Low** as a workaround and file an issue — the preserve-attribute combination should have prevented it.
 
 ### Step 3 — Location permissions
 

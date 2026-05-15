@@ -9,7 +9,7 @@ For the full release notes see [`CHANGELOG.md`](../CHANGELOG.md). This guide is 
 ## Before you upgrade
 
 1. Commit your working state.
-2. Note your **Managed Stripping Level** in Player Settings → Android → Other Settings → Optimization. v3.1.0 supports any setting (Medium and High included), but if you were on **Disabled / Minimal** before for any reason, you can stay there. The SDK now preserves its SQLite model classes with `[Preserve]` attributes plus a `link.xml`.
+2. Note your **Managed Stripping Level** in Player Settings → Android → Other Settings → Optimization. v3.1.0's tested target is **Low** (or Minimal / Disabled). **Medium** has been briefly tested and seems to work — the SDK now preserves its SQLite model classes with `[Preserve]` attributes plus a `link.xml`. **High** is untested and *might* work given the same preservation, but no guarantees. If you were on Low or below, stay there. If you want to try Medium / High, validate on your build before committing.
 3. If your project pinned a specific Burst version, note it — v3.1.0 adds `com.unity.burst@1.8.12` as a new dependency.
 
 ---
