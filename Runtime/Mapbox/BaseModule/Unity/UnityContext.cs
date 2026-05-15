@@ -36,15 +36,24 @@ namespace Mapbox.BaseModule.Unity
 
             TaskManager.Initialize();
 
+            // worldPositionStays: false on the SetParent calls below. Without that flag
+            // (default true), Unity preserves world transform by writing to localRotation —
+            // so if MapRoot is rotated when Initialize runs, auto-created roots end up
+            // with localRotation = inverse(MapRoot.rotation), counter-rotating any
+            // children they hold. Explicit localRotation = identity afterwards is
+            // defensive in case the scene-authored root has a non-default rotation we
+            // want to ignore.
             BaseTileRoot = BaseTileRoot == null ? new GameObject("BaseTiles").transform : BaseTileRoot;
-            BaseTileRoot.SetParent(MapRoot);
+            BaseTileRoot.SetParent(MapRoot, worldPositionStays: false);
             BaseTileRoot.transform.localPosition = Vector3.zero;
+            BaseTileRoot.transform.localRotation = Quaternion.identity;
 
             RuntimeGenerationRoot = RuntimeGenerationRoot == null
                 ? new GameObject("RuntimeObjectsRoot").transform
                 : RuntimeGenerationRoot;
-            RuntimeGenerationRoot.SetParent(MapRoot);
+            RuntimeGenerationRoot.SetParent(MapRoot, worldPositionStays: false);
             RuntimeGenerationRoot.transform.localPosition = Vector3.zero;
+            RuntimeGenerationRoot.transform.localRotation = Quaternion.identity;
             yield return null;
         }
 

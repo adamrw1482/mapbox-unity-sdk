@@ -84,7 +84,7 @@ namespace Mapbox.VectorModule.ComponentSystem
         private VectorEntity VectorEntityGenerator()
         {
             var go = new GameObject();
-            go.transform.SetParent(_layerRootObject);
+            go.transform.SetParent(_layerRootObject, worldPositionStays: false);
             var mf = go.AddComponent<MeshFilter>();
             mf.sharedMesh = new Mesh();
             var mr = go.AddComponent<MeshRenderer>();

@@ -469,7 +469,7 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
 
             entity.MeshRenderer.materials = mats;
 
-            entity.GameObject.transform.SetParent(_layerRootObject);
+            entity.GameObject.transform.SetParent(_layerRootObject, worldPositionStays: false);
             entity.StackId = 0;
 
             var mesh = entity.Mesh;

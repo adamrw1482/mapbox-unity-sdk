@@ -44,9 +44,14 @@ namespace Mapbox.VectorModule
             _layerRootObject = new GameObject(_vectorLayerName + " layer objects").transform;
             if (_unityContext != null)
             {
-                _layerRootObject.SetParent(_unityContext.RuntimeGenerationRoot);
+                // worldPositionStays: false so Unity doesn't counter-rotate localRotation
+                // when parenting under a rotated RuntimeGenerationRoot (e.g. MapRoot
+                // anchored to an AR rig). The layer root should compose with the parent
+                // chain, not pin to world space.
+                _layerRootObject.SetParent(_unityContext.RuntimeGenerationRoot, worldPositionStays: false);
             }
             _layerRootObject.transform.localPosition = Vector3.zero;
+            _layerRootObject.transform.localRotation = Quaternion.identity;
             // localPosition (not position) so the offset stays in MapRoot-local space.
             // Writing world-space here would clobber any parent transform on the map
             // hierarchy (e.g. an AR anchor rotating / translating MapRoot).
@@ -254,7 +259,7 @@ namespace Mapbox.VectorModule
                 foreach (var meshData in pair.Value)
                 {
                     var entity = _stackList[pair.Key].CreateEntity(meshData);
-                    entity.GameObject.transform.SetParent(_layerRootObject);
+                    entity.GameObject.transform.SetParent(_layerRootObject, worldPositionStays: false);
                     entity.StackId = pair.Key;
                     entity.Feature = meshData.Feature;
                     if(Application.isEditor) entity.GameObject.name = VectorLayerName + " " + canonicalTileId.ToString();
