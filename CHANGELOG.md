@@ -210,6 +210,15 @@ Minor-version bump per semver: this release contains source-breaking API changes
 - Fixed incorrect limit validation and bounds checking in the `LatitudeLongitude` struct.
 - Fixed `MapInformation.Initialize` not resetting `Terrain.Min/MaxElevation` to defaults — previous run's values could bleed into a fresh session.
 - Fixed Android IL2CPP player builds with **Medium** or **High** Managed Stripping Level silently dropping every SQLite tile cache insert with a `ConstraintForeignKey` error. Sqlite-net populates row values via reflection (`PropertyInfo.SetValue`), but IL2CPP stripped the auto-property accessor methods (`set_id`, `set_name`, etc.) on the cache's model classes — `SetValue` then became a silent no-op, every read returned `id = 0`, and downstream `tiles` inserts failed the foreign key on `tile_set`. The four SQLite model classes (`tiles`, `tilesets`, `offlineMaps`, `tile2offline`) and every one of their persisted properties now carry `[UnityEngine.Scripting.Preserve]`, and the same types are declared in `Plugins/link.xml` as a secondary safety net. Map rendering was unaffected (memory cache covered it) but the SQLite disk cache wasn't actually persisting on Android with non-Minimal stripping. Additionally, the `Error inserting …` log line now includes SQLite's extended error code (`ConstraintUnique` / `ConstraintForeignKey` / `ConstraintNotNull` / etc.) so future cache-side failures are diagnosable from the first line.
+- Fixed `MapboxMapVisualizer` writing `tile.transform.position` (world space) on every tile cover update, which silently reset any parent transformation on the `MapRoot` / `BaseTileRoot` hierarchy. Tiles are now positioned via `transform.localPosition`, so translating or rotating the map's root (e.g. anchoring it to an `ARAnchor`) is honored. For unchanged scenes — `MapRoot` at world origin with identity rotation — behavior is identical. Non-unit `MapRoot.localScale` is still unsupported; drive map scale through `MapInformation.Scale` instead.
+
+#### Documentation
+- New [`Documentation~/Migration-3.0-to-3.1.md`](Documentation~/Migration-3.0-to-3.1.md) walks through every source-level break, every behavioral change, and step-by-step verification when upgrading from v3.0.
+- `README.md` rewritten and now serves as the single landing page (Overview.md merged in and removed). Adds a quick-facts header table, dependency listing, demo-scenes table, iOS / Android build sections with the v3.1.0 stripping notes, modules table, and a complete documentation index.
+- `Documentation~/GettingStartedWithMapboxMapObject.md` gained a "Place a GameObject at a latitude / longitude" recipe — the most commonly asked indie use case (drop a marker / character / POI at specific coordinates), with the correct `localPosition` + `MapRoot` parenting pattern and the optional `TryGetElevation` step.
+
+#### Tests
+- Added editor-mode tests for `ElevationArrayPool` (rent / return / pool cap / null safety), `TerrainInfo` (defaults), and `MapInformation` (Initialize resets terrain bounds, lat/lon, idempotency). First test coverage for v3.1.0 surface — more coming in v3.2.
 
 ### v3.0.6
 

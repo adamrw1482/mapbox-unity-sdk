@@ -529,7 +529,14 @@ namespace Mapbox.BaseModule.Map
                 _mapInformation.Scale);
             tile = null;
             tile = _tileCreator.GetTile();
-            tile.transform.position = new Vector3((float)rectd.Center.x, 0, (float)rectd.Center.y);
+            // Local-space so the whole map composes with any parent transform on the
+            // BaseTileRoot / MapRoot hierarchy (translation + rotation). AR/MR setups
+            // typically parent MapRoot under an ARAnchor; setting world-space position
+            // here would silently reset that on every tile cover update.
+            // Note: non-unit MapRoot.localScale still breaks the quadtree LOD math
+            // (camera position is read in world space). Recommended pattern: drive
+            // map scale through MapInformation.Scale, not via MapRoot.transform.
+            tile.transform.localPosition = new Vector3((float)rectd.Center.x, 0, (float)rectd.Center.y);
             tile.transform.localScale = Vector3.one * (float)rectd.Size.x;
             tile.Initialize(tileId, (float)rectd.Size.x * _mapInformation.Scale);
         }
