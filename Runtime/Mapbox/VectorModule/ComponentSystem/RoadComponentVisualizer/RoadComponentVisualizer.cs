@@ -25,10 +25,12 @@ namespace Mapbox.VectorModule.ComponentSystem.RoadComponentVisualizer
             RoadComponentSettings settings = null) : base(name, mapInformation, unityContext)
         {
             _settings = settings ?? new RoadComponentSettings();
-            _layerRootObject.transform.position = new Vector3(
-                _layerRootObject.transform.position.x, 
-                _settings.GameObjectOffset, 
-                _layerRootObject.transform.position.z);
+            // localPosition (not position) so the y-offset stays in MapRoot-local space
+            // and composes with any parent transform applied to the map hierarchy.
+            _layerRootObject.transform.localPosition = new Vector3(
+                _layerRootObject.transform.localPosition.x,
+                _settings.GameObjectOffset,
+                _layerRootObject.transform.localPosition.z);
         }
 
         private enum Turn

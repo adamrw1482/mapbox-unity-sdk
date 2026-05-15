@@ -22,10 +22,12 @@ namespace Mapbox.VectorModule.ComponentSystem.AreaComponent
             unityContext)
         {
             _settings = settings ?? new AreaComponentSettings();
-            _layerRootObject.transform.position = new Vector3(
-                _layerRootObject.transform.position.x, 
-                _settings.GameObjectOffset, 
-                _layerRootObject.transform.position.z);
+            // localPosition (not position) so the y-offset stays in MapRoot-local space
+            // and composes with any parent transform applied to the map hierarchy.
+            _layerRootObject.transform.localPosition = new Vector3(
+                _layerRootObject.transform.localPosition.x,
+                _settings.GameObjectOffset,
+                _layerRootObject.transform.localPosition.z);
         }
 
         public override MeshData CreateMesh(CanonicalTileId tileId, VectorTileLayer layer)
