@@ -30,7 +30,10 @@ namespace Mapbox.BaseModule.Unity
 
         public void SetImageData(RasterData imageData, TileContainerState state = TileContainerState.Final)
         {
-            ImageData?.SetDisposeCallback(null);
+            if (ImageData != null)
+            {
+                ImageData.RemoveDisposeCallback(_onDispose);
+            }
 
             State = state;
             if (imageData.Texture == null || imageData.TileId.Z == 0)
@@ -39,7 +42,7 @@ namespace Mapbox.BaseModule.Unity
             }
 
             ImageData = imageData;
-            ImageData.SetDisposeCallback(_onDispose);
+            ImageData.AddDisposeCallback(_onDispose);
             OnImageryUpdated();
         }
 
@@ -50,9 +53,11 @@ namespace Mapbox.BaseModule.Unity
 
             var scaleOffset = _unityMapTile.CanonicalTileId.CalculateScaleOffsetAtZoom(ImageData.TileId.Z);
 
-            _unityMapTile.Material.SetTexture(MainTex, ImageData.Texture);
-            _unityMapTile.Material.SetVector(MainTexSt, scaleOffset);
-            _unityMapTile.Material.SetFloat(MainTextureChangeTime, Time.time);
+            var block = _unityMapTile.PropertyBlock;
+            block.SetTexture(MainTex, ImageData.Texture);
+            block.SetVector(MainTexSt, scaleOffset);
+            block.SetFloat(MainTextureChangeTime, Time.time);
+            _unityMapTile.ApplyPropertyBlock();
         }
 
         public RasterData GetAndClearImageData()
@@ -60,9 +65,10 @@ namespace Mapbox.BaseModule.Unity
             if (ImageData == null)
                 return null;
 
-            _unityMapTile.Material.SetTexture(MainTex, Texture2D.blackTexture);
+            _unityMapTile.PropertyBlock.SetTexture(MainTex, Texture2D.blackTexture);
+            _unityMapTile.ApplyPropertyBlock();
             var rd = ImageData;
-            ImageData.SetDisposeCallback(null);
+            ImageData.RemoveDisposeCallback(_onDispose);
             ImageData = null;
             return rd;
         }
@@ -70,12 +76,21 @@ namespace Mapbox.BaseModule.Unity
         public void DisableImagery()
         {
             State = TileContainerState.Final;
-            _unityMapTile.Material.SetTexture(MainTex, null);
+            _unityMapTile.PropertyBlock.SetTexture(MainTex, null);
+            _unityMapTile.ApplyPropertyBlock();
         }
 
         public void OnDestroy()
         {
-            //anything to finalize here?
+            // Symmetric detach to mirror UnityTileTerrainContainer's fix: the multicast
+            // _onDispose callback we added at SetImageData must be removed here, otherwise
+            // a future RasterData eviction fires the closure into a destroyed tile and
+            // cascades through OnDataDisposed → OnTileBroken → PoolTile on a dead tile.
+            if (ImageData != null)
+            {
+                ImageData.RemoveDisposeCallback(_onDispose);
+                ImageData = null;
+            }
         }
     }
 }

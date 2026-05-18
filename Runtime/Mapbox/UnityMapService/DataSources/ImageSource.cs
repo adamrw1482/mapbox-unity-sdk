@@ -32,7 +32,7 @@ namespace Mapbox.UnityMapService.DataSources
                 CacheItemDisposed(t);
             };
         }
-
+        
         public override void LoadTile(CanonicalTileId requestedDataTileId)
         {
             LoadTileCore(requestedDataTileId);
@@ -127,7 +127,34 @@ namespace Mapbox.UnityMapService.DataSources
         {
             _memoryCache.OnDestroy();
         }
+
+        public IEnumerator ReloadTiles()
+        {
+            // IMPORTANT: Materialize keys BEFORE starting any coroutines to avoid
+            // InvalidOperationException: Collection was modified during enumeration.
+            // RefreshData modifies the cache (Remove/Add) while WaitForAll() would be
+            // lazily enumerating the live dictionaries if we didn't snapshot them first.
+            var activeKeys = _memoryCache.GetActiveData.Keys.ToList();
+            var fallbackKeys = _memoryCache.GetFallbackData.Keys.ToList();
+
+            var coroutines = activeKeys.Select(key => RefreshData(key));
+            coroutines = coroutines.Concat(fallbackKeys.Select(key => RefreshData(key, data =>
+            {
+                _memoryCache.MarkFallback(key);
+            })));
+
+            yield return coroutines.WaitForAll();
+            _memoryCache.ClearInactive();
+        }
         
+        public override IEnumerator ChangeTilesetId(string tilesetId)
+        {
+            _settings.TilesetId = tilesetId;
+            _tilesetId = _settings.TilesetId;
+            yield return Initialize();
+            yield return ReloadTiles();
+        }
+
         public override void OnDestroy()
         {
             base.OnDestroy();
@@ -143,59 +170,113 @@ namespace Mapbox.UnityMapService.DataSources
 
         //COROUTINE METHODS only used in initialization so far
         #region coroutines
-        public override IEnumerator LoadTileCoroutine(CanonicalTileId requestedDataTileId, Action<T> callback = null)
+
+        /// <summary>
+        /// Shared fetch logic for tile data following the cache-check → file-cache → web-request fallback chain.
+        /// </summary>
+        /// <param name="requestedDataTileId">Tile ID to fetch</param>
+        /// <param name="checkMemoryCacheFirst">If true, checks memory cache before starting fetch chain</param>
+        /// <param name="clearExistingCache">If true, removes existing cache entry before adding new data</param>
+        /// <param name="callback">Callback invoked with result (can be null)</param>
+        private IEnumerator FetchTileDataCoroutine(
+            CanonicalTileId requestedDataTileId,
+            bool checkMemoryCacheFirst,
+            bool clearExistingCache,
+            Action<T> callback = null)
         {
             T resultData = null;
-            if (GetInstantData(requestedDataTileId, out resultData))
+
+            // STEP 1: Check memory cache if requested (LoadTileCoroutine does this, RefreshData doesn't)
+            if (checkMemoryCacheFirst && GetInstantData(requestedDataTileId, out resultData))
             {
+                callback?.Invoke(resultData);
+                yield break;
             }
-            else if (_waitingList.ContainsKey(requestedDataTileId))
+
+            // STEP 2: If already being fetched, wait for completion
+            if (_waitingList.ContainsKey(requestedDataTileId))
             {
                 while(_waitingList.ContainsKey(requestedDataTileId))
                 {
                     yield return null;
                 }
                 GetInstantData(requestedDataTileId, out resultData);
+                callback?.Invoke(resultData);
+                yield break;
             }
-            else
-            {
-                _waitingList[requestedDataTileId] = null;
-                yield return GetImageCoroutine<T>(requestedDataTileId, _tilesetId, _settings.UseNonReadableTextures,
-                    (data) =>
-                    {
-                        resultData = data;
-                        _waitingList.Remove(requestedDataTileId);
-                        
-                        if (resultData != null)
-                        {
-                            data.CacheType = CacheType.FileCache;
-                            _memoryCache.Add(data);
-                            CheckExpiration(data);
-                        }
-                    });
 
-                if (resultData == null)
+            // STEP 3: Try file cache
+            _waitingList[requestedDataTileId] = null;
+            yield return GetImageCoroutine<T>(requestedDataTileId, _tilesetId, _settings.UseNonReadableTextures,
+                (data) =>
                 {
-                    var dataTile = CreateTile(requestedDataTileId, _tilesetId);
-                    _waitingList[requestedDataTileId] = dataTile;
-                    var working = true;
-                    WebRequestData(dataTile, (fetchingResult) =>
+                    resultData = data;
+                    _waitingList.Remove(requestedDataTileId);
+
+                    if (resultData != null)
                     {
-                        _waitingList.Remove(requestedDataTileId);
-                        if (dataTile.CurrentTileState == TileState.Loaded)
-                        {
-                            resultData = TextureFromWebForCoroutine(dataTile);
-                        }
-                        working = false;
-                    });
-                    while (working)
-                    {
-                        yield return null;
+                        data.CacheType = CacheType.FileCache;
+
+                        // Clear existing cache if requested (RefreshData does this)
+                        if (clearExistingCache && _memoryCache.Exists(requestedDataTileId))
+                            _memoryCache.Remove(requestedDataTileId);
+
+                        _memoryCache.Add(data);
+                        CheckExpiration(data);
                     }
+                });
+
+            // STEP 4: If not in file cache, fetch from web
+            if (resultData == null)
+            {
+                var dataTile = CreateTile(requestedDataTileId, _tilesetId);
+                _waitingList[requestedDataTileId] = dataTile;
+                var working = true;
+
+                WebRequestData(dataTile, (fetchingResult) =>
+                {
+                    _waitingList.Remove(requestedDataTileId);
+
+                    if (dataTile.CurrentTileState == TileState.Loaded)
+                    {
+                        // Clear existing cache entry if requested (for RefreshData)
+                        if (clearExistingCache && _memoryCache.Exists(requestedDataTileId))
+                            _memoryCache.Remove(requestedDataTileId);
+
+                        // Process web response using shared method
+                        resultData = TextureFromWebForCoroutine(dataTile);
+                    }
+
+                    working = false;
+                });
+
+                while (working)
+                {
+                    yield return null;
                 }
             }
-            
+
             callback?.Invoke(resultData);
+        }
+
+        public override IEnumerator LoadTileCoroutine(CanonicalTileId requestedDataTileId, Action<T> callback = null)
+        {
+            yield return FetchTileDataCoroutine(
+                requestedDataTileId,
+                checkMemoryCacheFirst: true,
+                clearExistingCache: false,
+                callback
+            );
+        }
+
+        private IEnumerator RefreshData(CanonicalTileId requestedDataTileId, Action<T> callback = null)
+        {
+            yield return FetchTileDataCoroutine(
+                requestedDataTileId,
+                checkMemoryCacheFirst: false,
+                clearExistingCache: true,
+                callback
+            );
         }
         
         public override IEnumerator LoadTilesCoroutine(IEnumerable<CanonicalTileId> retainedTiles, Action<List<T>> callback = null)
@@ -362,7 +443,7 @@ namespace Mapbox.UnityMapService.DataSources
             });
         }
 
-        private void CheckExpiration(T cacheItem)
+        protected virtual void CheckExpiration(T cacheItem)
         {
             var dataTask = ReadEtagExpiration(cacheItem, 4);
             if (dataTask != null) //can be null if sqlite cache isn't available

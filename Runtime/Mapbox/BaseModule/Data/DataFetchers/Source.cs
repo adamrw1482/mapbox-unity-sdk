@@ -90,6 +90,11 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 			
 		}
 
+		public virtual IEnumerator ChangeTilesetId(string tilesetId)
+		{
+			yield break; // Exit immediately without waiting a frame
+		}
+		
 		public virtual void OnDestroy()
 		{
 			
