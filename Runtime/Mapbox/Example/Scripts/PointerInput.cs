@@ -1,9 +1,5 @@
+using System;
 using UnityEngine;
-#if MAPBOX_NEW_INPUT_SYSTEM
-using UnityEngine.InputSystem;
-using NewTouch = UnityEngine.InputSystem.EnhancedTouch.Touch;
-using NewTouchPhase = UnityEngine.InputSystem.TouchPhase;
-#endif
 
 namespace Mapbox.Example.Scripts.MapInput
 {
@@ -12,7 +8,7 @@ namespace Mapbox.Example.Scripts.MapInput
 	/// <c>UnityEngine.InputSystem.TouchPhase</c> are mapped onto this enum so the
 	/// MapInput call-sites don't need to know which input system is compiled in.
 	/// </summary>
-	internal enum PointerTouchPhase
+	public enum PointerTouchPhase
 	{
 		None,
 		Began,
@@ -23,13 +19,14 @@ namespace Mapbox.Example.Scripts.MapInput
 	}
 
 	/// <summary>
-	/// Thin abstraction over Unity's two input backends. <see cref="PointerInput"/>
-	/// has exactly one of two implementations compiled in, selected by the
-	/// MAPBOX_NEW_INPUT_SYSTEM define (which the asmdef's versionDefines sets when
-	/// com.unity.inputsystem is installed). MapInput.cs talks only to this interface,
-	/// so the rest of the camera/input layer stays free of #if branching.
+	/// Thin abstraction over Unity's two input backends. Concrete implementations
+	/// live in the sibling <c>MapboxExamples.LegacyInput</c> / <c>MapboxExamples.NewInputSystem</c>
+	/// asmdefs, each gated by Active Input Handling defines, and self-register with
+	/// <see cref="PointerInputFactory"/> at <c>SubsystemRegistration</c>. MapInput
+	/// consumes <see cref="IPointerInput"/> via the factory and stays free of any
+	/// #if branching on the input backend.
 	/// </summary>
-	internal interface IPointerInput
+	public interface IPointerInput
 	{
 		/// <summary>
 		/// Called once from <c>MapInput.Initialize</c>. Legacy is a no-op; new-input
@@ -62,86 +59,57 @@ namespace Mapbox.Example.Scripts.MapInput
 		float MouseScrollY { get; }
 	}
 
-#if MAPBOX_NEW_INPUT_SYSTEM
-	internal sealed class PointerInput : IPointerInput
+	/// <summary>
+	/// Priority-keyed registry for <see cref="IPointerInput"/> implementations.
+	/// Each backend asmdef (Legacy=0, NewInputSystem=10) registers itself from a
+	/// <c>RuntimeInitializeOnLoadMethod</c>. Under Active Input Handling = "Both",
+	/// both register and the higher priority wins — load-order between assemblies
+	/// is not relied upon.
+	/// </summary>
+	public static class PointerInputFactory
 	{
-		public void EnableTouchSupport()
-		{
-			if (!UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.enabled)
-				UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
-		}
+		private static int _registeredPriority = int.MinValue;
+		private static Func<IPointerInput> _factory;
 
-		public int TouchCount => NewTouch.activeTouches.Count;
-		public Vector2 GetTouchPosition(int index) => NewTouch.activeTouches[index].screenPosition;
-		public float GetTouchDeltaY(int index) => NewTouch.activeTouches[index].delta.y;
-		public int GetTouchId(int index) => NewTouch.activeTouches[index].touchId;
-		public int GetTouchPointerId(int index) => NewTouch.activeTouches[index].finger.index;
-
-		public PointerTouchPhase GetTouchPhase(int index)
+		public static void Register(int priority, Func<IPointerInput> factory)
 		{
-			switch (NewTouch.activeTouches[index].phase)
+			if (factory == null) return;
+			// >= so re-registration with same priority (e.g. Enter-Play-Mode with
+			// domain reload disabled re-runs the registrar) replaces cleanly.
+			if (priority >= _registeredPriority)
 			{
-				case NewTouchPhase.Began: return PointerTouchPhase.Began;
-				case NewTouchPhase.Moved: return PointerTouchPhase.Moved;
-				case NewTouchPhase.Stationary: return PointerTouchPhase.Stationary;
-				case NewTouchPhase.Ended: return PointerTouchPhase.Ended;
-				case NewTouchPhase.Canceled: return PointerTouchPhase.Canceled;
-				default: return PointerTouchPhase.None;
+				_registeredPriority = priority;
+				_factory = factory;
 			}
 		}
 
-		public Vector3 MousePosition =>
-			Mouse.current != null ? (Vector3)Mouse.current.position.ReadValue() : Vector3.zero;
-
-		public bool MouseLeftPressedThisFrame =>
-			Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-		public bool MouseLeftHeld =>
-			Mouse.current != null && Mouse.current.leftButton.isPressed;
-
-		public bool MouseRightPressedThisFrame =>
-			Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame;
-		public bool MouseRightHeld =>
-			Mouse.current != null && Mouse.current.rightButton.isPressed;
-
-		// Raw scroll.y is ~120 per notch on Windows; legacy Input.GetAxis returns
-		// ~0.1 per notch. /1200f normalizes to the legacy scale so both backends feed
-		// the same magnitude into ZoomSensitivity.
-		public float MouseScrollY =>
-			Mouse.current != null ? Mouse.current.scroll.ReadValue().y / 1200f : 0f;
-	}
-#else
-	internal sealed class PointerInput : IPointerInput
-	{
-		public void EnableTouchSupport() { /* legacy touch is auto-enabled */ }
-
-		public int TouchCount => Input.touchCount;
-		public Vector2 GetTouchPosition(int index) => Input.GetTouch(index).position;
-		public float GetTouchDeltaY(int index) => Input.GetTouch(index).deltaPosition.y;
-		public int GetTouchId(int index) => Input.GetTouch(index).fingerId;
-		public int GetTouchPointerId(int index) => Input.GetTouch(index).fingerId;
-
-		public PointerTouchPhase GetTouchPhase(int index)
+		public static IPointerInput Create()
 		{
-			switch (Input.GetTouch(index).phase)
-			{
-				case TouchPhase.Began: return PointerTouchPhase.Began;
-				case TouchPhase.Moved: return PointerTouchPhase.Moved;
-				case TouchPhase.Stationary: return PointerTouchPhase.Stationary;
-				case TouchPhase.Ended: return PointerTouchPhase.Ended;
-				case TouchPhase.Canceled: return PointerTouchPhase.Canceled;
-				default: return PointerTouchPhase.None;
-			}
+			if (_factory != null) return _factory();
+			Debug.LogError(
+				"PointerInputFactory: no IPointerInput backend registered. " +
+				"Ensure either MapboxExamples.LegacyInput or MapboxExamples.NewInputSystem " +
+				"is compiling (Project Settings → Player → Active Input Handling).");
+			return new NullPointerInput();
 		}
 
-		public Vector3 MousePosition => Input.mousePosition;
-		public bool MouseLeftPressedThisFrame => Input.GetMouseButtonDown(0);
-		public bool MouseLeftHeld => Input.GetMouseButton(0);
-		public bool MouseRightPressedThisFrame => Input.GetMouseButtonDown(1);
-		public bool MouseRightHeld => Input.GetMouseButton(1);
-
-		// Input.GetAxis("Mouse ScrollWheel") returns 0 when not scrolling, so we
-		// don't need the historic Mathf.Abs(mouseScrollDelta) > 0 short-circuit.
-		public float MouseScrollY => Input.GetAxis("Mouse ScrollWheel");
+		// Returned when no backend asmdef has registered. Keeps cameras alive
+		// (no NREs) so the missing-backend error message is the only symptom.
+		private sealed class NullPointerInput : IPointerInput
+		{
+			public void EnableTouchSupport() { }
+			public int TouchCount => 0;
+			public Vector2 GetTouchPosition(int index) => Vector2.zero;
+			public float GetTouchDeltaY(int index) => 0f;
+			public int GetTouchId(int index) => 0;
+			public int GetTouchPointerId(int index) => 0;
+			public PointerTouchPhase GetTouchPhase(int index) => PointerTouchPhase.None;
+			public Vector3 MousePosition => Vector3.zero;
+			public bool MouseLeftPressedThisFrame => false;
+			public bool MouseLeftHeld => false;
+			public bool MouseRightPressedThisFrame => false;
+			public bool MouseRightHeld => false;
+			public float MouseScrollY => 0f;
+		}
 	}
-#endif
 }

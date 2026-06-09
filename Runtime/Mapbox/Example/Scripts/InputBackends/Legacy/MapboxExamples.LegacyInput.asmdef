@@ -1,0 +1,18 @@
+{
+    "name": "MapboxExamples.LegacyInput",
+    "rootNamespace": "",
+    "references": [
+        "GUID:73cdb7a2ce06b4867bd56dca984fb31b"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ENABLE_LEGACY_INPUT_MANAGER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -39,15 +39,25 @@ namespace Mapbox.Example.Scripts.MapInput
 		// Android/iOS device builds use the touch handler. The split is compile-time
 		// (no runtime detection) — each platform gets a single-purpose input path
 		// instead of a unified shim that has to cover both worlds at once.
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-		private readonly IInputHandler _handler = new TouchInputHandler(new PointerInput());
-#else
-		private readonly IInputHandler _handler = new MouseInputHandler(new PointerInput());
-#endif
+		// Assigned in Initialize() rather than field-init because the backing
+		// IPointerInput is supplied by a sub-asmdef registrar that runs at
+		// SubsystemRegistration — i.e. before Awake, but after this MonoBehaviour
+		// instance's field initializers would otherwise run.
+		private IInputHandler _handler;
 
 		public virtual void Initialize(Camera camera, IMapInformation mapInfo)
 		{
 			_camera = camera ? camera : Camera.main;
+
+			// Reassigned on each Initialize call by design — MapCameraBehaviour
+			// re-runs Initialize on map swap, and a fresh handler resets pinch /
+			// drag state to match the new map.
+			var pointer = PointerInputFactory.Create();
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+			_handler = new TouchInputHandler(pointer);
+#else
+			_handler = new MouseInputHandler(pointer);
+#endif
 			_handler.Initialize();
 		}
 

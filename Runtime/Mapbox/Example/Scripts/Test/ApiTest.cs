@@ -51,6 +51,9 @@ namespace Mapbox.Example.Scripts.Test
                 var camera = Camera.main;
                 while (true)
                 {
+                    // Demo-only legacy input path. Under "Input System Package (New)"-only,
+                    // UnityEngine.Input.* throws — the demo silently no-ops there.
+#if ENABLE_LEGACY_INPUT_MANAGER
                     if (UnityEngine.Input.GetMouseButtonDown(0))
                     {
                         var latlng = _map.MapInformation.ConvertPositionToLatLng(GetPlaneIntersection(camera, UnityEngine.Input.mousePosition));
@@ -58,6 +61,7 @@ namespace Mapbox.Example.Scripts.Test
                         go.name = latlng.ToString();
                         go.transform.position = _map.MapInformation.ConvertLatLngToPosition(latlng);
                     }
+#endif
 
                     yield return null;
                 }

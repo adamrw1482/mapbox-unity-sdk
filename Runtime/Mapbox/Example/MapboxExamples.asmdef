@@ -17,12 +17,6 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [
-        {
-            "name": "com.unity.inputsystem",
-            "expression": "",
-            "define": "MAPBOX_NEW_INPUT_SYSTEM"
-        }
-    ],
+    "versionDefines": [],
     "noEngineReferences": false
 }
