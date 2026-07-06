@@ -208,21 +208,17 @@ namespace Mapbox.BaseModule.Data.Platform.Cache
 			return delayMilliseconds / 1000;
 		}
 
-		public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10)
+		public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10, bool addSkuToken = true)
 		{
 			var uriBuilder = new UriBuilder(uri);
 			if (!string.IsNullOrEmpty(_accessToken))
 			{
 				string accessTokenQuery = "access_token=" + _accessToken;
-				string mapsSkuToken = "sku=" + _getMapsSkuToken();
+				string skuPart = addSkuToken ? "&sku=" + _getMapsSkuToken() : string.Empty;
 				if (uriBuilder.Query != null && uriBuilder.Query.Length > 1)
-				{
-					uriBuilder.Query = uriBuilder.Query.Substring(1) + "&" + accessTokenQuery + "&" + mapsSkuToken;
-				}
+					uriBuilder.Query = uriBuilder.Query.Substring(1) + "&" + accessTokenQuery + skuPart;
 				else
-				{
-					uriBuilder.Query = accessTokenQuery + "&" + mapsSkuToken;
-				}
+					uriBuilder.Query = accessTokenQuery + skuPart;
 			}
 
 			string finalUrl = uriBuilder.ToString();
