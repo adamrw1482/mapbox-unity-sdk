@@ -114,9 +114,9 @@ namespace Mapbox.BaseModule.Data.DataFetchers
 
 
 		#region IFileSource interface for direct access without queue
-		public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10)
+		public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10, bool addSkuToken = true)
 		{
-			return _fileSource.Request(uri, callback, timeout);
+			return _fileSource.Request(uri, callback, timeout, addSkuToken);
 		}
 
 		public IWebRequest MapboxImageRequest(string uri, Action<WebRequestResponse> callback, string etag = "", int timeout = 10,

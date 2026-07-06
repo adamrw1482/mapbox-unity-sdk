@@ -62,22 +62,21 @@ namespace Mapbox.BaseModule.Data.Platform
             string url
             , Action<Response> callback
             , int timeout = 10
+            , bool addSkuToken = true
         )
         {
             if (!string.IsNullOrEmpty(_accessToken))
             {
                 var uriBuilder = new UriBuilder(url);
                 string accessTokenQuery = "access_token=" + _accessToken;
-                string skuToken = "sku=" + _getMapsSkuToken();
+                string skuPart = (addSkuToken && _getMapsSkuToken != null)
+                    ? "&sku=" + _getMapsSkuToken()
+                    : string.Empty;
+
                 if (uriBuilder.Query != null && uriBuilder.Query.Length > 1)
-                {
-                    uriBuilder.Query = uriBuilder.Query.Substring(1) + "&" + accessTokenQuery + "&" + skuToken;
-                    ;
-                }
+                    uriBuilder.Query = uriBuilder.Query.Substring(1) + "&" + accessTokenQuery + skuPart;
                 else
-                {
-                    uriBuilder.Query = accessTokenQuery + "&" + skuToken;
-                }
+                    uriBuilder.Query = accessTokenQuery + skuPart;
 
                 url = uriBuilder.ToString();
             }

@@ -24,7 +24,7 @@ namespace Mapbox.DirectionsApiTests
                 _shouldError = shouldError;
             }
 
-            public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10)
+            public IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10, bool addSkuToken = true)
             {
                 if (!_shouldError)
                 {

@@ -25,7 +25,7 @@ namespace Mapbox.BaseModule.Data.Platform
 		///     request. This handle can be completely ignored if there is no intention of ever
 		///     canceling the request.
 		/// </returns>
-		IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10);
+		IAsyncRequest Request(string uri, Action<Response> callback, int timeout = 10, bool addSkuToken = true);
 		IWebRequest MapboxImageRequest(string uri, Action<WebRequestResponse> callback, string etag = "", int timeout = 10, bool isNonReadable = true);
 		IWebRequest CustomImageRequest(string uri, Action<WebRequestResponse> callback, string etag = null, int timeout = 10, bool isNonReadable = true);
 		IWebRequest MapboxDataRequest(string uri, Action<WebRequestResponse> callback, string etag = "", int timeout = 10);
