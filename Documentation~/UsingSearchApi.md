@@ -222,9 +222,10 @@ searchBox.OnResultSelected.AddListener(selection =>
 
 ### Nearby POIs Around the Current Map Center
 ```csharp
+var center = map.MapInformation.LatitudeLongitude; // IMapInformation.LatitudeLongitude
 var resource = new CategorySearchResource("restaurant")
 {
-    Proximity = mapInformation.CurrentMapCenterLatitudeLongitude,
+    Proximity = new Vector2d(center.Latitude, center.Longitude), // x=lat, y=lon
     Limit = 10
 };
 searchApi.Category(resource, DisplayNearbyResults);
