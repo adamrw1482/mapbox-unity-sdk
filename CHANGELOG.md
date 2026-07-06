@@ -1,5 +1,24 @@
 ## CHANGELOG
 
+### v3.2.0
+
+Minor-version bump per semver: adds a new Search Box API wrapper module, alongside a small, backward-compatible-by-default addition to the shared `IFileSource` request signature that supports it.
+
+#### Breaking changes
+
+**Shared file source:**
+- `IFileSource.Request(string uri, Action<Response> callback, int timeout = 10, bool addSkuToken = true)` gained a new `addSkuToken` parameter (default `true`, preserving existing behavior for every current caller — tiles, Directions, and Geocoding all keep sending the SKU token as before). Any project that ships its own `IFileSource` implementation must add this parameter to its `Request` override to keep compiling; an interface method's parameter list must match exactly, even though the added parameter carries a default value for callers going through the interface reference.
+
+#### New features
+
+**Search Box API (`MapboxSearchApi`):**
+- New `Runtime/Mapbox/SearchApi/` module wrapping the [Mapbox Search Box API](https://docs.mapbox.com/api/search/search-box/): `MapboxSearchApi` exposes `Suggest`, `Retrieve`, `Forward`, `Reverse`, `Category`, and `ListCategories`, mirroring the resource/response pattern already used by `MapboxDirectionsApi`/`MapboxGeocodingApi`.
+- `SearchSession` manages the Search Box API's session-token billing model: rotates the token after a completed `/retrieve`, after 50 consecutive `/suggest` calls, or after 180 seconds of idle time; also tracks and cancels the latest in-flight request so a fast typist doesn't pile up stale ones.
+- Six resource classes (`SuggestResource`, `RetrieveResource`, `ForwardSearchResource`, `ReverseSearchResource`, `CategorySearchResource`, `ListCategoryResource`), sharing common filters (`Language`, `Limit`, `Proximity`, `Bbox`, `Country`, `Types`, `PoiCategory`) via `SearchBoxResource`.
+- Search Box API requests never carry the tile SKU token (`addSkuToken: false` in `MapboxSearchApi`) — this endpoint is billed through its own session-token model instead.
+- New `SearchApiDemo` sample: a drag-and-drop `MapboxSearchBox` prefab (`SearchBoxController`) wiring a TMP input field to live `/suggest` → `/retrieve` autocomplete, with a `UnityEvent<SearchSelection> OnResultSelected` callback for reacting to the chosen result.
+- New `Documentation~/UsingSearchApi.md`.
+
 ### v3.1.1
 
 Patch release. Reclassifies `com.unity.inputsystem` from a soft to a **hard** package dependency and switches the example-assembly `#if` gate from package presence to Player Settings, restoring compilation on Unity 6+ projects where the input system package ships preinstalled. Existing legacy-input projects updating from 3.1.0 see no runtime behavior change.

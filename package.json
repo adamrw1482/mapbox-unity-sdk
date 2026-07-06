@@ -1,6 +1,6 @@
 {
     "name": "com.mapbox.sdk",
-    "version": "3.1.1",
+    "version": "3.2.0",
     "displayName": "Mapbox Unity SDK",
     "description": "Mapbox Unity SDK",
     "unity": "2022.3",
@@ -40,6 +40,11 @@
             "displayName": "MapboxComponents",
             "description": "Mapbox Components Demo",
             "path": "Samples~/MapboxComponents"
+        },
+        {
+            "displayName": "SearchApiDemo",
+            "description": "Mapbox Search Box API autocomplete demo",
+            "path": "Runtime/Mapbox/SearchApi/Samples~/SearchApiDemo"
         }
     ]
 }
