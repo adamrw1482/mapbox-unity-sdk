@@ -1,11 +1,11 @@
 # Mapbox Unity SDK
 
-Map rendering, location services, directions, and geocoding for Unity. Distributed as a Unity Package Manager (UPM) package.
+Map rendering, location services, directions, geocoding, and search for Unity. Distributed as a Unity Package Manager (UPM) package.
 
 | | |
 | --- | --- |
 | **Package name** | `com.mapbox.sdk` |
-| **Current version** | `3.1.0` |
+| **Current version** | `3.2.0` |
 | **Vendor** | Mapbox — <https://www.mapbox.com/> |
 | **Minimum Unity** | `2022.3` LTS |
 | **Build targets** | iOS, Android |
@@ -75,7 +75,7 @@ Every Mapbox API call (tiles, geocoding, directions) requires a Mapbox access to
 
 ## Demo scenes
 
-Five samples ship with the SDK. To import: open the Package Manager, select the Mapbox Unity SDK, go to the **Samples** tab, and click **Import** next to the one you want.
+Six samples ship with the SDK. To import: open the Package Manager, select the Mapbox Unity SDK, go to the **Samples** tab, and click **Import** next to the one you want.
 
 | Sample | What it demonstrates |
 | --- | --- |
@@ -84,6 +84,7 @@ Five samples ship with the SDK. To import: open the Package Manager, select the 
 | **MapboxComponents** | High-performance component-system-based layer rendering (Buildings + Areas + Roads). |
 | **DirectionsApiDemo** | Calling the Directions API + rendering a route on the map. |
 | **GeocodingApiDemo** | Forward and reverse geocoding. |
+| **SearchApiDemo** | Search Box API autocomplete: type-ahead suggestions, drag-and-drop search box prefab, `OnResultSelected` event. |
 
 After import each sample lives under `Assets/Samples/Mapbox Unity SDK/<version>/<SampleName>/`. You can copy the relevant pieces into your own project layout and delete the `Samples` folder.
 
@@ -180,6 +181,7 @@ The SDK is organized into module assemblies. Each is a separate `.asmdef` and ca
 | `MapboxCustomImageryModule` | `Runtime/Mapbox/CustomImageryModule/` | Custom tileset support (non-Mapbox sources via TMS or arbitrary URL templates). |
 | `MapboxDirections` | `Runtime/Mapbox/DirectionsApi/` | Directions API wrapper. |
 | `MapboxGeocoding` | `Runtime/Mapbox/GeocodingApi/` | Forward / reverse geocoding API wrapper. |
+| `MapboxSearchApi` | `Runtime/Mapbox/SearchApi/` | Search Box API wrapper — forward/reverse/category search, suggest/retrieve autocomplete. |
 | `MapboxDebug` | `Runtime/Mapbox/MapDebug/` | Debug logging and benchmarking pipelines. |
 | `MapboxExamples` | `Runtime/Mapbox/Example/` | Camera behaviours, input handling, demo support scripts. |
 
@@ -217,6 +219,7 @@ In-package documentation lives under `Documentation~/`. Grouped by what you're t
 - [`UsingDirectionsApi.md`](Documentation~/UsingDirectionsApi.md) — Directions API wrapper.
 - [`UsingGeocodingApi.md`](Documentation~/UsingGeocodingApi.md) — Geocoding API wrapper.
 - [`UsingMapMatchingApi.md`](Documentation~/UsingMapMatchingApi.md) — Map Matching API wrapper.
+- [`UsingSearchApi.md`](Documentation~/UsingSearchApi.md) — Search Box API wrapper (autocomplete, forward/reverse/category search).
 
 ---
 
