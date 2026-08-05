@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using Mapbox.BaseModule.Utilities;
 using Newtonsoft.Json;
@@ -48,15 +49,18 @@ namespace Mapbox.BaseModule.Telemetry
 			List<Dictionary<string, object>> eventList = new List<Dictionary<string, object>>();
 			Dictionary<string, object> jsonDict = new Dictionary<string, object>();
 
-			long unixTimestamp = (long)UnixTimestampUtils.To(DateTime.UtcNow);
+			// ISO-8601 UTC string (e.g. 2026-07-27T12:34:56.789Z) to match the format
+			// the native/JS SDKs send; the events API rejects a numeric epoch value.
+			var created = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 
 			jsonDict.Add("event", "appUserTurnstile");
-			jsonDict.Add("created", unixTimestamp);
+			jsonDict.Add("created", created);
 			jsonDict.Add("userId", SystemInfo.deviceUniqueIdentifier);
 			jsonDict.Add("enabled.telemetry", false);
 			jsonDict.Add("sdkIdentifier", Constants.SDK_IDENTIFIER);
 			jsonDict.Add("skuId", Constants.SDK_SKU_ID);
 			jsonDict.Add("sdkVersion", Constants.SDK_VERSION);
+			jsonDict.Add("operatingSystem", SystemInfo.operatingSystem);
 			eventList.Add(jsonDict);
 
 			var jsonString = JsonConvert.SerializeObject(eventList);

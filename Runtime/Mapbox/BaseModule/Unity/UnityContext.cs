@@ -97,8 +97,8 @@ namespace Mapbox.BaseModule.Unity
 			{
 				yield return iOSAskPermission();
 			}
-#elif UNITY_EDITOR
-            // Editor / non-Android: assume granted
+#elif UNITY_EDITOR || UNITY_STANDALONE_WIN
+            // Editor / Windows standalone: assume granted
             OnPermissionGranted();
 #endif
         }
