@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.IO;
 using Mapbox.BaseModule;
 using Mapbox.BaseModule.Telemetry;
 using Mapbox.BaseModule.Utilities;
@@ -53,6 +52,15 @@ namespace Mapbox.BaseModule.Map
             }
 
             var config = JsonUtility.FromJson<MapboxConfiguration>(configurationTextAsset.text);
+
+            // Apply the user's persisted telemetry choice. PlayerPrefs is writable on every
+            // platform; the baked Resources config above is read-only in player builds and only
+            // supplies the access token + default value.
+            if (PlayerPrefs.HasKey(Constants.Path.SHOULD_COLLECT_LOCATION_KEY))
+            {
+                config.TelemetryEnabled = PlayerPrefs.GetInt(Constants.Path.SHOULD_COLLECT_LOCATION_KEY) == 1;
+            }
+
             config.Initialize();
             return config;
         }
@@ -160,15 +168,14 @@ namespace Mapbox.BaseModule.Map
 
             try
             {
-                var configurationFilePath = Constants.Path.MAPBOX_CONFIG_ABSOLUTE;
-                var json = JsonUtility.ToJson(Configuration);
-                File.WriteAllText(configurationFilePath, json);
+                PlayerPrefs.SetInt(Constants.Path.SHOULD_COLLECT_LOCATION_KEY, state ? 1 : 0);
+                PlayerPrefs.Save();
                 Debug.Log("Successfully set telemetry collection state to " + state);
                 return true;
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Debug.LogError($"Failed to save telemetry collection state: {e}");
                 return false;
             }
         }

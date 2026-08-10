@@ -35,13 +35,13 @@ namespace Mapbox.BaseModule.Utilities
 		{
 			public const string CONFIG_FILE = "MapboxConfiguration.txt";
 			public const string SCENELIST = "Assets/Mapbox/Resources/Mapbox/ScenesList.asset";
+			// PlayerPrefs key persisting the user's telemetry/location-collection opt-out
+			// at runtime (writable on all platforms, unlike the baked Resources config).
 			public const string SHOULD_COLLECT_LOCATION_KEY = "MAPBOX_SHOULD_COLLECT_LOCATION";
 			public const string TELEMETRY_TURNSTILE_LAST_TICKS_EDITOR_KEY = "MAPBOX_TELEMETRY_TURNSTILE_LAST_TICKS_EDITOR";
 			public const string TELEMETRY_TURNSTILE_LAST_TICKS_FALLBACK_KEY = "MAPBOX_TELEMETRY_TURNSTILE_LAST_TICKS_FALLBACK";
 			public const string DID_PROMPT_CONFIGURATION = "MAPBOX_DID_PROMPT_CONFIGURATION";
 			public static readonly string MAPBOX_RESOURCES_RELATIVE = System.IO.Path.Combine("Mapbox", "MapboxConfiguration");
-			public static readonly string MAPBOX_RESOURCES_ABSOLUTE = System.IO.Path.Combine(System.IO.Path.Combine(Application.dataPath, "Resources"), "Mapbox");
-			public static readonly string MAPBOX_CONFIG_ABSOLUTE = System.IO.Path.Combine(MAPBOX_RESOURCES_ABSOLUTE, CONFIG_FILE);
 
 			public static readonly string MAPBOX_USER = System.IO.Path.Combine("Assets", System.IO.Path.Combine("Mapbox", "User"));
 			public static readonly string MAPBOX_USER_MODIFIERS = System.IO.Path.Combine(MAPBOX_USER, "Modifiers");

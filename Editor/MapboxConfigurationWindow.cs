@@ -20,6 +20,13 @@ namespace MapboxUnitySDK.Editor
 		static string _configurationFilePath;
 		static MapboxContext _mapboxContext;
 
+		// Editor-only absolute paths to the baked config under Assets/Resources.
+		// These use Application.dataPath (the writable Assets folder in the Editor) and
+		// are intentionally NOT in the shared runtime Constants — dataPath is read-only in
+		// player builds, so runtime code must never write there (it uses PlayerPrefs instead).
+		static string ResourcesAbsolute => Path.Combine(Application.dataPath, "Resources", "Mapbox");
+		static string ConfigAbsolute => Path.Combine(ResourcesAbsolute, Constants.Path.CONFIG_FILE);
+
 		//gui flags
 		bool _showConfigurationFoldout;
 		bool _showChangelogFoldout;
@@ -80,12 +87,12 @@ namespace MapboxUnitySDK.Editor
 		{
 			Runnable.EnableRunnableInEditor();
 
-			if (!Directory.Exists(Constants.Path.MAPBOX_RESOURCES_ABSOLUTE))
+			if (!Directory.Exists(ResourcesAbsolute))
 			{
-				Directory.CreateDirectory(Constants.Path.MAPBOX_RESOURCES_ABSOLUTE);
+				Directory.CreateDirectory(ResourcesAbsolute);
 			}
 
-			_configurationFilePath = Constants.Path.MAPBOX_CONFIG_ABSOLUTE;
+			_configurationFilePath = ConfigAbsolute;
 			if (!File.Exists(_configurationFilePath))
 			{
 				WriteConfigFile(new MapboxConfiguration(), _configurationFilePath);
