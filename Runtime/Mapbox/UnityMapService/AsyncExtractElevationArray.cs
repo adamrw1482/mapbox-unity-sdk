@@ -3,6 +3,7 @@ using Mapbox.BaseModule.Data.DataFetchers;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEngine.Rendering;
 using TerrainData = Mapbox.BaseModule.Data.DataFetchers.TerrainData;
@@ -50,19 +51,24 @@ namespace Mapbox.UnityMapService
 				{
 					return;
 				}
-				var width = t.width;
-				var data = t.GetData<Color32>();
-				var heightData = ElevationArrayPool.Rent(width * width);
-				RunDecodeJob(data, width, heightData, out var min, out var max);
-				// Re-check after the (potentially long) decode: dispose may have arrived
-				// in the interim. Return the buffer rather than assigning into the dead
-				// data object.
-				if (terrainData.IsDisposed)
+				if (t.done && !t.hasError)
 				{
-					ElevationArrayPool.Return(heightData);
-					return;
+					var width = t.width;
+
+					var data = t.GetData<Color32>();
+					var heightData = ElevationArrayPool.Rent(width * width);
+					RunDecodeJob(data, width, heightData, out var min, out var max);
+
+					// Re-check after the (potentially long) decode: dispose may have arrived
+					// in the interim. Return the buffer rather than assigning into the dead
+					// data object.
+					if (terrainData.IsDisposed)
+					{
+						ElevationArrayPool.Return(heightData);
+						return;
+					}
+					terrainData.SetElevationValues(heightData, min, max);
 				}
-				terrainData.SetElevationValues(heightData, min, max);
 			});
 		}
 

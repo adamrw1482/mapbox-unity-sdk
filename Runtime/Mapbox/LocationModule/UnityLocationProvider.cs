@@ -10,7 +10,7 @@ using UnityEngine.Scripting;
 namespace Mapbox.LocationModule
 {
     [Serializable]
-    public class UnityLocationProviderSettings
+    public class UnityLocationProviderSettings : MonoBehaviour
     {
         /// <summary>
         /// Using higher value like 500 usually does not require to turn GPS chip on and thus saves battery power. 
@@ -163,7 +163,7 @@ namespace Mapbox.LocationModule
                     _lastPositions.Add(_currentLocation.LatitudeLongitude);
                 }
             }
-
+            //
             // if we have enough positions calculate user heading ourselves.
             // Unity does not provide bearing based on GPS locations, just
             // device orientation based on Compass.Heading.

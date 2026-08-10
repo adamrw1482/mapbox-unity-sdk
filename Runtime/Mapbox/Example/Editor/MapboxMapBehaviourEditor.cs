@@ -104,6 +104,7 @@ namespace Mapbox.Example.Editor
             serializedObject.ApplyModifiedProperties();
         }
     
+
         private void EnsureStyles()
         {
             if (_headerStyle == null)

@@ -11,7 +11,8 @@ namespace Mapbox.LocationModule
 	/// for testing purposes in the Unity editor.
 	/// </summary>
 	public class StaticLocationProvider : AbstractEditorLocationProvider
-	{
+
+    {
 		private LatitudeLongitude _latLng;
 
 		public StaticLocationProvider(LatitudeLongitude latLng)
