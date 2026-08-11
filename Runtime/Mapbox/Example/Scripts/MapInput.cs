@@ -90,14 +90,14 @@ namespace Mapbox.Example.Scripts.MapInput
 		// (`int 22`) — kept here as a float const because C# default-parameter values
 		// must be compile-time constants of the parameter's exact type. If the pyramid
 		// cap ever changes, update both this and MapboxMapVisualizer.MaxMercatorZoom.
-		public const float MaxClampZoom = 22f;
+		public const float MaxClampZoom = 17.99f;
 
-		protected static float ClampZoom(float zoom, float min = 0f, float max = MaxClampZoom)
+		protected static float ClampZoom(float zoom, float min = 12f, float max = MaxClampZoom)
 		{
 			return Mathf.Clamp(zoom, min, max);
 		}
 
-		protected static float ClampPitch(float pitch, float min = 15f, float max = 90f)
+		protected static float ClampPitch(float pitch, float min = 31f, float max = 90f)
 		{
 			return Mathf.Clamp(pitch, min, max);
 		}
